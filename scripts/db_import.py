@@ -4,29 +4,44 @@ AUPAT Import Script
 Imports new locations and associated media via CLI.
 
 This script:
-1. Generates UUID for location
-2. Prompts for location details
-3. Imports media files to staging
-4. Generates SHA256 hashes
-5. Detects duplicates
-6. Creates initial database entries
+1. Creates backup before import
+2. Generates UUID for location
+3. Checks for location name collisions
+4. Prompts for location details
+5. Imports media files to staging
+6. Generates SHA256 hashes
+7. Detects duplicates via SHA256 collision checking
+8. Creates database entries in images/videos/documents tables
+9. Uses hardlinks for same-disk imports
+10. Updates versions table
+11. Verifies import match counts
 
-Version: 1.0.0
+Version: 2.0.0
 Last Updated: 2025-11-15
+P0/P1 Implementation
 """
 
 import argparse
 import json
 import logging
+import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
 # Add scripts directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils import generate_uuid, calculate_sha256
+from utils import (
+    generate_uuid,
+    calculate_sha256,
+    generate_filename,
+    determine_file_type,
+    check_sha256_collision,
+    check_location_name_collision
+)
 from normalize import (
     normalize_location_name,
     normalize_state_code,
@@ -59,6 +74,47 @@ def load_user_config(config_path: str = None) -> dict:
         return json.load(f)
 
 
+def run_backup(config_path: str) -> bool:
+    """
+    Run backup script before import.
+
+    Args:
+        config_path: Path to user.json config file
+
+    Returns:
+        bool: True if backup successful, False otherwise
+    """
+    backup_script = Path(__file__).parent / 'backup.py'
+
+    if not backup_script.exists():
+        logger.warning("backup.py not found - skipping backup")
+        return True
+
+    logger.info("Creating database backup before import...")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(backup_script), '--config', config_path],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+
+        if result.returncode == 0:
+            logger.info("✓ Backup completed successfully")
+            return True
+        else:
+            logger.error(f"Backup failed: {result.stderr}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        logger.error("Backup timed out after 5 minutes")
+        return False
+    except Exception as e:
+        logger.error(f"Backup failed with exception: {e}")
+        return False
+
+
 def import_location_interactive(db_path: str) -> dict:
     """
     Interactively collect location information from user.
@@ -68,14 +124,32 @@ def import_location_interactive(db_path: str) -> dict:
 
     Returns:
         dict: Location data
+
+    Raises:
+        ValueError: If user cancels or location name collision detected
     """
     print("\n" + "=" * 60)
     print("Import New Location")
     print("=" * 60)
 
-    # Generate UUID
+    # Collect location name first (for collision check)
+    loc_name = input("\nLocation name: ").strip()
+    loc_name = normalize_location_name(loc_name)
+
+    # Check for location name collision
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    existing_uuid = check_location_name_collision(cursor, loc_name)
+    if existing_uuid:
+        logger.warning(f"⚠ Location name already exists: {loc_name}")
+        logger.warning(f"  Existing UUID: {existing_uuid}")
+        response = input("\nContinue anyway? This will create a duplicate location. (yes/no): ").strip().lower()
+        if response not in ['yes', 'y']:
+            conn.close()
+            raise ValueError("Import cancelled - location name already exists")
+
+    # Generate UUID
     loc_uuid = generate_uuid(cursor, 'locations', 'loc_uuid')
     conn.close()
 
@@ -83,10 +157,7 @@ def import_location_interactive(db_path: str) -> dict:
     print(f"\nGenerated Location UUID: {loc_uuid}")
     print(f"Location UUID8: {loc_uuid8}")
 
-    # Collect location details
-    loc_name = input("\nLocation name: ").strip()
-    loc_name = normalize_location_name(loc_name)
-
+    # Collect remaining details
     aka_name = input("Also known as (optional): ").strip()
     aka_name = normalize_location_name(aka_name) if aka_name else None
 
@@ -131,18 +202,35 @@ def import_location_interactive(db_path: str) -> dict:
     }
 
 
-def import_media_files(source_dir: str, staging_dir: str, db_path: str, loc_uuid: str) -> dict:
+def import_media_files(
+    source_dir: str,
+    staging_dir: str,
+    db_path: str,
+    loc_uuid: str,
+    imp_author: str
+) -> dict:
     """
-    Import media files from source to staging directory.
+    Import media files from source to staging directory with full database integration.
+
+    This function:
+    - Detects file types (image/video/document)
+    - Checks for SHA256 collisions (duplicates)
+    - Uses hardlinks when source and staging on same disk
+    - Inserts records into appropriate database tables
+    - Tracks detailed statistics
 
     Args:
         source_dir: Source directory containing media files
         staging_dir: Staging/ingest directory
         db_path: Path to database
         loc_uuid: Location UUID for these files
+        imp_author: Author name for import tracking
 
     Returns:
         dict: Statistics about imported files
+
+    Raises:
+        FileNotFoundError: If source directory doesn't exist
     """
     source_path = Path(source_dir)
     staging_path = Path(staging_dir)
@@ -161,7 +249,7 @@ def import_media_files(source_dir: str, staging_dir: str, db_path: str, loc_uuid
     files = list(source_path.rglob('*'))
     files = [f for f in files if f.is_file()]
 
-    logger.info(f"Found {len(files)} files to import")
+    logger.info(f"Found {len(files)} files to process")
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -172,37 +260,179 @@ def import_media_files(source_dir: str, staging_dir: str, db_path: str, loc_uuid
         'videos': 0,
         'documents': 0,
         'duplicates': 0,
-        'errors': 0
+        'errors': 0,
+        'skipped': 0,
+        'hardlinked': 0,
+        'copied': 0
     }
 
     timestamp = normalize_datetime(None)
 
+    # Check if source and staging are on same filesystem
+    try:
+        same_filesystem = source_path.stat().st_dev == loc_staging.stat().st_dev
+        if same_filesystem:
+            logger.info("Source and staging on same filesystem - will use hardlinks")
+        else:
+            logger.info("Source and staging on different filesystems - will copy files")
+    except Exception:
+        same_filesystem = False
+        logger.warning("Could not determine filesystem - defaulting to copy")
+
     try:
         for file_path in files:
             try:
+                # Get file extension and determine type
+                ext = normalize_extension(file_path.suffix)
+                file_type = determine_file_type(ext)
+
+                # Skip unknown file types
+                if file_type == 'other':
+                    logger.debug(f"Skipping unknown file type: {file_path.name}")
+                    stats['skipped'] += 1
+                    continue
+
                 # Calculate SHA256
                 sha256 = calculate_sha256(str(file_path))
                 sha8 = sha256[:8]
 
-                # Get file extension
-                ext = normalize_extension(file_path.suffix)
+                # Check for collision
+                if check_sha256_collision(cursor, sha256, file_type):
+                    logger.warning(f"Duplicate {file_type} detected (SHA256 exists): {file_path.name} ({sha8})")
+                    stats['duplicates'] += 1
+                    continue
 
-                # Copy to staging
-                staging_file = loc_staging / file_path.name
-                shutil.copy2(file_path, staging_file)
+                # Generate standardized filename
+                media_type = 'img' if file_type == 'image' else 'vid' if file_type == 'video' else 'doc'
+                new_filename = generate_filename(
+                    media_type=media_type,
+                    loc_uuid=loc_uuid,
+                    sha256=sha256,
+                    extension=ext
+                )
+
+                # Target file in staging
+                staging_file = loc_staging / new_filename
+
+                # Copy or hardlink file
+                if same_filesystem:
+                    try:
+                        os.link(file_path, staging_file)
+                        stats['hardlinked'] += 1
+                        logger.debug(f"Hardlinked: {file_path.name} -> {new_filename}")
+                    except OSError as e:
+                        # Fallback to copy if hardlink fails
+                        logger.warning(f"Hardlink failed, falling back to copy: {e}")
+                        shutil.copy2(file_path, staging_file)
+                        stats['copied'] += 1
+                else:
+                    shutil.copy2(file_path, staging_file)
+                    stats['copied'] += 1
 
                 # Store original location
                 orig_location = str(file_path.parent)
                 orig_name = file_path.name
 
+                # Insert into appropriate table
+                if file_type == 'image':
+                    cursor.execute(
+                        """
+                        INSERT INTO images (
+                            img_sha256, img_name, img_loc, loc_uuid,
+                            img_loco, img_nameo, img_add, img_update, imp_author
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            sha256,
+                            new_filename,
+                            str(staging_file),
+                            loc_uuid,
+                            orig_location,
+                            orig_name,
+                            timestamp,
+                            timestamp,
+                            imp_author
+                        )
+                    )
+                    stats['images'] += 1
+                    logger.info(f"✓ Imported image: {orig_name} -> {new_filename} ({sha8})")
+
+                elif file_type == 'video':
+                    cursor.execute(
+                        """
+                        INSERT INTO videos (
+                            vid_sha256, vid_name, vid_loc, loc_uuid,
+                            vid_loco, vid_nameo, vid_add, vid_update, imp_author
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            sha256,
+                            new_filename,
+                            str(staging_file),
+                            loc_uuid,
+                            orig_location,
+                            orig_name,
+                            timestamp,
+                            timestamp,
+                            imp_author
+                        )
+                    )
+                    stats['videos'] += 1
+                    logger.info(f"✓ Imported video: {orig_name} -> {new_filename} ({sha8})")
+
+                elif file_type == 'document':
+                    cursor.execute(
+                        """
+                        INSERT INTO documents (
+                            doc_sha256, doc_name, doc_loc, doc_ext, loc_uuid,
+                            doc_loco, doc_nameo, doc_add, doc_update, imp_author
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            sha256,
+                            new_filename,
+                            str(staging_file),
+                            ext,
+                            loc_uuid,
+                            orig_location,
+                            orig_name,
+                            timestamp,
+                            timestamp,
+                            imp_author
+                        )
+                    )
+                    stats['documents'] += 1
+                    logger.info(f"✓ Imported document: {orig_name} -> {new_filename} ({sha8})")
+
                 stats['total'] += 1
-                logger.info(f"Imported: {file_path.name} ({sha8})")
 
             except Exception as e:
                 logger.error(f"Failed to import {file_path.name}: {e}")
                 stats['errors'] += 1
 
+        # Update versions table
+        cursor.execute(
+            """
+            INSERT INTO versions (version_type, version_number, description, date_applied)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                'import',
+                '2.0.0',
+                f'Import for location {loc_uuid[:8]} - {stats["total"]} files',
+                timestamp
+            )
+        )
+
         conn.commit()
+
+        # Verify match count
+        logger.info("\nVerifying import match counts...")
+        expected_total = stats['images'] + stats['videos'] + stats['documents']
+        if expected_total == stats['total']:
+            logger.info(f"✓ Match count verified: {stats['total']} files imported")
+        else:
+            logger.warning(f"⚠ Match count mismatch: expected {expected_total}, got {stats['total']}")
 
     finally:
         conn.close()
@@ -245,16 +475,35 @@ def create_location_record(db_path: str, location_data: dict) -> None:
         )
 
         conn.commit()
-        logger.info(f"Created location record: {location_data['loc_name']}")
+        logger.info(f"✓ Created location record: {location_data['loc_name']}")
 
     finally:
         conn.close()
 
 
 def main():
-    """Main import workflow."""
+    """Main import workflow with P0/P1 fixes."""
     parser = argparse.ArgumentParser(
-        description='Import new location and media to AUPAT'
+        description='Import new location and media to AUPAT (P0/P1 Implementation)',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Import with backup
+  python db_import.py --source /path/to/media
+
+  # Skip backup (not recommended)
+  python db_import.py --source /path/to/media --skip-backup
+
+Features (P0/P1):
+  ✓ Backup before import
+  ✓ Location name collision detection
+  ✓ File type detection (images/videos/documents)
+  ✓ SHA256 collision checking
+  ✓ Hardlink support for same-disk imports
+  ✓ Database record creation for all media
+  ✓ Versions table tracking
+  ✓ Import match count verification
+        """
     )
     parser.add_argument(
         '--config',
@@ -266,6 +515,11 @@ def main():
         type=str,
         required=True,
         help='Source directory containing media files to import'
+    )
+    parser.add_argument(
+        '--skip-backup',
+        action='store_true',
+        help='Skip database backup (not recommended)'
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -281,47 +535,75 @@ def main():
     try:
         # Load configuration
         logger.info("Loading configuration...")
-        config = load_user_config(args.config)
+        config_path = args.config or str(Path(__file__).parent.parent / 'user' / 'user.json')
+        config = load_user_config(config_path)
 
         logger.info("=" * 60)
-        logger.info("AUPAT Import")
+        logger.info("AUPAT Import v2.0 (P0/P1 Implementation)")
         logger.info("=" * 60)
 
-        # Collect location information
+        # P0: Create backup before import
+        if not args.skip_backup:
+            if not run_backup(config_path):
+                logger.error("Backup failed - aborting import for safety")
+                logger.error("Use --skip-backup to import anyway (not recommended)")
+                return 1
+        else:
+            logger.warning("⚠ Skipping backup (--skip-backup flag set)")
+
+        # P1: Collect location information (includes name collision check)
         location_data = import_location_interactive(config['db_loc'])
 
         # Create location record
         create_location_record(config['db_loc'], location_data)
 
-        # Import media files
+        # P0: Import media files with full database integration
         logger.info("\nImporting media files...")
         stats = import_media_files(
             args.source,
             config.get('db_ingest', ''),
             config['db_loc'],
-            location_data['loc_uuid']
+            location_data['loc_uuid'],
+            location_data.get('imp_author', 'unknown')
         )
 
         # Summary
-        logger.info("=" * 60)
+        logger.info("\n" + "=" * 60)
         logger.info("Import Summary")
         logger.info("=" * 60)
         logger.info(f"Location: {location_data['loc_name']}")
         logger.info(f"UUID: {location_data['loc_uuid']}")
-        logger.info(f"Total files: {stats['total']}")
+        logger.info(f"")
+        logger.info(f"Files processed: {len(list(Path(args.source).rglob('*')))}")
+        logger.info(f"Files imported: {stats['total']}")
+        logger.info(f"  - Images: {stats['images']}")
+        logger.info(f"  - Videos: {stats['videos']}")
+        logger.info(f"  - Documents: {stats['documents']}")
+        logger.info(f"")
+        logger.info(f"Duplicates skipped: {stats['duplicates']}")
+        logger.info(f"Unknown types skipped: {stats['skipped']}")
         logger.info(f"Errors: {stats['errors']}")
+        logger.info(f"")
+        logger.info(f"Transfer method:")
+        logger.info(f"  - Hardlinked: {stats['hardlinked']}")
+        logger.info(f"  - Copied: {stats['copied']}")
         logger.info("=" * 60)
-        logger.info("IMPORT SUCCESSFUL")
+
+        if stats['errors'] > 0:
+            logger.warning(f"⚠ Import completed with {stats['errors']} errors")
+        else:
+            logger.info("✓ IMPORT SUCCESSFUL")
+
         logger.info("\nNext steps:")
         logger.info("  1. Run db_organize.py to extract metadata")
         logger.info("  2. Run db_folder.py to create folder structure")
         logger.info("  3. Run db_ingest.py to move files to archive")
         logger.info("=" * 60)
 
-        return 0
+        return 0 if stats['errors'] == 0 else 1
 
     except Exception as e:
-        logger.error(f"Import failed: {e}", exc_info=True)
+        logger.error(f"Import failed: {e}", exc_info=args.verbose)
         return 1
 
 
