@@ -1,29 +1,46 @@
-- purpose
-	- host_domains.json
--
-- providers
+- status
+	- REMOVED FROM PROJECT
+- reason
+	- Domain normalization could destroy important URL information
+	- Risk of data loss when extracting subdomains from full URLs
+	- Multiple URLs from same user would collapse to same identifier
+	- Conflicts with data integrity principles (BPA, BPL)
+- alternative approach
+	- Store full URL in database without normalization
+	- Extract and store complete domain (e.g., username.smugmug.com)
+	- Use full domain in file/folder names to keep them human-readable
+	- Organize by url_uuid8 for unique identification
+	- No destructive normalization or information loss
+- previous concept
+	- Originally planned to normalize complex hosting platforms
+	- Extract canonical domains (username.smugmug.com → username)
+	- Create clean folder organization by provider
+	- DECISION: Rejected in favor of data integrity
+- date removed
+	- 2025-11-15
+- providers (originally planned, not implemented)
 	- smugmug
-	  blogspot  
-	  tumblr  
-	  wordpress  
-	  ghost.io  
-	  wixsite  
-	  weebly  
-	  zenfolio  
-	  photoshelter  
-	  github.io  
-	  gitlab.io  
-	  neocities.org  
-	  netlify.app  
-	  vercel.app  
-	  surge.sh  
-	  onrender.com  
-	  tapatalk.com  
-	  proboards.com  
-	  myshopify.com  
-	  bigcartel.com  
-	  artstation.com  
-	  deviantart.com  
-	  cargo.site  
-	  myportfolio.com  
-	  readthedocs.io
+	- blogspot
+	- tumblr
+	- wordpress
+	- ghost.io
+	- wixsite
+	- weebly
+	- zenfolio
+	- photoshelter
+	- github.io
+	- gitlab.io
+	- neocities.org
+	- netlify.app
+	- vercel.app
+	- surge.sh
+	- onrender.com
+	- tapatalk.com
+	- proboards.com
+	- myshopify.com
+	- bigcartel.com
+	- artstation.com
+	- deviantart.com
+	- cargo.site
+	- myportfolio.com
+	- readthedocs.io

@@ -104,7 +104,6 @@ When performing any development task (bug fix, new feature, refactor, troublesho
 │   ├── camera_hardware.json
 │   ├── approved_ext.json
 │   ├── ignored_ext.json
-│   ├── host_domains.json
 │   ├── live_videos.json
 │   ├── folder.json
 │   └── name.json
