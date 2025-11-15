@@ -1,0 +1,18 @@
+- purpose
+	- approved_ext.json
+	-
+- extentions
+	- .srt
+		- if "DJI" in file name
+		- find matching image in data base "img_loco" "img_nameo"
+			- record image img_uuid in "documents" table docs_img
+			- record "doc_sha" in images table img_docs
+	- .xml
+		- find matching image in data base "img_loco" "img_nameo"
+			- record image img_uuid in "documents" table docs_img
+			- record "doc_sha" in images table img_docs
+		- find matching video in data base "vid_loco" "vid_nameo"
+			- record video vid_uuid in "documents" table docs_vid
+			- record "doc_sha" in video table vid_docs
+			-
+-

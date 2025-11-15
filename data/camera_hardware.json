@@ -1,0 +1,711 @@
+{
+  "version": "0.0.1",
+  "last_updated": "2025-11-15",
+  "description": "Comprehensive reference database for camera hardware detection based on EXIF Make/Model metadata",
+
+  "categories": {
+    "dslr": {
+      "description": "Digital cameras including DSLR, mirrorless, and medium format",
+      "makes": [
+        "Canon",
+        "NIKON",
+        "NIKON CORPORATION",
+        "Nikon",
+        "Sony",
+        "SONY",
+        "Fujifilm",
+        "FUJIFILM",
+        "Panasonic",
+        "Olympus",
+        "OLYMPUS CORPORATION",
+        "OLYMPUS IMAGING CORP.",
+        "OM System",
+        "OM SYSTEM",
+        "OM Digital Solutions",
+        "Leica",
+        "LEICA",
+        "LEICA CAMERA AG",
+        "Sigma",
+        "SIGMA",
+        "SIGMA CORPORATION",
+        "Pentax",
+        "PENTAX",
+        "RICOH IMAGING COMPANY, LTD.",
+        "Hasselblad",
+        "HASSELBLAD",
+        "Phase One",
+        "Mamiya",
+        "Kodak",
+        "EASTMAN KODAK COMPANY",
+        "Minolta",
+        "KONICA MINOLTA",
+        "CASIO",
+        "Casio"
+      ],
+      "models": {
+        "Canon": [
+          "EOS R5", "EOS R5 C", "EOS R6", "EOS R6 Mark II", "EOS R3", "EOS R", "EOS RP", "EOS R7", "EOS R8", "EOS R10", "EOS R50",
+          "EOS-1D X Mark III", "EOS-1D X Mark II", "EOS-1D X", "EOS-1D Mark IV", "EOS-1Ds Mark III",
+          "EOS 5D Mark IV", "EOS 5D Mark III", "EOS 5D Mark II", "EOS 5DS", "EOS 5DS R",
+          "EOS 6D Mark II", "EOS 6D",
+          "EOS 7D Mark II", "EOS 7D",
+          "EOS 90D", "EOS 80D", "EOS 77D", "EOS 70D", "EOS 60D", "EOS 50D", "EOS 40D",
+          "EOS Rebel T8i", "EOS Rebel T7i", "EOS Rebel T7", "EOS Rebel T6i", "EOS Rebel T6", "EOS Rebel T5i", "EOS Rebel T5", "EOS Rebel T4i", "EOS Rebel T3i", "EOS Rebel T3",
+          "EOS Rebel SL3", "EOS Rebel SL2", "EOS Rebel SL1",
+          "EOS 850D", "EOS 800D", "EOS 750D", "EOS 700D", "EOS 650D", "EOS 600D", "EOS 550D", "EOS 500D", "EOS 450D",
+          "EOS 200D Mark II", "EOS 200D", "EOS 100D",
+          "EOS M50 Mark II", "EOS M50", "EOS M6 Mark II", "EOS M6", "EOS M5", "EOS M3", "EOS M2", "EOS M10", "EOS M100", "EOS M200",
+          "EOS Kiss X10i", "EOS Kiss X10", "EOS Kiss X9i", "EOS Kiss X9", "EOS Kiss X8i", "EOS Kiss X7i", "EOS Kiss X7"
+        ],
+        "Nikon": [
+          "Z 9", "Z 8", "Z 7II", "Z 7", "Z 6III", "Z 6II", "Z 6", "Z 5", "Z fc", "Z 30", "Z 50", "Zf",
+          "D6", "D5", "D4S", "D4", "D3X", "D3S", "D3",
+          "D850", "D810", "D810A", "D800", "D800E", "D780", "D750", "D700", "D610", "D600",
+          "D500", "D7500", "D7200", "D7100", "D7000",
+          "D5600", "D5500", "D5300", "D5200", "D5100", "D5000",
+          "D3500", "D3400", "D3300", "D3200", "D3100", "D3000",
+          "D300S", "D300", "D200", "D90", "D80", "D70", "D60", "D40",
+          "Df",
+          "COOLPIX P1000", "COOLPIX P950", "COOLPIX A1000"
+        ],
+        "Sony": [
+          "ILCE-1", "ILCE-7RM5", "ILCE-7M4", "ILCE-7RM4A", "ILCE-7RM4", "ILCE-7RM3A", "ILCE-7RM3", "ILCE-7RM2", "ILCE-7R",
+          "ILCE-7SM3", "ILCE-7SM2", "ILCE-7S",
+          "ILCE-7M3", "ILCE-7M2", "ILCE-7",
+          "ILCE-7C", "ILCE-7CR", "ILCE-7CII",
+          "ILCE-9M2", "ILCE-9",
+          "ILCE-6700", "ILCE-6600", "ILCE-6500", "ILCE-6400", "ILCE-6300", "ILCE-6100", "ILCE-6000",
+          "ILCE-5100", "ILCE-5000",
+          "ILCE-3000", "ILCE-3500",
+          "ZV-E1", "ZV-E10",
+          "SLT-A99", "SLT-A99V", "SLT-A77", "SLT-A77V", "SLT-A65", "SLT-A58", "SLT-A57",
+          "NEX-7", "NEX-6", "NEX-5T", "NEX-5R", "NEX-5N", "NEX-5", "NEX-3N", "NEX-3",
+          "DSLR-A900", "DSLR-A850", "DSLR-A700", "DSLR-A550", "DSLR-A500", "DSLR-A350", "DSLR-A300", "DSLR-A200", "DSLR-A100"
+        ],
+        "Fujifilm": [
+          "X-H2S", "X-H2", "X-H1",
+          "X-T5", "X-T4", "X-T3", "X-T30 II", "X-T30", "X-T20", "X-T2", "X-T10", "X-T1", "X-T200", "X-T100",
+          "X-S20", "X-S10",
+          "X-Pro3", "X-Pro2", "X-Pro1",
+          "X-E4", "X-E3", "X-E2S", "X-E2", "X-E1",
+          "X100VI", "X100V", "X100F", "X100T", "X100S", "X100",
+          "X-M1",
+          "X-A7", "X-A5", "X-A3", "X-A2", "X-A1",
+          "GFX100 II", "GFX100S", "GFX100", "GFX 50S II", "GFX 50S", "GFX 50R",
+          "FinePix HS50EXR", "FinePix S1"
+        ],
+        "Panasonic": [
+          "DC-GH7", "DC-GH6", "DC-GH5S", "DC-GH5 II", "DC-GH5", "DMC-GH4", "DMC-GH3", "DMC-GH2", "DMC-GH1",
+          "DC-G9 II", "DC-G9", "DMC-G85", "DMC-G80", "DMC-G7", "DMC-G6", "DMC-G5", "DMC-G3", "DMC-G2", "DMC-G1",
+          "DC-G100", "DC-G95", "DC-G90", "DC-GX9", "DMC-GX85", "DMC-GX8", "DMC-GX7", "DMC-GX1",
+          "DC-S5 II", "DC-S5 IIX", "DC-S5", "DC-S1H", "DC-S1R", "DC-S1",
+          "DMC-FZ2500", "DMC-FZ2000", "DMC-FZ1000", "DMC-FZ300", "DMC-FZ200",
+          "DC-ZS200", "DC-ZS80", "DMC-ZS100", "DMC-ZS70", "DMC-ZS60", "DMC-ZS50",
+          "DC-LX100 II", "DMC-LX100",
+          "DMC-L1", "DMC-L10"
+        ],
+        "Olympus": [
+          "E-M1X", "E-M1 Mark III", "E-M1 Mark II", "E-M1",
+          "E-M5 Mark III", "E-M5 Mark II", "E-M5",
+          "E-M10 Mark IV", "E-M10 Mark III", "E-M10 Mark II", "E-M10",
+          "E-PL10", "E-PL9", "E-PL8", "E-PL7", "E-PL6", "E-PL5", "E-PL3", "E-PL2", "E-PL1",
+          "PEN-F",
+          "E-P7", "E-P5", "E-P3", "E-P2", "E-P1",
+          "E-5", "E-3", "E-1",
+          "E-620", "E-600", "E-520", "E-510", "E-500", "E-450", "E-420", "E-410",
+          "OM-1", "OM-5",
+          "Tough TG-6", "Tough TG-5", "Tough TG-4"
+        ],
+        "Pentax": [
+          "K-1 Mark II", "K-1",
+          "K-3 Mark III", "K-3 II", "K-3",
+          "K-70", "K-50", "K-30", "K-5 IIs", "K-5 II", "K-5", "K-7",
+          "KP",
+          "K-S2", "K-S1",
+          "K-r", "K-x", "K-m",
+          "645Z", "645D",
+          "Q7", "Q10", "Q",
+          "MX-1"
+        ],
+        "Leica": [
+          "M11", "M10-R", "M10-P", "M10", "M9", "M8", "M7",
+          "Q3", "Q2", "Q",
+          "SL3", "SL2-S", "SL2", "SL",
+          "CL",
+          "S3", "S2", "S",
+          "D-Lux 7", "D-Lux 6", "D-Lux 5"
+        ],
+        "Sigma": [
+          "fp L", "fp",
+          "sd Quattro H", "sd Quattro",
+          "DP3 Merrill", "DP2 Merrill", "DP1 Merrill"
+        ],
+        "Hasselblad": [
+          "X2D 100C", "X1D II 50C", "X1D-50c",
+          "H6D-400c", "H6D-100c", "H6D-50c",
+          "907X 50C", "907X",
+          "CFV II 50C"
+        ],
+        "Phase One": [
+          "IQ4 150MP", "IQ4 100MP", "IQ3 100MP", "IQ3 80MP", "IQ3 60MP",
+          "XF IQ4", "XF IQ3"
+        ]
+      }
+    },
+
+    "phone": {
+      "description": "Smartphone cameras",
+      "makes": [
+        "Apple",
+        "iPhone",
+        "Samsung",
+        "Google",
+        "Pixel",
+        "OnePlus",
+        "Xiaomi",
+        "Huawei",
+        "HUAWEI",
+        "LG",
+        "LG Electronics",
+        "Motorola",
+        "motorola",
+        "Nokia",
+        "HMD Global",
+        "Sony",
+        "Sony Ericsson",
+        "HTC",
+        "OPPO",
+        "Vivo",
+        "Realme",
+        "Nothing",
+        "ASUS",
+        "ZTE",
+        "BlackBerry",
+        "Essential",
+        "Razer"
+      ],
+      "models": {
+        "Apple": [
+          "iPhone 15 Pro Max", "iPhone 15 Pro", "iPhone 15 Plus", "iPhone 15",
+          "iPhone 14 Pro Max", "iPhone 14 Pro", "iPhone 14 Plus", "iPhone 14",
+          "iPhone 13 Pro Max", "iPhone 13 Pro", "iPhone 13 mini", "iPhone 13",
+          "iPhone 12 Pro Max", "iPhone 12 Pro", "iPhone 12 mini", "iPhone 12",
+          "iPhone 11 Pro Max", "iPhone 11 Pro", "iPhone 11",
+          "iPhone XS Max", "iPhone XS", "iPhone XR", "iPhone X",
+          "iPhone 8 Plus", "iPhone 8",
+          "iPhone 7 Plus", "iPhone 7",
+          "iPhone 6s Plus", "iPhone 6s", "iPhone 6 Plus", "iPhone 6",
+          "iPhone SE (3rd generation)", "iPhone SE (2nd generation)", "iPhone SE",
+          "iPhone 5s", "iPhone 5c", "iPhone 5",
+          "iPhone 4S", "iPhone 4",
+          "iPhone 16,2", "iPhone 16,1", "iPhone 15,5", "iPhone 15,4", "iPhone 15,3", "iPhone 15,2",
+          "iPhone 14,8", "iPhone 14,7", "iPhone 14,6", "iPhone 14,5", "iPhone 14,4", "iPhone 14,3", "iPhone 14,2",
+          "iPhone 13,4", "iPhone 13,3", "iPhone 13,2", "iPhone 13,1",
+          "iPhone 12,8", "iPhone 12,5", "iPhone 12,3", "iPhone 12,1"
+        ],
+        "Samsung": [
+          "SM-S928", "SM-S926", "SM-S921",
+          "SM-S918", "SM-S916", "SM-S911",
+          "SM-S908", "SM-S906", "SM-S901",
+          "SM-G998", "SM-G996", "SM-G991",
+          "SM-G988", "SM-G986", "SM-G981",
+          "SM-G977", "SM-G975", "SM-G973", "SM-G970",
+          "SM-G965", "SM-G960",
+          "SM-G955", "SM-G950",
+          "SM-G935", "SM-G930",
+          "SM-G928", "SM-G925", "SM-G920",
+          "SM-N986", "SM-N985", "SM-N981", "SM-N980",
+          "SM-N976", "SM-N975", "SM-N971", "SM-N970",
+          "SM-N960",
+          "SM-N950",
+          "SM-N920",
+          "SM-F946", "SM-F936", "SM-F926", "SM-F916", "SM-F900",
+          "SM-F721", "SM-F711", "SM-F700",
+          "SM-A546", "SM-A536", "SM-A526", "SM-A516",
+          "SM-A736", "SM-A726", "SM-A716",
+          "SM-A146", "SM-A136", "SM-A126",
+          "Galaxy S24 Ultra", "Galaxy S24+", "Galaxy S24",
+          "Galaxy S23 Ultra", "Galaxy S23+", "Galaxy S23",
+          "Galaxy S22 Ultra", "Galaxy S22+", "Galaxy S22",
+          "Galaxy S21 Ultra 5G", "Galaxy S21+ 5G", "Galaxy S21 5G",
+          "Galaxy S20 Ultra 5G", "Galaxy S20+ 5G", "Galaxy S20 5G",
+          "Galaxy S10+", "Galaxy S10", "Galaxy S10e",
+          "Galaxy Note 20 Ultra 5G", "Galaxy Note 20 5G",
+          "Galaxy Note 10+", "Galaxy Note 10",
+          "Galaxy Z Fold5", "Galaxy Z Fold4", "Galaxy Z Fold3 5G", "Galaxy Z Fold2 5G", "Galaxy Fold",
+          "Galaxy Z Flip5", "Galaxy Z Flip4", "Galaxy Z Flip3 5G", "Galaxy Z Flip"
+        ],
+        "Google": [
+          "Pixel 8 Pro", "Pixel 8a", "Pixel 8",
+          "Pixel 7 Pro", "Pixel 7a", "Pixel 7",
+          "Pixel 6 Pro", "Pixel 6a", "Pixel 6",
+          "Pixel 5a", "Pixel 5",
+          "Pixel 4a 5G", "Pixel 4a", "Pixel 4 XL", "Pixel 4",
+          "Pixel 3a XL", "Pixel 3a", "Pixel 3 XL", "Pixel 3",
+          "Pixel 2 XL", "Pixel 2",
+          "Pixel XL", "Pixel",
+          "Pixel Fold"
+        ],
+        "OnePlus": [
+          "OnePlus 12", "OnePlus 11", "OnePlus 10 Pro", "OnePlus 10T",
+          "OnePlus 9 Pro", "OnePlus 9", "OnePlus 9R",
+          "OnePlus 8 Pro", "OnePlus 8T", "OnePlus 8",
+          "OnePlus 7T Pro", "OnePlus 7T", "OnePlus 7 Pro", "OnePlus 7",
+          "OnePlus 6T", "OnePlus 6",
+          "OnePlus 5T", "OnePlus 5",
+          "OnePlus 3T", "OnePlus 3",
+          "OnePlus 2", "OnePlus One",
+          "OnePlus Nord 3", "OnePlus Nord 2", "OnePlus Nord"
+        ],
+        "Xiaomi": [
+          "14 Ultra", "14 Pro", "14",
+          "13 Ultra", "13 Pro", "13",
+          "12S Ultra", "12 Pro", "12",
+          "Mi 11 Ultra", "Mi 11 Pro", "Mi 11",
+          "Mi 10 Ultra", "Mi 10 Pro", "Mi 10",
+          "Mi 9", "Mi 8", "Mi 6",
+          "Redmi Note 13 Pro+", "Redmi Note 12 Pro+", "Redmi Note 11 Pro",
+          "POCO F5 Pro", "POCO F4 GT", "POCO X5 Pro"
+        ],
+        "Huawei": [
+          "P60 Pro", "P50 Pro", "P40 Pro", "P30 Pro", "P20 Pro",
+          "Mate 60 Pro", "Mate 50 Pro", "Mate 40 Pro", "Mate 30 Pro", "Mate 20 Pro",
+          "nova 11 Pro", "nova 10 Pro"
+        ]
+      }
+    },
+
+    "drone": {
+      "description": "Consumer and professional drones",
+      "makes": [
+        "DJI",
+        "Hasselblad",
+        "Autel",
+        "Autel Robotics",
+        "Parrot",
+        "Skydio",
+        "Yuneec",
+        "Hubsan",
+        "Holy Stone",
+        "Potensic",
+        "Ryze",
+        "PowerVision"
+      ],
+      "models": {
+        "DJI": [
+          "Mavic 3 Pro", "Mavic 3 Pro Cine", "Mavic 3", "Mavic 3 Classic", "Mavic 3 Cine",
+          "Mavic 2 Pro", "Mavic 2 Zoom", "Mavic 2 Enterprise",
+          "Mavic Pro", "Mavic Pro Platinum",
+          "Air 3", "Air 2S", "Mavic Air 2", "Mavic Air",
+          "Mini 4 Pro", "Mini 3 Pro", "Mini 3", "Mini SE", "Mini 2", "Mavic Mini",
+          "Phantom 4 Pro V2.0", "Phantom 4 Pro", "Phantom 4 Pro+", "Phantom 4 Advanced", "Phantom 4",
+          "Phantom 3 Professional", "Phantom 3 Advanced", "Phantom 3 Standard", "Phantom 3 4K", "Phantom 3 SE",
+          "Phantom 2 Vision+", "Phantom 2",
+          "Inspire 3", "Inspire 2", "Inspire 1 Pro", "Inspire 1",
+          "FPV",
+          "Avata 2", "Avata",
+          "Spark",
+          "Matrice 600 Pro", "Matrice 300 RTK", "Matrice 210 RTK V2", "Matrice 200",
+          "Agras T40", "Agras T30", "Agras T20", "Agras MG-1"
+        ],
+        "Autel": [
+          "EVO Max 4T", "EVO II Pro V3", "EVO II Pro", "EVO II Dual", "EVO II",
+          "EVO Lite+", "EVO Lite",
+          "EVO Nano+", "EVO Nano",
+          "EVO", "X-Star Premium"
+        ],
+        "Parrot": [
+          "Anafi USA", "Anafi Thermal", "Anafi FPV", "Anafi",
+          "Bebop 2 Power", "Bebop 2", "Bebop Drone",
+          "AR.Drone 2.0"
+        ],
+        "Skydio": [
+          "Skydio 2+", "Skydio 2", "Skydio X2"
+        ],
+        "Yuneec": [
+          "Typhoon H Plus", "Typhoon H", "Typhoon H Pro",
+          "Mantis Q", "Mantis G",
+          "Breeze 4K"
+        ]
+      }
+    },
+
+    "gopro": {
+      "description": "GoPro action cameras",
+      "makes": [
+        "GoPro",
+        "GOPRO"
+      ],
+      "models": {
+        "GoPro": [
+          "HERO12 Black", "HERO11 Black", "HERO11 Black Mini",
+          "HERO10 Black", "HERO9 Black", "HERO8 Black",
+          "HERO7 Black", "HERO7 Silver", "HERO7 White",
+          "HERO6 Black", "HERO5 Black", "HERO5 Session",
+          "HERO4 Black", "HERO4 Silver", "HERO4 Session",
+          "HERO3+ Black Edition", "HERO3+ Silver Edition", "HERO3 Black Edition", "HERO3 Silver Edition", "HERO3 White Edition",
+          "HERO2", "HERO",
+          "MAX", "Fusion",
+          "HD HERO2", "HD HERO"
+        ]
+      }
+    },
+
+    "action_camera": {
+      "description": "Non-GoPro action cameras",
+      "makes": [
+        "DJI",
+        "Insta360",
+        "Akaso",
+        "YI",
+        "Sony",
+        "Garmin",
+        "TomTom"
+      ],
+      "models": {
+        "DJI": [
+          "Osmo Action 4", "Osmo Action 3", "Osmo Action 2", "Osmo Action",
+          "Osmo Pocket 3", "Osmo Pocket 2", "DJI Pocket 2", "Osmo Pocket"
+        ],
+        "Insta360": [
+          "Ace Pro", "Ace",
+          "X4", "X3",
+          "ONE RS 1-Inch 360 Edition", "ONE RS", "ONE R Twin Edition", "ONE R",
+          "ONE X3", "ONE X2", "ONE X",
+          "GO 3", "GO 2", "GO"
+        ],
+        "Akaso": [
+          "Brave 8", "Brave 7 LE", "Brave 7", "Brave 6 Plus", "Brave 6", "Brave 5", "Brave 4",
+          "EK7000"
+        ],
+        "YI": [
+          "4K+", "4K", "Lite", "Discovery"
+        ],
+        "Sony": [
+          "FDR-X3000", "FDR-X1000V",
+          "HDR-AS300", "HDR-AS200V", "HDR-AS100V", "HDR-AS50", "HDR-AS30V", "HDR-AS20", "HDR-AS15"
+        ],
+        "Garmin": [
+          "VIRB Ultra 30", "VIRB 360", "VIRB XE", "VIRB X"
+        ]
+      }
+    },
+
+    "dash_cam": {
+      "description": "Dashboard cameras for vehicles",
+      "makes": [
+        "Vantrue",
+        "BlackVue",
+        "Garmin",
+        "Rexing",
+        "VAVA",
+        "Nextbase",
+        "Thinkware",
+        "Waylens",
+        "YI",
+        "70mai",
+        "Viofo",
+        "Street Guardian",
+        "Anker",
+        "Roav",
+        "Cobra",
+        "Kenwood",
+        "PAPAGO",
+        "Transcend",
+        "HP",
+        "Apeman",
+        "Z-Edge"
+      ],
+      "models": {
+        "Vantrue": [
+          "N5", "N4", "E3", "E2", "E1",
+          "N2S", "N2 Pro",
+          "T3", "T2", "X4S", "X4"
+        ],
+        "BlackVue": [
+          "DR970X-2CH Plus", "DR970X-2CH", "DR970X-1CH",
+          "DR900X-2CH Plus", "DR900X-2CH", "DR900X-1CH",
+          "DR750X-3CH Plus", "DR750X-3CH", "DR750X-2CH Plus", "DR750X-2CH", "DR750-2CH LTE",
+          "DR590X-2CH", "DR590-2CH"
+        ],
+        "Garmin": [
+          "Dash Cam Live", "Dash Cam 67W", "Dash Cam 66W", "Dash Cam 57", "Dash Cam 56", "Dash Cam 55", "Dash Cam 47",
+          "Dash Cam Mini 2", "Dash Cam Mini",
+          "Dash Cam Tandem"
+        ],
+        "Rexing": [
+          "V5", "V3 Max", "V3", "V2",
+          "V1 4K", "V1P Max", "V1P Pro Dual", "V1P", "V1 3rd Gen", "V1"
+        ],
+        "Nextbase": [
+          "622GW", "522GW", "422GW", "322GW",
+          "612GW", "512GW", "412GW", "312GW",
+          "Piqo"
+        ],
+        "Viofo": [
+          "A229 Pro", "A229 Duo", "A229 Plus",
+          "A139 Pro", "A139",
+          "A129 Pro Duo", "A129 Plus Duo", "A129 Duo",
+          "A119 V3", "A119 Mini 2", "A119 S"
+        ],
+        "Thinkware": [
+          "X1000", "X800", "X700",
+          "U3000", "U1000",
+          "Q1000", "Q800PRO", "Q800",
+          "FA200", "F800 Pro", "F770"
+        ],
+        "70mai": [
+          "A810", "A800S", "A800 4K", "A500S", "A400", "A200",
+          "Dash Cam Pro Plus+", "Dash Cam Pro",
+          "Dash Cam Omni", "Dash Cam M500", "Dash Cam M300"
+        ],
+        "YI": [
+          "Ultra Dash Camera", "Nightscape Dash Cam", "Mirror Dash Cam", "Dash Cam", "Smart Dash Cam"
+        ]
+      }
+    },
+
+    "point_shoot": {
+      "description": "Point and shoot / compact cameras",
+      "makes": [
+        "Canon",
+        "Sony",
+        "SONY",
+        "Panasonic",
+        "Ricoh",
+        "RICOH",
+        "Leica",
+        "Nikon",
+        "NIKON CORPORATION",
+        "Fujifilm",
+        "FUJIFILM"
+      ],
+      "models": {
+        "Canon": [
+          "PowerShot G1 X Mark III", "PowerShot G1 X Mark II", "PowerShot G1 X",
+          "PowerShot G3 X",
+          "PowerShot G5 X Mark II", "PowerShot G5 X",
+          "PowerShot G7 X Mark III", "PowerShot G7 X Mark II", "PowerShot G7 X",
+          "PowerShot G9 X Mark II", "PowerShot G9 X",
+          "PowerShot SX740 HS", "PowerShot SX730 HS", "PowerShot SX720 HS", "PowerShot SX710 HS", "PowerShot SX700 HS",
+          "PowerShot SX70 HS", "PowerShot SX60 HS", "PowerShot SX50 HS",
+          "PowerShot ELPH 190 IS", "PowerShot ELPH 180", "PowerShot ELPH 360 HS",
+          "PowerShot S120", "PowerShot S110", "PowerShot S100", "PowerShot S95", "PowerShot S90"
+        ],
+        "Sony": [
+          "DSC-RX100 VII", "DSC-RX100 VI", "DSC-RX100 VA", "DSC-RX100 V", "DSC-RX100 IV", "DSC-RX100 III", "DSC-RX100 II", "DSC-RX100",
+          "DSC-RX10 IV", "DSC-RX10 III", "DSC-RX10 II", "DSC-RX10",
+          "DSC-RX1R II", "DSC-RX1R", "DSC-RX1",
+          "DSC-HX99", "DSC-HX95", "DSC-HX90V", "DSC-HX80", "DSC-HX60V", "DSC-HX50V",
+          "DSC-WX800", "DSC-WX500", "DSC-WX350", "DSC-WX220",
+          "ZV-1 II", "ZV-1F", "ZV-1",
+          "Cyber-shot DSC-RX100M7", "Cyber-shot DSC-RX100M6"
+        ],
+        "Ricoh": [
+          "GR IIIx", "GR III", "GR II", "GR", "GR Digital IV",
+          "Theta X", "Theta Z1", "Theta V", "Theta SC2", "Theta S"
+        ],
+        "Panasonic": [
+          "DC-ZS200", "DC-ZS80", "DC-ZS70",
+          "DMC-ZS100", "DMC-ZS70", "DMC-ZS60", "DMC-ZS50", "DMC-ZS40",
+          "DC-LX100 II", "DMC-LX100",
+          "DMC-LX10", "DMC-LX7", "DMC-LX5"
+        ],
+        "Nikon": [
+          "COOLPIX P1000", "COOLPIX P950", "COOLPIX P900",
+          "COOLPIX A1000", "COOLPIX A900",
+          "COOLPIX B700", "COOLPIX B600", "COOLPIX B500"
+        ],
+        "Fujifilm": [
+          "XF10",
+          "XQ2", "XQ1",
+          "FinePix X100", "FinePix X10",
+          "FinePix F900EXR", "FinePix F800EXR"
+        ]
+      }
+    },
+
+    "film": {
+      "description": "Film cameras and scanners (manually marked)",
+      "makes": [
+        "Epson",
+        "Nikon",
+        "Canon",
+        "Plustek",
+        "Pacific Image",
+        "Reflecta",
+        "Kodak",
+        "KODAK"
+      ],
+      "scanner_models": {
+        "Epson": [
+          "Perfection V850 Pro", "Perfection V800 Photo", "Perfection V750 Pro", "Perfection V700 Photo", "Perfection V600 Photo", "Perfection V550 Photo"
+        ],
+        "Nikon": [
+          "Super Coolscan 9000 ED", "Super Coolscan 5000 ED", "Coolscan V ED", "Coolscan IV ED"
+        ],
+        "Canon": [
+          "CanoScan 9000F Mark II", "CanoScan 9000F", "CanoScan 8800F"
+        ],
+        "Plustek": [
+          "OpticFilm 8200i SE", "OpticFilm 8200i Ai", "OpticFilm 8100", "OpticFilm 120 Pro", "OpticFilm 120"
+        ],
+        "Pacific Image": [
+          "PrimeFilm XAs", "PrimeFilm XE", "PrimeFilm 120 Pro"
+        ],
+        "Reflecta": [
+          "RPS 10M", "RPS 7200"
+        ]
+      }
+    },
+
+    "webcam": {
+      "description": "Webcams and conference cameras",
+      "makes": [
+        "Logitech",
+        "Microsoft",
+        "Razer",
+        "Elgato",
+        "Anker",
+        "Poly",
+        "Lenovo",
+        "Dell",
+        "HP",
+        "Creative",
+        "AverMedia"
+      ],
+      "models": {
+        "Logitech": [
+          "BRIO 4K Pro", "BRIO 4K", "BRIO 500", "BRIO 300",
+          "C930e", "C920s Pro HD", "C920 Pro HD", "C920", "C922 Pro Stream", "C922x Pro Stream",
+          "StreamCam",
+          "C615", "C310", "C270",
+          "MX Brio"
+        ],
+        "Elgato": [
+          "Facecam Pro", "Facecam", "Facecam MK.2"
+        ],
+        "Razer": [
+          "Kiyo Pro Ultra", "Kiyo Pro", "Kiyo X", "Kiyo"
+        ],
+        "Anker": [
+          "PowerConf C300", "PowerConf C200"
+        ],
+        "Microsoft": [
+          "LifeCam HD-3000", "LifeCam Studio", "LifeCam Cinema"
+        ],
+        "AverMedia": [
+          "PW513", "PW315", "Live Streamer CAM 513"
+        ]
+      }
+    },
+
+    "security_camera": {
+      "description": "Security and surveillance cameras",
+      "makes": [
+        "Nest",
+        "Ring",
+        "Arlo",
+        "Wyze",
+        "Blink",
+        "Eufy",
+        "Reolink",
+        "Hikvision",
+        "Dahua",
+        "TP-Link",
+        "Lorex",
+        "Swann",
+        "Amcrest",
+        "Axis",
+        "UniFi",
+        "Ubiquiti"
+      ],
+      "models": {
+        "Nest": [
+          "Nest Cam IQ Indoor", "Nest Cam IQ Outdoor",
+          "Nest Cam (battery)", "Nest Cam (wired)", "Nest Cam Indoor", "Nest Cam Outdoor",
+          "Nest Doorbell (battery)", "Nest Doorbell (wired)"
+        ],
+        "Ring": [
+          "Video Doorbell Pro 2", "Video Doorbell Pro", "Video Doorbell 4", "Video Doorbell 3 Plus", "Video Doorbell 3",
+          "Stick Up Cam Battery", "Stick Up Cam Plug-In", "Stick Up Cam Elite",
+          "Spotlight Cam Battery", "Spotlight Cam Wired", "Spotlight Cam Mount",
+          "Floodlight Cam Wired Pro", "Floodlight Cam Plus"
+        ],
+        "Arlo": [
+          "Ultra 2", "Ultra", "Pro 5S 2K", "Pro 4", "Pro 3", "Pro 2",
+          "Essential Spotlight", "Essential Indoor", "Essential XL",
+          "Video Doorbell 2K", "Video Doorbell"
+        ],
+        "Wyze": [
+          "Cam v3 Pro", "Cam v3", "Cam v2",
+          "Cam Pan v3", "Cam Pan v2", "Cam Pan",
+          "Cam OG", "Cam OG Telephoto",
+          "Video Doorbell Pro", "Video Doorbell v2", "Video Doorbell"
+        ],
+        "Reolink": [
+          "RLC-810A", "RLC-820A", "RLC-510A", "RLC-520A",
+          "Argus 3 Pro", "Argus 2E", "Argus PT",
+          "Video Doorbell WiFi"
+        ]
+      }
+    },
+
+    "360_camera": {
+      "description": "360-degree cameras",
+      "makes": [
+        "Ricoh",
+        "Insta360",
+        "GoPro",
+        "Samsung",
+        "Vuze"
+      ],
+      "models": {
+        "Ricoh": [
+          "Theta X", "Theta Z1", "Theta V", "Theta SC2", "Theta S"
+        ],
+        "Insta360": [
+          "X4", "X3", "X2", "ONE X3", "ONE X2", "ONE X", "ONE RS", "ONE R"
+        ],
+        "GoPro": [
+          "MAX", "Fusion"
+        ],
+        "Samsung": [
+          "Gear 360 (2017)", "Gear 360 (2016)"
+        ]
+      }
+    }
+  },
+
+  "matching_rules": {
+    "case_sensitive": false,
+    "description": "Make matching should be case-insensitive",
+    "notes": [
+      "EXIF Make field can vary in capitalization (e.g., 'NIKON CORPORATION' vs 'Nikon')",
+      "Phone makes may appear as brand (Apple) or product line (iPhone)",
+      "Some manufacturers appear in multiple categories (e.g., Sony in DSLR and point_shoot)",
+      "Priority order for overlapping makes: dslr > point_shoot > action_camera > other",
+      "Samsung phone models often use SM-XXXX format in EXIF data",
+      "iPhone models may appear as 'iPhone X,Y' format in some EXIF readers",
+      "DJI appears in both drone and action_camera categories (Osmo Action)",
+      "Hasselblad appears in both DSLR and drone categories (DJI partnership)"
+    ]
+  },
+
+  "category_priorities": {
+    "description": "When a make appears in multiple categories, use this priority order",
+    "order": [
+      "film",
+      "dslr",
+      "gopro",
+      "action_camera",
+      "drone",
+      "phone",
+      "dash_cam",
+      "point_shoot",
+      "360_camera",
+      "webcam",
+      "security_camera"
+    ]
+  }
+}

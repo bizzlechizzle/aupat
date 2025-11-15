@@ -1,7 +1,0 @@
----
-title: ignored_ext.json
----
-
-- extentions
-	- .lrf
-		- if "DJI" in file name

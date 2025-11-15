@@ -1,0 +1,12 @@
+- purpose:
+	- name.json
+	-
+- images
+	- "loc_uuid8"-"img_sha8".image extension
+	- "loc_uuid8"-"sub-uuid8"-"img_sha8".image extension
+- videos
+	- "loc_uuid8"-"vid_sha8".image extension
+	- "loc_uuid8"-"sub-uuid8"-"vid_sha8".image extension
+- documents
+	- "loc_uuid8"-"doc_sha8".document extension
+	- "loc_uuid8"-"sub-uuid8"-"doc_sha8".document extension

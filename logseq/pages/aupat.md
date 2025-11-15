@@ -1,11 +1,8 @@
----
-title: aupat
----
-
 - Abandoned Upstate Project Archive Tool
+-
 - scripts
-	- #aupat_import.py.md
-	- #aupat_webapp.py.md
+	- #[[aupat_import]]
+	- #aupat_webapp [stage 2]
 - scope
 	- stage 1: import tool
 	- stage 2: web app

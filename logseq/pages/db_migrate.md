@@ -1,0 +1,27 @@
+- purpose:
+	- db_migrate.py
+	-
+-
+- operation
+	- creates database
+	- manages database
+	- updates database
+- tables /.json files
+	- locations table: #locations_table
+	- sub-locations table: #sub-locations_table
+	- images table: #images_table
+	- videos table: #[[videos]]
+	- documents table: #[[documents_table]]
+	- urls table: #urls_table
+	- versions table: #versions_table
+- steps
+	- load database in #[[user_json]] in /user folder ["db_name","db_loc"]
+		- if no database exists, create database
+	- backup database - call #backup
+	- check table "versions" - check version of .json files in table and database [locations.json,images.json,videos.json,documents.json,urls.json]
+	- update / create tables
+	- record version number in "versions" table for locations.json,images.json,videos.json,documents.json,urls.json, database.py
+	- call dateutil record in "ver_update" for locations.json,images.json,videos.json,documents.json,urls.json, database.py
+	- verify table "versions" - check version of .json files in table and database [locations.json,images.json,videos.json,documents.json,urls.json] to ensure job was complete
+-
+-

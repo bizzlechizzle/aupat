@@ -1,0 +1,38 @@
+- purpose:
+	- aupat_import.py
+-
+- Abandoned Upstate Project Archive Tool
+	- Import Tool
+		- CLI for Importing Into Database
+-
+- scripts [run order]
+	- #db_migrate
+	- #db_import
+	- #db_organize
+	- #db_folder
+	- #db_ingest
+	- #db_verify
+	- #db_identify
+	- #[[db_cleanup]]
+-
+- rules [in importance]
+	- BPA = Best Practices Always
+	- BPL = Bulletproof Longterm
+	- Kiss = Keep it Simple Stupid
+	- FAANG PE = Facebook Amazon Apple Netflix Google Level Engineering but Personal/Small Business Edition
+	- WWYDD - What Would You Do Differently Logic [only if urgent/major/fatal flaw]
+- rules [when applicable]
+	- Includes Transaction Safety
+	- PRAGMA foreign_keys = ON
+-
+- folder structure
+	- AUPAT
+		- scripts
+			- .py scripts go
+		- data
+			- .json files go here
+		- user
+			- user.json goes here
+		- venv
+		- backups
+		- logs

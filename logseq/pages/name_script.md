@@ -1,0 +1,14 @@
+- purpose:
+	- name.py
+	-
+- operation
+	- creates names when called
+- steps
+	- load #[[name_json]] in /data folder
+	- load database in #[[user_json]] in /user folder ["db_name","db_loc"]
+- name structure #[[name_json]]
+	- image
+	- video
+	- documents
+- for db_identify
+	- "loc_uuid8"_master.json

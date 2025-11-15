@@ -2,10 +2,38 @@
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
 
 # Logseq
 logseq/.recycle/
 logseq/bak/
+
+# AUPAT - Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# AUPAT - Project folders (gitignored per design)
+backups/
+logs/
+venv/
+ingest/
+
+# AUPAT - User configuration (contains sensitive paths)
+user/user.json
+user/*.json
+
+# AUPAT - Test data and temporary files
+test_data/
+tmp/
+temp/
+*.test.db
 
 # Python
 __pycache__/
@@ -16,11 +44,28 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+*.egg
+*.manifest
+*.spec
 
 # Virtual environments
 venv/
 env/
 ENV/
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter Notebook (if used for testing)
+.ipynb_checkpoints
 
 # IDE
 .vscode/
@@ -28,7 +73,32 @@ ENV/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
+
+# Linting and type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pylint.d/
+.ruff_cache/
 
 # Backup files
 *.bak
 *.tmp
+*.old
+*~
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS-specific
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
