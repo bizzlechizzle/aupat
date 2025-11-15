@@ -4,7 +4,7 @@
 - operation
 	- backups database
 - steps
-	- load database in #[[user_json]] in /user folder ["db_name","db_loc","db_backup"]
+	- load database in [[user_json]] in /user folder ["db_name","db_loc","db_backup"]
 	- check "db_backup" for most recent backup time [keep in cache will use to verify soon]
 	- make a copy of backup database
 		- naming schema

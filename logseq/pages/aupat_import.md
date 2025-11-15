@@ -6,12 +6,12 @@
 		- CLI for Importing Into Database
 -
 - scripts [run order]
-	- #db_migrate
-	- #db_import
-	- #db_organize
-	- #db_folder
-	- #db_ingest
-	- #db_verify
-	- #db_identify
-	- #[[db_cleanup]]
+	- [[db_migrate]]
+	- [[db_import]]
+	- [[db_organize]]
+	- [[db_folder]]
+	- [[db_ingest]]
+	- [[db_verify]]
+	- [[db_identify]]
+	- [[db_cleanup]]
 -

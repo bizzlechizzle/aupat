@@ -4,9 +4,9 @@
 - operation
 	- creates names when called
 - steps
-	- load #[[name_json]] in /data folder
-	- load database in #[[user_json]] in /user folder ["db_name","db_loc"]
-- name structure #[[name_json]]
+	- load [[name_json]] in /data folder
+	- load database in [[user_json]] in /user folder ["db_name","db_loc"]
+- name structure [[name_json]]
 	- image
 	- video
 	- documents

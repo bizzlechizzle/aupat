@@ -5,14 +5,14 @@
 	- .srt
 		- if "DJI" in file name
 		- find matching video in data base "vid_loco" "vid_nameo"
-			- record video vid_sha256 in "documents" table docs_vid
-			- record "doc_sha256" in videos table vid_docs
+			- record video vid_sha256 in [[documents_table]] docs_vid
+			- record "doc_sha256" in [[videos]] table vid_docs
 	- .xml
 		- find matching image in data base "img_loco" "img_nameo"
-			- record image img_sha256 in "documents" table docs_img
-			- record "doc_sha256" in images table img_docs
+			- record image img_sha256 in [[documents_table]] docs_img
+			- record "doc_sha256" in [[images_table]] img_docs
 		- find matching video in data base "vid_loco" "vid_nameo"
-			- record video vid_sha256 in "documents" table docs_vid
-			- record "doc_sha256" in videos table vid_docs
+			- record video vid_sha256 in [[documents_table]] docs_vid
+			- record "doc_sha256" in [[videos]] table vid_docs
 			-
 -

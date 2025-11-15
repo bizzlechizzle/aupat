@@ -1,0 +1,82 @@
+{:meta/version 1
+
+ ;; File path settings
+ :journal/page-title-format "MMM do, yyyy"
+ :journal/file-name-format "yyyy_MM_dd"
+
+ ;; Preferred format for new pages (markdown or org)
+ :preferred-format :markdown
+
+ ;; Preferred workflow (now or todo)
+ :preferred-workflow :now
+
+ ;; Enable Git auto commit
+ :git-auto-push false
+
+ ;; Graph view settings
+ :graph/settings {:orphan-pages? true
+                  :builtin-pages? false
+                  :excluded-pages? false
+                  :journal? false}
+
+ ;; Editor settings
+ :default-home {:page "aupat"}
+
+ ;; Feature flags
+ :feature/enable-timetracking? false
+ :feature/enable-flashcards? false
+
+ ;; Pages to exclude from graph
+ :block/content-max-length 10000
+
+ ;; Markdown settings
+ :markdown/version 2
+
+ ;; Preferred date format
+ :journal/enable-encryption? false
+
+ ;; Hide brackets in page names
+ :ui/show-brackets? false
+
+ ;; Macros
+ :macros {}
+
+ ;; Default templates
+ :default-templates {}
+
+ ;; Quick capture templates
+ :quick-capture-templates {}
+
+ ;; Enable/disable features
+ :feature/enable-journals? false
+
+ ;; Custom CSS
+ :custom-css-url ""
+
+ ;; Shortcuts (optional)
+ :shortcuts {}
+
+ ;; Mobile settings
+ :mobile/toolbar-stats {:bold {:counts 0}, :brand-youtube {:counts 0}}
+
+ ;; Encryption settings
+ :encryption-protocol :age
+
+ ;; Export settings
+ :export/bullet-indentation :tab
+
+ ;; Favorites
+ :favorites ["aupat" "claude" "claudecode" "project-overview"]
+
+ ;; Enable/disable page properties
+ :property-pages/enabled? true
+
+ ;; Property separator
+ :property/separated-by-commas #{}
+
+ ;; Publishing
+ :publishing/all-pages-public? false
+
+ ;; Recent files
+ :recent/open-files []
+}

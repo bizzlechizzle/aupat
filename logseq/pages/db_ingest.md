@@ -4,13 +4,13 @@
 - operation
 	- ingests new locations in the database
 - steps
-	- load database location in #[[user_json]] in /user folder ["db_name","db_loc","arch_loc"]
-	- call #backup
+	- load database location in [[user_json]] in /user folder ["db_name","db_loc","arch_loc"]
+	- call [[backup]]
 	- open database check [if null then namerize]
 		- images - img_name
 		- videos - vid_name
 		- documents - doc_name
-	- call #name_script
+	- call [[name_script]]
 	- hardlink/copy new data into database at 'blank'_loc in database in respective tables
 - notes
 	- live videos go into 'original_other' folder under videos
