@@ -23,9 +23,12 @@ title: aupat_import.py
 	- Kiss = Keep it Simple Stupid
 	- FAANG PE = Facebook Amazon Apple Netflix Google Level Engineering but Personal/Small Business Edition
 	- WWYDD - What Would You Do Differently Logic [only if urgent/major/fatal flaw]
+	- NEE - NO EMOJIS EVER
+	- DONT CREDIT "Claude" "Claude Code", etc ITS TACKY
 - rules [when applicable]
 	- Includes Transaction Safety
 	- PRAGMA foreign_keys = ON
+-
 -
 - folder structure
 	- AUPAT
