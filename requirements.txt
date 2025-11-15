@@ -12,6 +12,9 @@ python-dateutil>=2.8.2   # Date parsing and normalization
 pytest>=7.4.0            # Testing framework
 pytest-cov>=4.1.0        # Coverage reporting
 
+# Web Interface
+Flask>=3.0.0             # Web framework for import interface
+
 # Note: Standard library modules used (no installation needed):
 # - sqlite3 (database operations)
 # - pathlib (path handling)
