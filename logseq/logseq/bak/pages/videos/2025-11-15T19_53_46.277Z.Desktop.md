@@ -1,0 +1,38 @@
+- json
+	- videos.json
+- rows
+	- blank
+- columns
+	- vid_name: location name - based off folder name
+		- naming:
+			- "loc_uuid8"-"sub_uuid8"-"vid_sha8".video extension
+			- "loc_uuid8"-"img_sha8".image extension
+	- vid_loc: video location [absolute path]
+	- vid_sha256: sha256 of video file
+	- original = true/false
+	- camera = true/false [DSLR/MIRRORLESS]
+	- drone = true/false
+	- phone = true/false
+	- go_pro = true/false
+	- dash_cam = true/false
+	- other = true/false
+	- ffmpeg_hardware = true/false
+	- vid_hardware = [json1]
+		- camera brand
+			- - Make
+		- camera model
+			- - Model
+	- loc_uuid: uuid4 for location
+	- sub_uuid: uuid4 for sub-location [json1]
+	- img_loc_o: original image folder location [absolute path]
+	- img_name_o: original image file name
+	- img_add: date added to database
+		- normalization: dateutil
+	- img_update: date anytime anything was updated for img
+		- normalization: dateutil
+	- imp_author: import author
+	- vid_docs = [json1]
+		- related documents to this video
+	- vid_imgs = [json1]
+		- related images to this video
+-
