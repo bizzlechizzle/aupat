@@ -1,0 +1,74 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Sub-locations table schema - sub-locations within main locations",
+  "table_name": "sub_locations",
+
+  "schema": {
+    "columns": [
+      {
+        "name": "sub_uuid",
+        "type": "TEXT",
+        "constraints": ["PRIMARY KEY"],
+        "description": "UUID4 for sub-location - full UUID, sub_uuid8 computed as SUBSTR(sub_uuid, 1, 8)"
+      },
+      {
+        "name": "sub_name",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Sub-location name - normalized with unidecode, titlecase"
+      },
+      {
+        "name": "loc_uuid",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Parent location UUID - foreign key to locations.loc_uuid"
+      },
+      {
+        "name": "org_loc",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Original folder location (absolute path)"
+      },
+      {
+        "name": "loc_loc",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Current folder location (absolute path)"
+      },
+      {
+        "name": "loc_add",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date added to database - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "loc_update",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date last updated - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "imp_author",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Import author username"
+      }
+    ],
+
+    "foreign_keys": [
+      {
+        "column": "loc_uuid",
+        "references": "locations(loc_uuid)",
+        "on_delete": "CASCADE",
+        "description": "Parent location - cascade delete when location is deleted"
+      }
+    ]
+  },
+
+  "notes": [
+    "sub_uuid8 (first 8 chars) is computed when needed using SUBSTR(sub_uuid, 1, 8) or sub_uuid[:8]",
+    "Used for large locations with distinct areas (Building A, Building B, etc.)",
+    "Nullable in media tables - not all media belongs to a sub-location"
+  ]
+}

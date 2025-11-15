@@ -1,0 +1,118 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Documents table schema - document files with relationships to media",
+  "table_name": "documents",
+
+  "schema": {
+    "columns": [
+      {
+        "name": "doc_sha256",
+        "type": "TEXT",
+        "constraints": ["UNIQUE", "NOT NULL"],
+        "description": "SHA256 hash of document file - full 64 chars, doc_sha8 computed as sha256[:8]"
+      },
+      {
+        "name": "doc_name",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Current filename - format: loc_uuid8-doc_sha8.ext or loc_uuid8-sub_uuid8-doc_sha8.ext"
+      },
+      {
+        "name": "doc_loc",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Current document location (absolute path)"
+      },
+      {
+        "name": "doc_ext",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Document file extension (e.g., .pdf, .srt, .xml)"
+      },
+      {
+        "name": "loc_uuid",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Parent location UUID - foreign key to locations.loc_uuid"
+      },
+      {
+        "name": "sub_uuid",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Parent sub-location UUID - foreign key to sub_locations.sub_uuid (nullable)"
+      },
+      {
+        "name": "doc_loco",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Original document folder location (absolute path) before import"
+      },
+      {
+        "name": "doc_nameo",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Original document filename before import"
+      },
+      {
+        "name": "doc_add",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date added to database - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "doc_update",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date last updated - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "imp_author",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Import author username"
+      },
+      {
+        "name": "docs_img",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Related images to this document (JSON1 array of img_sha256)"
+      }
+    ],
+
+    "foreign_keys": [
+      {
+        "column": "loc_uuid",
+        "references": "locations(loc_uuid)",
+        "on_delete": "CASCADE",
+        "description": "Parent location - cascade delete when location is deleted"
+      },
+      {
+        "column": "sub_uuid",
+        "references": "sub_locations(sub_uuid)",
+        "on_delete": "SET NULL",
+        "description": "Parent sub-location - set to NULL when sub-location is deleted"
+      }
+    ],
+
+    "indexes": [
+      {
+        "name": "idx_documents_loc_uuid",
+        "columns": ["loc_uuid"],
+        "description": "Index for queries by location"
+      },
+      {
+        "name": "idx_documents_ext",
+        "columns": ["doc_ext"],
+        "description": "Index for filtering by document type"
+      }
+    ]
+  },
+
+  "notes": [
+    "doc_sha8 (first 8 chars) is computed when needed using sha256[:8]",
+    "Document types include .srt (subtitles), .xml (metadata), .pdf, .zip, etc.",
+    "Documents are matched to images/videos by filename during db_organize.py",
+    "Storage: documents/file-extensions/{ext}/, documents/zips/, documents/pdfs/"
+  ]
+}

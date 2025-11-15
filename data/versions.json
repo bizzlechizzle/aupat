@@ -1,0 +1,66 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Versions table schema - track versions of all modules and schema",
+  "table_name": "versions",
+
+  "schema": {
+    "columns": [
+      {
+        "name": "modules",
+        "type": "TEXT",
+        "constraints": ["PRIMARY KEY"],
+        "description": "Module/component name (script, JSON config, or database_schema)"
+      },
+      {
+        "name": "version",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Current version number (semantic versioning: MAJOR.MINOR.PATCH)"
+      },
+      {
+        "name": "ver_updated",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Date version was last updated - normalized with dateutil (ISO 8601)"
+      }
+    ]
+  },
+
+  "tracked_components": [
+    "database_schema",
+    "db_migrate.py",
+    "db_import.py",
+    "db_organize.py",
+    "db_folder.py",
+    "db_ingest.py",
+    "db_verify.py",
+    "db_identify.py",
+    "database_cleanup.py",
+    "backup.py",
+    "gen_uuid.py",
+    "gen_sha.py",
+    "name.py",
+    "folder.py",
+    "locations.json",
+    "sub-locations.json",
+    "images.json",
+    "videos.json",
+    "documents.json",
+    "urls.json",
+    "versions.json",
+    "camera_hardware.json",
+    "approved_ext.json",
+    "ignored_ext.json",
+    "live_videos.json",
+    "folder.json",
+    "name.json"
+  ],
+
+  "notes": [
+    "Used for schema migration tracking and compatibility checking",
+    "Semantic versioning: MAJOR.MINOR.PATCH",
+    "Updated automatically during migrations and script updates",
+    "Critical for rollback support and change history"
+  ]
+}

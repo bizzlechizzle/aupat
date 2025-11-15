@@ -1,0 +1,124 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Folder structure template for organizing media in the archive",
+
+  "archive_root": "{arch_loc}",
+  "archive_root_description": "Root directory from user.json - all locations stored under this path",
+
+  "location_structure": {
+    "state_type_folder": {
+      "format": "{state}-{type}",
+      "example": "ny-industrial",
+      "description": "First level: state abbreviation + location type"
+    },
+    "location_folder": {
+      "format": "{location_name}_{loc_uuid8}",
+      "example": "abandoned-factory_a1b2c3d4",
+      "description": "Second level: location name + first 8 chars of UUID",
+      "note": "loc_uuid8 is computed from loc_uuid[:8]"
+    },
+    "subdirectories": {
+      "photos": {
+        "description": "Image files organized by hardware category",
+        "folders": [
+          "original_camera",
+          "original_phone",
+          "original_drone",
+          "original_go-pro",
+          "original_film",
+          "original_other"
+        ],
+        "categorization": {
+          "original_camera": "DSLR/mirrorless camera photos",
+          "original_phone": "Smartphone photos",
+          "original_drone": "Drone aerial photos",
+          "original_go-pro": "GoPro action camera photos",
+          "original_film": "Scanned film photos",
+          "original_other": "Uncategorized photos"
+        }
+      },
+      "videos": {
+        "description": "Video files organized by hardware category",
+        "folders": [
+          "original_camera",
+          "original_phone",
+          "original_drone",
+          "original_go-pro",
+          "original_dash-cam",
+          "original_other"
+        ],
+        "categorization": {
+          "original_camera": "DSLR/mirrorless camera videos",
+          "original_phone": "Smartphone videos",
+          "original_drone": "Drone aerial videos",
+          "original_go-pro": "GoPro action videos",
+          "original_dash-cam": "Dashboard camera videos",
+          "original_other": "Uncategorized videos (includes live videos)"
+        }
+      },
+      "documents": {
+        "description": "Document files organized by type",
+        "folders": [
+          "file-extensions",
+          "zips",
+          "pdfs",
+          "websites"
+        ],
+        "categorization": {
+          "file-extensions": "Organized by extension (.srt, .xml, etc.) - subfolders created per extension",
+          "zips": "ZIP archive files",
+          "pdfs": "PDF documents",
+          "websites": "URL archives - subfolders: {domain}_{url_uuid8}"
+        }
+      }
+    }
+  },
+
+  "example_structure": {
+    "description": "Complete example of archive folder structure",
+    "path": "{arch_loc}/ny-industrial/abandoned-factory_a1b2c3d4/",
+    "tree": [
+      "photos/",
+      "  original_camera/",
+      "  original_phone/",
+      "  original_drone/",
+      "  original_go-pro/",
+      "  original_film/",
+      "  original_other/",
+      "videos/",
+      "  original_camera/",
+      "  original_phone/",
+      "  original_drone/",
+      "  original_go-pro/",
+      "  original_dash-cam/",
+      "  original_other/",
+      "documents/",
+      "  file-extensions/",
+      "    .srt/",
+      "    .xml/",
+      "  zips/",
+      "  pdfs/",
+      "  websites/",
+      "    smugmug.com_b5c6d7e8/"
+    ]
+  },
+
+  "template_variables": {
+    "arch_loc": "Archive root from user.json (e.g., /Volumes/Archive/AUPAT/)",
+    "state": "US state abbreviation, lowercase (e.g., ny, vt, pa)",
+    "type": "Location type, lowercase (e.g., industrial, residential, commercial)",
+    "location_name": "Location name, normalized (e.g., abandoned-factory)",
+    "loc_uuid8": "First 8 chars of location UUID, computed from loc_uuid[:8]",
+    "domain": "Full domain from URL (e.g., username.smugmug.com)",
+    "url_uuid8": "First 8 chars of URL UUID, computed from url_uuid[:8]"
+  },
+
+  "notes": [
+    "All folders created by db_folder.py script",
+    "Folder structure matches hardware categorization from db_organize.py",
+    "Live videos always go to videos/original_other/",
+    "Document extensions get subfolders dynamically created as needed",
+    "URL folders use full domain to preserve complete information"
+  ]
+}

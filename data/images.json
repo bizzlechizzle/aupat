@@ -1,0 +1,172 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Images table schema - photo files with metadata and hardware categorization",
+  "table_name": "images",
+
+  "schema": {
+    "columns": [
+      {
+        "name": "img_sha256",
+        "type": "TEXT",
+        "constraints": ["UNIQUE", "NOT NULL"],
+        "description": "SHA256 hash of image file - full 64 chars, img_sha8 computed as sha256[:8]"
+      },
+      {
+        "name": "img_name",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Current filename - format: loc_uuid8-img_sha8.ext or loc_uuid8-sub_uuid8-img_sha8.ext"
+      },
+      {
+        "name": "img_loc",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Current image location (absolute path)"
+      },
+      {
+        "name": "original",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: original unprocessed file (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "camera",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: DSLR/mirrorless camera (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "phone",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: smartphone camera (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "drone",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: drone camera (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "go_pro",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: GoPro action camera (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "film",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: scanned film (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "other",
+        "type": "INTEGER",
+        "constraints": [],
+        "description": "Boolean flag: uncategorized hardware (1=true, 0=false, NULL=unknown)"
+      },
+      {
+        "name": "exiftool_hardware",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Raw EXIF data from exiftool (JSON format)"
+      },
+      {
+        "name": "img_hardware",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Parsed hardware info (JSON1): {make, model, category}"
+      },
+      {
+        "name": "loc_uuid",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Parent location UUID - foreign key to locations.loc_uuid"
+      },
+      {
+        "name": "sub_uuid",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Parent sub-location UUID - foreign key to sub_locations.sub_uuid (nullable)"
+      },
+      {
+        "name": "img_loco",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Original image folder location (absolute path) before import"
+      },
+      {
+        "name": "img_nameo",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Original image filename before import"
+      },
+      {
+        "name": "img_add",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date added to database - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "img_update",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date last updated - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "imp_author",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Import author username"
+      },
+      {
+        "name": "img_docs",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Related documents to this image (JSON1 array of doc_sha256)"
+      },
+      {
+        "name": "img_vids",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Related videos to this image (JSON1 array of vid_sha256) - for live photos"
+      }
+    ],
+
+    "foreign_keys": [
+      {
+        "column": "loc_uuid",
+        "references": "locations(loc_uuid)",
+        "on_delete": "CASCADE",
+        "description": "Parent location - cascade delete when location is deleted"
+      },
+      {
+        "column": "sub_uuid",
+        "references": "sub_locations(sub_uuid)",
+        "on_delete": "SET NULL",
+        "description": "Parent sub-location - set to NULL when sub-location is deleted"
+      }
+    ],
+
+    "indexes": [
+      {
+        "name": "idx_images_loc_uuid",
+        "columns": ["loc_uuid"],
+        "description": "Index for queries by location"
+      },
+      {
+        "name": "idx_images_camera",
+        "columns": ["loc_uuid", "camera"],
+        "description": "Index for filtering by location and camera type"
+      }
+    ]
+  },
+
+  "notes": [
+    "img_sha8 (first 8 chars) is computed when needed using sha256[:8]",
+    "Hardware categorization based on EXIF Make/Model matched against camera_hardware.json",
+    "Live photos are matched to live videos by comparing img_loco+img_nameo with vid_loco+vid_nameo",
+    "Boolean flags start as NULL, set during db_organize.py processing"
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "URLs table schema - URL references for locations with domain tracking",
+  "table_name": "urls",
+
+  "schema": {
+    "columns": [
+      {
+        "name": "url_uuid",
+        "type": "TEXT",
+        "constraints": ["PRIMARY KEY"],
+        "description": "UUID4 for URL - full UUID, url_uuid8 computed as SUBSTR(url_uuid, 1, 8)"
+      },
+      {
+        "name": "url",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Full URL"
+      },
+      {
+        "name": "domain",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Full domain from URL without normalization (e.g., username.smugmug.com)"
+      },
+      {
+        "name": "url_loc",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Storage location for archived URL content (absolute path)"
+      },
+      {
+        "name": "loc_uuid",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Parent location UUID - foreign key to locations.loc_uuid"
+      },
+      {
+        "name": "sub_uuid",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Parent sub-location UUID - foreign key to sub_locations.sub_uuid (nullable)"
+      },
+      {
+        "name": "url_add",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date added to database - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "url_update",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date last updated - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "imp_author",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Import author username"
+      }
+    ],
+
+    "foreign_keys": [
+      {
+        "column": "loc_uuid",
+        "references": "locations(loc_uuid)",
+        "on_delete": "CASCADE",
+        "description": "Parent location - cascade delete when location is deleted"
+      },
+      {
+        "column": "sub_uuid",
+        "references": "sub_locations(sub_uuid)",
+        "on_delete": "SET NULL",
+        "description": "Parent sub-location - set to NULL when sub-location is deleted"
+      }
+    ],
+
+    "indexes": [
+      {
+        "name": "idx_urls_loc_uuid",
+        "columns": ["loc_uuid"],
+        "description": "Index for queries by location"
+      },
+      {
+        "name": "idx_urls_domain",
+        "columns": ["domain"],
+        "description": "Index for filtering by domain"
+      }
+    ]
+  },
+
+  "notes": [
+    "url_uuid8 (first 8 chars) is computed when needed using SUBSTR(url_uuid, 1, 8) or url_uuid[:8]",
+    "Domain is stored without normalization to preserve complete domain information",
+    "Storage: documents/websites/{domain}_{url_uuid8}/",
+    "Future: screenshots or archival of page content"
+  ]
+}
