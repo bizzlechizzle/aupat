@@ -1,0 +1,7 @@
+{
+  "db_name": "aupat.db",
+  "db_loc": "/absolute/path/to/database/aupat.db",
+  "db_backup": "/absolute/path/to/backups/",
+  "db_ingest": "/absolute/path/to/ingest/staging/",
+  "arch_loc": "/absolute/path/to/archive/"
+}

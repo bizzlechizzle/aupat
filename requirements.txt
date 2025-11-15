@@ -1,0 +1,33 @@
+# AUPAT - Abandoned Upstate Project Archive Tool
+# Python Dependencies
+# Version: 1.0.0
+# Last Updated: 2025-11-15
+
+# Text Normalization
+unidecode>=1.3.6         # Convert Unicode to ASCII for location names
+python-dateutil>=2.8.2   # Date parsing and normalization
+# postal>=1.1.10         # Address parsing (libpostal Python bindings) - OPTIONAL, requires system libpostal
+
+# Testing Framework
+pytest>=7.4.0            # Testing framework
+pytest-cov>=4.1.0        # Coverage reporting
+
+# Note: Standard library modules used (no installation needed):
+# - sqlite3 (database operations)
+# - pathlib (path handling)
+# - json (JSON parsing/generation)
+# - hashlib (SHA256 hashing)
+# - uuid (UUID generation)
+# - logging (application logging)
+# - argparse (CLI argument parsing)
+# - datetime (timestamp handling)
+# - shutil (file operations)
+
+# External Tools Required (install separately):
+# - exiftool: Image EXIF metadata extraction
+#   macOS: brew install exiftool
+#   Ubuntu/Debian: apt-get install libimage-exiftool-perl
+#
+# - ffmpeg/ffprobe: Video metadata extraction
+#   macOS: brew install ffmpeg
+#   Ubuntu/Debian: apt-get install ffmpeg
