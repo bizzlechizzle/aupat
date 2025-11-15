@@ -128,7 +128,6 @@ AUPAT follows bulletproof engineering principles:
 │   ├── camera_hardware.json   # Hardware classification
 │   ├── approved_ext.json      # Special file extensions
 │   ├── ignored_ext.json       # Excluded file extensions
-│   ├── host_domains.json      # URL domain normalization
 │   ├── live_videos.json       # Live photo matching rules
 │   ├── folder.json            # Folder structure template
 │   └── name.json              # File naming conventions
@@ -282,7 +281,7 @@ All scripts documented, none implemented yet. Implementation status: 0%.
 
 **For URLs**:
 1. Parse domain from URL
-2. Normalize domain using host_domains.json rules
+2. Parse domain from URL and store as-is (no normalization)
 3. Generate url_uuid for tracking
 
 **Hardware Detection Rules**:
@@ -300,7 +299,6 @@ All scripts documented, none implemented yet. Implementation status: 0%.
 - live_videos.json (live photo matching rules)
 - approved_ext.json (special extension handling)
 - ignored_ext.json (excluded extensions)
-- host_domains.json (URL domain normalization)
 
 **Input**: Database entries with files in ingest staging
 **Output**: Updated database with metadata and categorization
@@ -930,7 +928,6 @@ All JSON files documented, none created yet. Implementation status: 0%.
 - `imp_author` (TEXT) - Import author
 
 **Domain Normalization**:
-- Uses host_domains.json rules
 - Handles complex hosting (SmugMug, Blogspot, WordPress, GitHub Pages, etc.)
 - Extracts canonical domain for organization
 
@@ -1084,40 +1081,6 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-#### 11. host_domains.json
-**Purpose**: Domain normalization for URL cleaning
-
-**Structure**:
-```json
-{
-  "SmugMug": {
-    "pattern": "*.smugmug.com",
-    "extract": "subdomain",
-    "example": "username.smugmug.com → username"
-  },
-  "Blogspot": {
-    "pattern": "*.blogspot.com",
-    "extract": "subdomain",
-    "example": "myblog.blogspot.com → myblog"
-  },
-  "WordPress": {
-    "pattern": "*.wordpress.com",
-    "extract": "subdomain"
-  },
-  "GitHub Pages": {
-    "pattern": "*.github.io",
-    "extract": "subdomain"
-  },
-  ...
-}
-```
-
-**Use Cases**:
-- Normalize complex hosting platforms
-- Extract meaningful identifiers
-- Organize URLs by provider
-
-**Specification**: logseq/pages/host_domains.json.md
 
 ---
 
@@ -1771,7 +1734,7 @@ For each document:
 
 For each URL:
 - Parse domain
-- Normalize using host_domains.json
+- Parse domain and store as-is
 - Generate url_uuid
 ```
 

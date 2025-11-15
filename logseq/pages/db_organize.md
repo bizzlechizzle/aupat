@@ -1,6 +1,6 @@
 - script
 	- db_organize.py
-- soperation
+- operation
 	- organizes new locations in the database
 - steps
 	- load database location in #[[user_json]] in /user folder ["db_name","db_loc"]
@@ -36,7 +36,7 @@
 			- check #approved_ext for special instructions
 		-
 	- urls table run
-		- pulls "url" cleans domain against #host_domains
+		- parse domain from URL and store as-is (no normalization)
 	- films run
 	-
 	- true/false #camera_hardware

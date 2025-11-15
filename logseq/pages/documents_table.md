@@ -10,7 +10,8 @@
 			- "loc_uuid8"-"doc_sha8".file extension
 	- doc_loc: document location [absolute path]
 	- doc_ext: document extension type
-	- doc_sha: sha256 for document
+	- doc_sha256: sha256 for document
+		- note: doc_sha8 (first 8 chars) is computed when needed using sha256[:8]
 	- loc_uuid: uuid4 for host location
 	- sub_uuid: uuid4 for  sub-location
 	- doc_loco: original folder location [absolute path]
@@ -21,5 +22,5 @@
 		- normalization: dateutil
 	- imp_author: import author
 	- docs_img = [json1]
-		- related documents to this image [img_sha]
+		- related images to this document [img_sha256]
 	-

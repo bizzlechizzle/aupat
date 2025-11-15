@@ -1,6 +1,6 @@
 - purpose
 	- ignored_ext.json
 	-
-- extentions
+- extensions
 	- .lrf
 		- if "DJI" in file name
