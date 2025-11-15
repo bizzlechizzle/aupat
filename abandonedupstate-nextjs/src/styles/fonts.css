@@ -1,0 +1,102 @@
+/* ============================================
+   Custom Font Declarations - Input Font Family
+   ============================================ */
+
+/* Input Mono Narrow - Logo Font */
+@font-face {
+  font-family: 'Input Mono Narrow';
+  src: url('/fonts/logo/Input-Regular_(InputMonoNarrow-Regular).ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Mono Narrow';
+  src: url('/fonts/logo/Input-Italic_(InputMonoNarrow-Italic).ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Mono Narrow';
+  src: url('/fonts/logo/Input-Bold_(InputMonoNarrow-Bold).ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Mono Narrow';
+  src: url('/fonts/logo/Input-BoldItalic_(InputMonoNarrow-BoldItalic).ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Input Serif Condensed - Headers */
+@font-face {
+  font-family: 'Input Serif Condensed';
+  src: url('/fonts/headers/Input-Regular_(InputSerifCondensed-Light).ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Serif Condensed';
+  src: url('/fonts/headers/Input-Italic_(InputSerifCondensed-LightItalic).ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Serif Condensed';
+  src: url('/fonts/headers/Input-Bold_(InputSerifCondensed-Medium).ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Serif Condensed';
+  src: url('/fonts/headers/Input-BoldItalic_(InputSerifCondensed-MediumItalic).ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Input Sans Compressed - Paragraphs */
+@font-face {
+  font-family: 'Input Sans Compressed';
+  src: url('/fonts/paragrah/Input-Regular_(InputSansCompressed-Regular).ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Sans Compressed';
+  src: url('/fonts/paragrah/Input-Italic_(InputSansCompressed-Italic).ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Sans Compressed';
+  src: url('/fonts/paragrah/Input-Bold_(InputSansCompressed-Bold).ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Input Sans Compressed';
+  src: url('/fonts/paragrah/Input-BoldItalic_(InputSansCompressed-BoldItalic).ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
