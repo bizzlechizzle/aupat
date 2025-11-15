@@ -4,14 +4,14 @@
 - operation
 	- creates folders for newly imported locations and their data
 - steps
-	- load database location in #[[user_json]] in /user folder ["db_name","db_loc"]
-	- call #backup
+	- load database location in [[user_json]] in /user folder ["db_name","db_loc"]
+	- call [[backup]]
 	- open database check [if null then folderize]
 		- locations - loc_loc
 		- images - img_loc
 		- videos - vid_loc
 		- documents - doc_loc
 		- urls - urls_loc
-	- call #[[folder_script]]
+	- call [[folder_script]]
 	- record new folder in database for 'blank'_loc
 	- documents folder always created by default

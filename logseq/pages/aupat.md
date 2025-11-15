@@ -1,8 +1,8 @@
 - Abandoned Upstate Project Archive Tool
 -
 - scripts
-	- #[[aupat_import]]
-	- #aupat_webapp [stage 2]
+	- [[aupat_import]]
+	- [[aupat_webapp]] [stage 2]
 - scope
 	- stage 1: import tool
 	- stage 2: web app

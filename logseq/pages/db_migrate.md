@@ -7,17 +7,17 @@
 	- manages database
 	- updates database
 - tables /.json files
-	- locations table: #locations_table
-	- sub-locations table: #sub-locations_table
-	- images table: #images_table
-	- videos table: #[[videos]]
-	- documents table: #[[documents_table]]
-	- urls table: #urls_table
-	- versions table: #versions_table
+	- locations table: [[locations_table]]
+	- sub-locations table: [[sub-locations_table]]
+	- images table: [[images_table]]
+	- videos table: [[videos]]
+	- documents table: [[documents_table]]
+	- urls table: [[urls_table]]
+	- versions table: [[versions_table]]
 - steps
-	- load database in #[[user_json]] in /user folder ["db_name","db_loc"]
+	- load database in [[user_json]] in /user folder ["db_name","db_loc"]
 		- if no database exists, create database
-	- backup database - call #backup
+	- backup database - call [[backup]]
 	- check table "versions" - check version of .json files in table and database [locations.json,images.json,videos.json,documents.json,urls.json]
 	- update / create tables
 	- record version number in "versions" table for locations.json,images.json,videos.json,documents.json,urls.json, database.py

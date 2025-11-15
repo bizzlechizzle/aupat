@@ -3,8 +3,8 @@
 - operation
 	- organizes new locations in the database
 - steps
-	- load database location in #[[user_json]] in /user folder ["db_name","db_loc"]
-	- call #backup
+	- load database location in [[user_json]] in /user folder ["db_name","db_loc"]
+	- call [[backup]]
 	- open database check [if null then organize] [table/column]
 		- images - img_loc
 		- videos - vid_loc
@@ -26,21 +26,21 @@
 			- camera model
 				- - Model
 	- if both photos and videos exist
-		- check rules for live photos #live_videos
+		- check rules for live photos [[live_videos]]
 		- mark live videos true for image if true
 	- documents run
 		- check file extension type
-			- check #ignored_ext
+			- check [[ignored_ext]]
 				- if on list do not import to database
 				- if not on list, log document extension type to "doc_ext"
-			- check #approved_ext for special instructions
+			- check [[approved_ext]] for special instructions
 		-
 	- urls table run
 		- pulls "url" and extracts full domain without normalization
 		- stores complete domain (e.g., username.smugmug.com)
 	- films run
 	-
-	- true/false #camera_hardware
+	- true/false [[camera_hardware]]
 		- original: true [for all images/video]
 		- camera: true if dslr [for all images/video]
 		- phone: true if phone [for all images/video]

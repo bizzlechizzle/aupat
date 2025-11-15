@@ -4,9 +4,9 @@
 - operation
 	- generates .jsons for each location, with all of the information pertaining to it
 - steps
-	- load database location in #[[user_json]] in /user folder ["db_name","db_loc","arch_loc"]
+	- load database location in [[user_json]] in /user folder ["db_name","db_loc","arch_loc"]
 	- check "locations" - column "loc_update" and "json_update" if "loc_update" is newer or "json_update" is null, generate new .json
 		- pull loc_uuid - search for on all tables
-		- call #name_script for document name
+		- call [[name_script]] for document name
 		- save in location-name_loc_sha8/documents
 	-

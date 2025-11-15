@@ -8,16 +8,16 @@
 	- desktop web import
 	- scan existing database
 - steps
-	- load database in #[[user_json]] in /user folder ["db_name","db_loc","db_ingest"]
-	- call #backup
-	- call #gen_uuid for new uuid, create folder with first 8 characters of uuid in ingest location
+	- load database in [[user_json]] in /user folder ["db_name","db_loc","db_ingest"]
+	- call [[backup]]
+	- call [[gen_uuid]] for new uuid, create folder with first 8 characters of uuid in ingest location
 	- if mobile web import
 		- import images into ingest folder
 	- if desktop web import
 		- if images are on same disk/system hardlink images, if not files images into ingest folder
 	- determine media types based on file extension or import step; images - videos - urls - documents [everything else]
 	- log into database
-	- generate sha or uuid's as needed #gen_sha, #gen_uuid
+	- generate sha or uuid's as needed [[gen_sha]], [[gen_uuid]]
 	- update versions table
 	- check image import match count [images,documents,etc] in folder, each has its unique id
 - import interface
