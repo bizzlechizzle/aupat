@@ -1,0 +1,45 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "File extensions to ignore/exclude from import",
+
+  "extensions": {
+    ".lrf": {
+      "condition": "if 'DJI' in filename",
+      "reason": "DJI LRF files (drone log files not needed for archival)",
+      "description": "DJI drone telemetry/log files - redundant data"
+    },
+    ".thm": {
+      "condition": "always",
+      "reason": "Thumbnail files (redundant - can be regenerated)",
+      "description": "Embedded thumbnail files"
+    },
+    ".DS_Store": {
+      "condition": "always",
+      "reason": "macOS system files (not needed)",
+      "description": "macOS Finder metadata"
+    },
+    ".db": {
+      "condition": "always",
+      "reason": "Database files (should not be imported as media)",
+      "description": "SQLite or other database files"
+    },
+    "Thumbs.db": {
+      "condition": "always",
+      "reason": "Windows thumbnail cache (not needed)",
+      "description": "Windows thumbnail cache file"
+    },
+    ".tmp": {
+      "condition": "always",
+      "reason": "Temporary files (not needed)",
+      "description": "Temporary files"
+    }
+  },
+
+  "notes": [
+    "Files with these extensions are skipped during import",
+    "Conditions can be 'always' or specify filename patterns",
+    "Additional extensions can be added as needed",
+    "Important: ensure critical metadata files are not accidentally ignored"
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "File naming conventions for standardized filenames in the archive",
+
+  "naming_patterns": {
+    "images": {
+      "without_sub": {
+        "format": "{loc_uuid8}-img_{sha8}.{ext}",
+        "example": "a1b2c3d4-img_e5f6g7h8.jpg",
+        "description": "Image without sub-location"
+      },
+      "with_sub": {
+        "format": "{loc_uuid8}-{sub_uuid8}-img_{sha8}.{ext}",
+        "example": "a1b2c3d4-i9j0k1l2-img_e5f6g7h8.jpg",
+        "description": "Image with sub-location"
+      }
+    },
+    "videos": {
+      "without_sub": {
+        "format": "{loc_uuid8}-vid_{sha8}.{ext}",
+        "example": "a1b2c3d4-vid_e5f6g7h8.mp4",
+        "description": "Video without sub-location"
+      },
+      "with_sub": {
+        "format": "{loc_uuid8}-{sub_uuid8}-vid_{sha8}.{ext}",
+        "example": "a1b2c3d4-i9j0k1l2-vid_e5f6g7h8.mp4",
+        "description": "Video with sub-location"
+      }
+    },
+    "documents": {
+      "without_sub": {
+        "format": "{loc_uuid8}-doc_{sha8}.{ext}",
+        "example": "a1b2c3d4-doc_e5f6g7h8.pdf",
+        "description": "Document without sub-location"
+      },
+      "with_sub": {
+        "format": "{loc_uuid8}-{sub_uuid8}-doc_{sha8}.{ext}",
+        "example": "a1b2c3d4-i9j0k1l2-doc_e5f6g7h8.pdf",
+        "description": "Document with sub-location"
+      }
+    }
+  },
+
+  "template_variables": {
+    "loc_uuid8": {
+      "description": "First 8 characters of location UUID",
+      "computed_from": "loc_uuid[:8]",
+      "example": "a1b2c3d4"
+    },
+    "sub_uuid8": {
+      "description": "First 8 characters of sub-location UUID",
+      "computed_from": "sub_uuid[:8]",
+      "example": "i9j0k1l2",
+      "note": "Only included if file belongs to a sub-location"
+    },
+    "sha8": {
+      "description": "First 8 characters of SHA256 hash",
+      "computed_from": "sha256[:8]",
+      "example": "e5f6g7h8",
+      "note": "Different sha8 for each media type: img_sha256[:8], vid_sha256[:8], doc_sha256[:8]"
+    },
+    "ext": {
+      "description": "File extension in lowercase",
+      "example": "jpg, mp4, pdf",
+      "note": "Original extension preserved (no conversion)"
+    }
+  },
+
+  "implementation": {
+    "script": "name.py",
+    "function": "generate_filename(media_type, loc_uuid, sha256, extension, sub_uuid=None)",
+    "parameters": {
+      "media_type": "Type of media: 'img', 'vid', or 'doc'",
+      "loc_uuid": "Full location UUID (uuid8 computed as loc_uuid[:8])",
+      "sha256": "Full SHA256 hash (sha8 computed as sha256[:8])",
+      "extension": "File extension (e.g., 'jpg', 'mp4', 'pdf')",
+      "sub_uuid": "Optional full sub-location UUID (sub_uuid8 computed as sub_uuid[:8])"
+    },
+    "returns": "Standardized filename string"
+  },
+
+  "benefits": [
+    "Unique filenames based on content hash (SHA256)",
+    "Traceable to location via UUID prefix",
+    "Collision-resistant naming scheme",
+    "Human-readable with clear media type indicator",
+    "Supports hierarchical organization with sub-locations"
+  ],
+
+  "notes": [
+    "All uuid8 and sha8 values are computed on-the-fly, not stored in database",
+    "Extensions are preserved from original files (lowercase normalized)",
+    "Filenames generated during db_ingest.py processing",
+    "Sub-location UUID only included if file belongs to a sub-location"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Approved file extensions with special handling rules for matching to media",
+
+  "extensions": {
+    ".srt": {
+      "type": "subtitle",
+      "match_to": "video",
+      "match_method": "filename",
+      "description": "Subtitle files - match to videos by comparing original filenames",
+      "conditions": [
+        "If 'DJI' in filename, match to DJI videos"
+      ],
+      "matching_logic": {
+        "compare": ["doc_loco", "doc_nameo"],
+        "with": ["vid_loco", "vid_nameo"],
+        "action": [
+          "Store video vid_sha256 in documents.docs_img (NOTE: typo in original spec, should be docs_vid)",
+          "Store doc_sha256 in videos.vid_docs"
+        ]
+      }
+    },
+
+    ".xml": {
+      "type": "metadata",
+      "match_to": ["image", "video"],
+      "match_method": "filename",
+      "description": "Metadata files - match to images or videos by comparing original filenames",
+      "matching_logic": {
+        "for_images": {
+          "compare": ["doc_loco", "doc_nameo"],
+          "with": ["img_loco", "img_nameo"],
+          "action": [
+            "Store image img_sha256 in documents.docs_img",
+            "Store doc_sha256 in images.img_docs"
+          ]
+        },
+        "for_videos": {
+          "compare": ["doc_loco", "doc_nameo"],
+          "with": ["vid_loco", "vid_nameo"],
+          "action": [
+            "Store video vid_sha256 in documents.docs_vid (NOTE: schema shows docs_img)",
+            "Store doc_sha256 in videos.vid_docs"
+          ]
+        }
+      }
+    }
+  },
+
+  "notes": [
+    "Extensions are matched during db_organize.py processing",
+    "Matching is based on original filenames and locations before import",
+    "Relationships are bidirectional - stored in both tables",
+    "Future extensions can be added following the same pattern"
+  ]
+}

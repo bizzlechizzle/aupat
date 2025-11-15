@@ -1,0 +1,97 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Locations table schema - main locations for the AUPAT archive",
+  "table_name": "locations",
+
+  "schema": {
+    "columns": [
+      {
+        "name": "loc_uuid",
+        "type": "TEXT",
+        "constraints": ["PRIMARY KEY"],
+        "description": "UUID4 for location - full UUID, uuid8 computed as SUBSTR(loc_uuid, 1, 8)"
+      },
+      {
+        "name": "loc_name",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Location name - normalized with unidecode, titlecase"
+      },
+      {
+        "name": "aka_name",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Also known as name - normalized with unidecode, titlecase (JSON1 field)"
+      },
+      {
+        "name": "state",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "USPS Two-Letter State Code - normalized with libpostal, lowercase"
+      },
+      {
+        "name": "type",
+        "type": "TEXT",
+        "constraints": ["NOT NULL"],
+        "description": "Location type (industrial, residential, commercial, etc.) - normalized with unidecode, titlecase, lowercase"
+      },
+      {
+        "name": "sub_type",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Sub-location type - normalized with unidecode, titlecase"
+      },
+      {
+        "name": "org_loc",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Original folder location (absolute path)"
+      },
+      {
+        "name": "loc_loc",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Current folder location (absolute path)"
+      },
+      {
+        "name": "loc_add",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date added to database - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "loc_update",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Date last updated - normalized with dateutil (ISO 8601)"
+      },
+      {
+        "name": "imp_author",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Import author username"
+      },
+      {
+        "name": "json_update",
+        "type": "TEXT",
+        "constraints": [],
+        "description": "Last time master JSON was generated (ISO 8601)"
+      }
+    ],
+
+    "indexes": [
+      {
+        "name": "idx_locations_state_type",
+        "columns": ["state", "type"],
+        "description": "Index for common queries by state and type"
+      }
+    ]
+  },
+
+  "notes": [
+    "loc_uuid8 (first 8 chars) is computed when needed using SUBSTR(loc_uuid, 1, 8) or loc_uuid[:8]",
+    "Foreign keys ON DELETE CASCADE to child tables (sub_locations, images, videos, documents, urls)",
+    "Location names are normalized for consistency"
+  ]
+}

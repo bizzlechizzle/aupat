@@ -1,0 +1,64 @@
+{
+  "version": "0.1.1",
+  "last_updated": "2025-11-15",
+  "description": "Rules for matching live photos to their companion live videos",
+
+  "matching_logic": {
+    "description": "Compare original locations and filenames to identify live photo/video pairs",
+    "steps": [
+      "Compare img_loco (original image location) with vid_loco (original video location)",
+      "Compare img_nameo (original image name) with vid_nameo (original video name)",
+      "If location matches and names are similar, mark as live photo/video pair",
+      "Store bidirectional references in both tables"
+    ],
+    "actions": [
+      "Store image img_sha256 in videos.vid_imgs (JSON1 array)",
+      "Store video vid_sha256 in images.img_vids (JSON1 array)",
+      "Categorize video as 'other' (live videos go to videos/original_other folder)"
+    ]
+  },
+
+  "patterns": [
+    {
+      "type": "iPhone Live Photo",
+      "photo_pattern": "IMG_*.HEIC",
+      "video_pattern": "IMG_*.MOV",
+      "match_method": "prefix",
+      "example": {
+        "photo": "IMG_1234.HEIC",
+        "video": "IMG_1234.MOV"
+      },
+      "description": "iPhone Live Photos - same numeric prefix, different extensions"
+    },
+    {
+      "type": "iPhone Live Photo (JPG)",
+      "photo_pattern": "IMG_*.JPG",
+      "video_pattern": "IMG_*.MOV",
+      "match_method": "prefix",
+      "example": {
+        "photo": "IMG_1234.JPG",
+        "video": "IMG_1234.MOV"
+      },
+      "description": "iPhone Live Photos saved as JPG - same numeric prefix"
+    },
+    {
+      "type": "Generic Live Photo",
+      "photo_pattern": "*",
+      "video_pattern": "*",
+      "match_method": "exact_prefix",
+      "description": "Match any photo/video pair with identical filename prefix (before extension)"
+    }
+  ],
+
+  "storage": {
+    "photo": "Stored in appropriate hardware folder based on camera type",
+    "video": "Always stored in videos/original_other/ (special case for live videos)"
+  },
+
+  "notes": [
+    "Live photo detection happens during db_organize.py processing",
+    "Requires original filename and location to be preserved (img_loco, img_nameo, vid_loco, vid_nameo)",
+    "Bidirectional relationships allow querying from either photo or video",
+    "Future: support for additional live photo formats from other manufacturers"
+  ]
+}
