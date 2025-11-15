@@ -249,6 +249,152 @@ def calculate_sha256_with_short(file_path: str) -> Tuple[str, str]:
     return sha256, sha8
 
 
+# File type detection based on extension
+IMAGE_EXTENSIONS = {
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif',
+    '.heic', '.heif', '.webp', '.raw', '.cr2', '.nef', '.dng',
+    '.arw', '.orf', '.rw2', '.pef', '.srw', '.raf', '.3fr',
+    '.fff', '.iiq', '.k25', '.kdc', '.mef', '.mos', '.mrw',
+    '.nrw', '.ptx', '.pxn', '.r3d', '.rwl', '.sr2', '.srf', '.x3f'
+}
+
+VIDEO_EXTENSIONS = {
+    '.mp4', '.mov', '.avi', '.mkv', '.m4v', '.mpg', '.mpeg',
+    '.wmv', '.flv', '.webm', '.3gp', '.mts', '.m2ts', '.ts',
+    '.vob', '.ogv', '.ogg', '.drc', '.gifv', '.mng', '.qt',
+    '.yuv', '.rm', '.rmvb', '.asf', '.amv', '.m4p', '.m4v',
+    '.mpv', '.mp2', '.mpe', '.mpv', '.m2v', '.svi', '.3g2',
+    '.mxf', '.roq', '.nsv', '.f4v', '.f4p', '.f4a', '.f4b'
+}
+
+DOCUMENT_EXTENSIONS = {
+    '.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt',
+    '.srt', '.xml', '.json', '.csv', '.xls', '.xlsx',
+    '.ppt', '.pptx', '.odp', '.ods', '.pages', '.numbers',
+    '.keynote', '.md', '.markdown', '.log', '.ini', '.cfg'
+}
+
+
+def determine_file_type(extension: str) -> str:
+    """
+    Determine file type (image/video/document) based on file extension.
+
+    Args:
+        extension: File extension with or without leading dot (e.g., '.jpg' or 'jpg')
+
+    Returns:
+        str: File type - 'image', 'video', 'document', or 'other'
+
+    Examples:
+        >>> determine_file_type('.jpg')
+        'image'
+        >>> determine_file_type('mp4')
+        'video'
+        >>> determine_file_type('.PDF')
+        'document'
+        >>> determine_file_type('.xyz')
+        'other'
+
+    Notes:
+        - Case insensitive
+        - Handles extensions with or without leading dot
+        - Returns 'other' for unknown extensions
+        - Based on approved_ext.json and common media formats
+    """
+    # Normalize: lowercase and ensure leading dot
+    ext = extension.lower()
+    if not ext.startswith('.'):
+        ext = f'.{ext}'
+
+    if ext in IMAGE_EXTENSIONS:
+        return 'image'
+    elif ext in VIDEO_EXTENSIONS:
+        return 'video'
+    elif ext in DOCUMENT_EXTENSIONS:
+        return 'document'
+    else:
+        return 'other'
+
+
+def check_sha256_collision(cursor, sha256: str, file_type: str) -> bool:
+    """
+    Check if SHA256 hash already exists in the appropriate media table.
+
+    Args:
+        cursor: SQLite database cursor
+        sha256: Full SHA256 hash to check
+        file_type: Type of file ('image', 'video', or 'document')
+
+    Returns:
+        bool: True if collision detected (hash exists), False if unique
+
+    Raises:
+        ValueError: If file_type is invalid
+
+    Examples:
+        >>> cursor = conn.cursor()
+        >>> collision = check_sha256_collision(cursor, sha256_hash, 'image')
+        >>> if collision:
+        >>>     print("Duplicate image detected!")
+
+    Notes:
+        - Checks the appropriate table based on file_type
+        - Returns True if hash already exists (duplicate)
+        - Returns False if hash is unique (safe to import)
+    """
+    # Map file type to table and hash field
+    table_map = {
+        'image': ('images', 'img_sha256'),
+        'video': ('videos', 'vid_sha256'),
+        'document': ('documents', 'doc_sha256')
+    }
+
+    if file_type not in table_map:
+        raise ValueError(f"Invalid file_type: {file_type}. Must be 'image', 'video', or 'document'")
+
+    table, sha_field = table_map[file_type]
+
+    try:
+        cursor.execute(f"SELECT {sha_field} FROM {table} WHERE {sha_field} = ?", (sha256,))
+        result = cursor.fetchone()
+        return result is not None
+    except Exception as e:
+        logger.error(f"Error checking SHA256 collision in {table}: {e}")
+        return False
+
+
+def check_location_name_collision(cursor, loc_name: str) -> Optional[str]:
+    """
+    Check if location name already exists in database.
+
+    Args:
+        cursor: SQLite database cursor
+        loc_name: Location name to check
+
+    Returns:
+        Optional[str]: UUID of existing location if found, None if unique
+
+    Examples:
+        >>> cursor = conn.cursor()
+        >>> existing_uuid = check_location_name_collision(cursor, "Old Factory")
+        >>> if existing_uuid:
+        >>>     print(f"Location already exists: {existing_uuid}")
+
+    Notes:
+        - Case-sensitive comparison
+        - Returns UUID of first match if found
+        - Returns None if location name is unique
+        - Helps prevent duplicate locations
+    """
+    try:
+        cursor.execute("SELECT loc_uuid FROM locations WHERE loc_name = ?", (loc_name,))
+        result = cursor.fetchone()
+        return result[0] if result else None
+    except Exception as e:
+        logger.error(f"Error checking location name collision: {e}")
+        return None
+
+
 if __name__ == '__main__':
     # Example usage and testing
     print("AUPAT Utilities Module")
