@@ -65,10 +65,11 @@ echo ""
 # Step 2: Create folder structure
 print_info "Step 2: Creating folder structure..."
 mkdir -p scripts
+mkdir -p data
 mkdir -p user
 mkdir -p backups
 mkdir -p logs
-print_success "Created: scripts/ user/ backups/ logs/"
+print_success "Created: scripts/ data/ user/ backups/ logs/"
 echo ""
 
 # Step 3: Create virtual environment
@@ -163,8 +164,36 @@ EOF
 fi
 echo ""
 
-# Step 9: Create .gitignore additions if needed
-print_info "Step 9: Verifying .gitignore..."
+# Step 9: Make scripts executable
+print_info "Step 9: Making scripts executable..."
+if [ -d "scripts" ] && [ "$(ls -A scripts/*.py 2>/dev/null)" ]; then
+    chmod +x scripts/*.py
+    print_success "All Python scripts are now executable"
+else
+    print_warning "No Python scripts found in scripts/ directory"
+fi
+echo ""
+
+# Step 10: Verify scripts can be imported
+print_info "Step 10: Verifying script modules..."
+cd scripts 2>/dev/null && {
+    if python3 -c "import utils" 2>/dev/null; then
+        print_success "utils.py imports successfully"
+    else
+        print_warning "utils.py import failed (may not exist yet)"
+    fi
+
+    if python3 -c "import normalize" 2>/dev/null; then
+        print_success "normalize.py imports successfully"
+    else
+        print_warning "normalize.py import failed (may not exist yet)"
+    fi
+    cd ..
+}
+echo ""
+
+# Step 11: Verify .gitignore
+print_info "Step 11: Verifying .gitignore..."
 if grep -q "^venv/" .gitignore 2>/dev/null && \
    grep -q "^backups/" .gitignore 2>/dev/null && \
    grep -q "^logs/" .gitignore 2>/dev/null; then
@@ -180,15 +209,32 @@ echo "Setup Complete!"
 echo "========================================="
 echo ""
 print_info "Next steps:"
-print_info "  1. Activate virtual environment: source venv/bin/activate"
-print_info "  2. Edit user/user.json with your actual paths"
-print_info "  3. Install external tools if not found (exiftool, ffprobe)"
-if ! python3 -c "import postal" 2>/dev/null; then
-    print_info "  4. Optional: Install libpostal system library for address normalization"
+print_info "  1. Edit user/user.json with your actual paths (REQUIRED)"
+print_info "  2. Install external tools if not found:"
+if ! command -v exiftool &> /dev/null; then
+    print_info "     - exiftool: brew install exiftool (macOS) or apt-get install libimage-exiftool-perl"
 fi
-print_info "  5. Start implementing Python scripts in scripts/ directory"
+if ! command -v ffprobe &> /dev/null; then
+    print_info "     - ffprobe: brew install ffmpeg (macOS) or apt-get install ffmpeg"
+fi
+if ! python3 -c "import postal" 2>/dev/null; then
+    print_info "  3. Optional: Install libpostal for advanced address normalization"
+    print_info "     - macOS: brew install libpostal && pip install postal"
+    print_info "     - Ubuntu: apt-get install libpostal-dev && pip install postal"
+fi
+print_info "  4. Initialize database: python3 scripts/db_migrate.py"
+print_info "  5. Start importing media: python3 scripts/db_import.py --source /path/to/media"
 echo ""
 print_success "Virtual environment is ready in venv/"
 print_info "  Activate: source venv/bin/activate"
 print_info "  Deactivate: deactivate"
+echo ""
+print_info "For full workflow, run these scripts in order:"
+print_info "  1. db_migrate.py   - Create database schema"
+print_info "  2. db_import.py    - Import location and media"
+print_info "  3. db_organize.py  - Extract metadata and categorize"
+print_info "  4. db_folder.py    - Create archive folder structure"
+print_info "  5. db_ingest.py    - Move files to archive"
+print_info "  6. db_verify.py    - Verify integrity and cleanup staging"
+print_info "  7. db_identify.py  - Generate JSON exports"
 echo ""
