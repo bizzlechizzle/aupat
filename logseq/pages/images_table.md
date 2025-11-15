@@ -10,6 +10,7 @@
 			- "loc_uuid8"-"img_sha8".image extension
 	- img_loc: image location [absolute path]
 	- img_sha256: sha256 of image file
+		- note: img_sha8 (first 8 chars) is computed when needed using sha256[:8]
 	- original = true/false [starts null]
 	- camera = true/false [starts null]
 	- phone = true/false [starts null]
@@ -35,5 +36,5 @@
 	- img_docs = [json1]
 		- related documents to this image [doc_sha256]
 	- img_vids = [json1]
-		- related documents to this image [doc_sha256]
+		- related videos to this image [vid_sha256]
 -

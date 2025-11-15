@@ -1,6 +1,6 @@
 - script
 	- db_organize.py
-- soperation
+- operation
 	- organizes new locations in the database
 - steps
 	- load database location in #[[user_json]] in /user folder ["db_name","db_loc"]

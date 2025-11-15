@@ -23,7 +23,7 @@ AUPAT (Abandoned Upstate Project Archive Tool) is a bulletproof digital asset ma
 
 **What Doesn't Exist Yet**:
 - No Python scripts implemented (13 scripts documented, 0 written)
-- No JSON configuration files created (15 files documented, 0 created)
+- No JSON configuration files created (14 files documented, 0 created)
 - No database created
 - No folder structure created (scripts/, data/, user/, backups/, logs/)
 - No tests written
@@ -220,7 +220,7 @@ Where uuid8 = first 8 chars of UUID, sha8 = first 8 chars of SHA256
 
 ### Stage 1: CLI Import Tool (Current Focus)
 - Implement all 13 Python scripts
-- Create all 15 JSON configuration files
+- Create all 14 JSON configuration files
 - Build database schema
 - Test import pipeline end-to-end
 - Write comprehensive tests

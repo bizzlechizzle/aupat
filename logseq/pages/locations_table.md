@@ -16,7 +16,7 @@
 	- sub_type: sub-location type - based off folder name
 		- normalization: unidecode, titlecase
 	- loc_uuid: uuid4 for location
-	- loc_uuid8: first 8 characters of uuid
+		- note: loc_uuid8 (first 8 chars) is computed when needed using SUBSTR(loc_uuid, 1, 8) or loc_uuid[:8]
 	- sub_uuid: uuid4 for sub-location [json1]
 	- org_loc: original folder location [absolute path]
 	- loc_loc: folder location [absolute path]

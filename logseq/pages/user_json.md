@@ -6,3 +6,5 @@
 	- db_name : database name
 	- db_loc : database folder location
 	- db_backup: database backup folder location
+	- db_ingest: staging directory for incoming files
+	- arch_loc: archive root directory

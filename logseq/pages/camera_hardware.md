@@ -52,4 +52,5 @@
 		  70mai
 - point_shoot
 	- makes
-	- moels
+	- models
+		- note: model matching is optional; manufacturer matching is primary method
