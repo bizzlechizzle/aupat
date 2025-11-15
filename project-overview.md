@@ -128,7 +128,6 @@ AUPAT follows bulletproof engineering principles:
 │   ├── camera_hardware.json   # Hardware classification
 │   ├── approved_ext.json      # Special file extensions
 │   ├── ignored_ext.json       # Excluded file extensions
-│   ├── host_domains.json      # URL domain normalization
 │   ├── live_videos.json       # Live photo matching rules
 │   ├── folder.json            # Folder structure template
 │   └── name.json              # File naming conventions
@@ -281,8 +280,8 @@ All scripts documented, none implemented yet. Implementation status: 0%.
 4. Set relationships (docs_img field for images, vid_docs/img_docs for videos)
 
 **For URLs**:
-1. Parse domain from URL
-2. Normalize domain using host_domains.json rules
+1. Parse full domain from URL (e.g., username.smugmug.com)
+2. Store complete domain without normalization
 3. Generate url_uuid for tracking
 
 **Hardware Detection Rules**:
@@ -300,7 +299,6 @@ All scripts documented, none implemented yet. Implementation status: 0%.
 - live_videos.json (live photo matching rules)
 - approved_ext.json (special extension handling)
 - ignored_ext.json (excluded extensions)
-- host_domains.json (URL domain normalization)
 
 **Input**: Database entries with files in ingest staging
 **Output**: Updated database with metadata and categorization
@@ -929,10 +927,10 @@ All JSON files documented, none created yet. Implementation status: 0%.
 - `url_update` (TEXT) - Date/time updated
 - `imp_author` (TEXT) - Import author
 
-**Domain Normalization**:
-- Uses host_domains.json rules
-- Handles complex hosting (SmugMug, Blogspot, WordPress, GitHub Pages, etc.)
-- Extracts canonical domain for organization
+**Domain Storage**:
+- Stores full domain from URL without normalization
+- Preserves complete domain information (e.g., username.smugmug.com)
+- Maintains human-readable domains for file/folder organization
 
 **Use Cases**:
 - Website references for locations
@@ -1084,44 +1082,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-#### 11. host_domains.json
-**Purpose**: Domain normalization for URL cleaning
-
-**Structure**:
-```json
-{
-  "SmugMug": {
-    "pattern": "*.smugmug.com",
-    "extract": "subdomain",
-    "example": "username.smugmug.com → username"
-  },
-  "Blogspot": {
-    "pattern": "*.blogspot.com",
-    "extract": "subdomain",
-    "example": "myblog.blogspot.com → myblog"
-  },
-  "WordPress": {
-    "pattern": "*.wordpress.com",
-    "extract": "subdomain"
-  },
-  "GitHub Pages": {
-    "pattern": "*.github.io",
-    "extract": "subdomain"
-  },
-  ...
-}
-```
-
-**Use Cases**:
-- Normalize complex hosting platforms
-- Extract meaningful identifiers
-- Organize URLs by provider
-
-**Specification**: logseq/pages/host_domains.json.md
-
----
-
-#### 12. live_videos.json
+#### 11. live_videos.json
 **Purpose**: Rules for matching live photos to live videos
 
 **Matching Logic**:
@@ -1156,7 +1117,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-#### 13. folder.json
+#### 12. folder.json
 **Purpose**: Folder structure template
 
 **Structure**:
@@ -1205,7 +1166,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-#### 14. name.json
+#### 13. name.json
 **Purpose**: File naming conventions
 
 **Structure**:
@@ -1244,7 +1205,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ### User Configuration
 
-#### 15. user.json
+#### 14. user.json
 **Purpose**: User configuration and database paths
 
 **Location**: user/user.json
@@ -1770,8 +1731,8 @@ For each document:
 - Match to related images/videos if applicable
 
 For each URL:
-- Parse domain
-- Normalize using host_domains.json
+- Parse full domain from URL
+- Store domain without normalization
 - Generate url_uuid
 ```
 

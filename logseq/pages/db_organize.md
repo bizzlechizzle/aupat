@@ -36,7 +36,8 @@
 			- check #approved_ext for special instructions
 		-
 	- urls table run
-		- pulls "url" cleans domain against #host_domains
+		- pulls "url" and extracts full domain without normalization
+		- stores complete domain (e.g., username.smugmug.com)
 	- films run
 	-
 	- true/false #camera_hardware
