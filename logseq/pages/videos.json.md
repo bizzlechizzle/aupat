@@ -1,0 +1,41 @@
+---
+title: videos.json
+---
+
+- rows
+	- blank
+- columns
+	- vid_name: location name - based off folder name
+		- naming:
+			- "loc_uuid8"-"sub_uuid8"-"vid_sha8".video extension
+			- "loc_uuid8"-"vid_sha8".video extension
+		- note: vid_sha256 is stored in database, first 8 chars used in file naming
+	- vid_loc: video location [absolute path]
+	- vid_sha256: sha256 of video file
+	- original = true/false [starts null]
+	- camera = true/false [DSLR/MIRRORLESS] [starts null]
+	- drone = true/false [starts null]
+	- phone = true/false [starts null]
+	- go_pro = true/false [starts null]
+	- dash_cam = true/false [starts null]
+	- other = true/false [starts null]
+	- ffmpeg_hardware = true/false [starts false]
+	- vid_hardware = [json1]
+		- camera brand
+			- - Make
+		- camera model
+			- - Model
+	- loc_uuid: uuid4 for location
+	- sub_uuid: uuid4 for sub-location [json1]
+	- vid_loco: original video folder location [absolute path]
+	- vid_nameo: original video file name
+	- vid_add: date added to database
+		- normalization: dateutil
+	- vid_update: date anytime anything was updated for vid
+		- normalization: dateutil
+	- imp_author: import author
+	- vid_docs = [json1]
+		- related documents to this video
+	- vid_imgs = [json1]
+		- related images to this video
+-

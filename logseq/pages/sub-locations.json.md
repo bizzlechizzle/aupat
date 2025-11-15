@@ -1,0 +1,28 @@
+---
+title: sub-locations.json
+---
+
+- rows
+	 - blank
+
+- columns
+	 - sub_name: location name - based off folder name
+		 - normalization: unidecode, titlecase
+
+	 - sub_uuid: uuid4 for sub-location
+
+	 - loc_uuid: uuid4 for host location
+
+	 - loc_uuid8: first 8 characters of loc_uuid
+
+	 - org_loc: original folder location [absolute path]
+
+	 - loc_loc: folder location [absolute path]
+
+	 - loc_add: date added to database
+		 - normalization: dateutil
+
+	 - loc_update: date anytime anything was updated for location
+		 - normalization: dateutil
+
+	 - imp_author: import author

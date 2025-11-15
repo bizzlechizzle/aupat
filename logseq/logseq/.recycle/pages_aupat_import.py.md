@@ -1,0 +1,37 @@
+---
+title: aupat_import.py
+---
+
+- Abandoned Upstate Project Archive Tool
+	- Import Tool
+		- CLI for Importing Into Database
+-
+- scripts [run order]
+	- #db_migrate.py.md [create/update database schema]
+	- #db_import.py.md [add new location records to database]
+	- #db_folder.py.md [create folder structure for locations]
+	- #db_ingest.py.md [copy/hardlink files into archive]
+	- #db_organize.py.md [extract metadata and categorize files]
+	- #db_verify.py.md [verify file integrity with hash checks]
+	- #db_identify.py [generate location json exports]
+	- #db_cleanup.py [cleanup temp data and integrity checks]
+- note: order ensures folders exist before ingest, files exist before organize
+-
+- rules [in importance]
+	- BPA = Best Practices Always
+	- BPL = Bulletproof Longterm
+	- Kiss = Keep it Simple Stupid
+	- FAANG PE = Facebook Amazon Apple Netflix Google Level Engineering but Personal/Small Business Edition
+	- WWYDD - What Would You Do Differently Logic [only if urgent/major/fatal flaw]
+- rules [when applicable]
+	- Includes Transaction Safety
+	- PRAGMA foreign_keys = ON
+-
+- folder structure
+	- AUPAT
+		- scripts
+		- data
+		- user
+		- venv
+		- backups
+		- logs

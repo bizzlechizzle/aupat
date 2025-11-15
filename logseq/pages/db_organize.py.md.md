@@ -1,0 +1,60 @@
+---
+title: db_organize.py
+---
+
+- operation
+	- organizes new locations in the database
+	- extracts metadata and categorizes files after ingest
+- workflow position
+	- runs AFTER db_ingest.py [files already in archive]
+	- runs BEFORE db_verify.py
+- steps
+	- load database location in #user.json.md in /user folder ["db_name","db_loc"]
+	- call #backup.py.md
+	- open database check [if not null then organize] [table/column]
+		- images - img_loc [files already ingested]
+		- videos - vid_loc [files already ingested]
+		- documents - doc_loc [files already ingested]
+		- urls - url_loc [already imported]
+	- images run
+		- exiftool -Make -Model
+		- log img_hardware = [json1]
+			- camera brand
+				- - Make
+			- camera model
+				- - Model
+	- videos run .ffmpeg_hardware
+		- ffprobe -v quiet \
+		  -show_entries format_tags=make,Make,model,Model
+		- log vid_hardware = [json1]
+			- camera brand
+				- - Make
+			- camera model
+				- - Model
+	- if both photos and videos exist
+		- check rules for live photos #live_videos.json.md
+		- mark live videos true for image if true
+	- documents run
+		- check file extension type
+			- check #ignored_ext.json.md
+				- if on list do not import to database
+				- if not on list, log document extension type to "doc_ext"
+			- check #approved_ext.json.md for special instructions
+		-
+	- urls table run
+		- pulls "url" cleans domain against #host_domains.json.md
+	- films run
+	-
+	- hardware detection algorithm #camera_hardware.json.md
+		- original: true [for all images/videos]
+		- match Make/Model against camera_hardware.json categories:
+			- camera: true if Make in DSLR list [Canon, Nikon, Sony, Fujifilm, etc]
+			- phone: true if Make in Phone list [iPhone, Apple, Samsung, Pixel, Google, etc]
+			- drone: true if Make in Drone list [DJI, Autel, Parrot]
+			- go_pro: true if Make in GoPro list [GoPro, Hero, Max]
+			- dash_cam: true if Make in Dash Cam list [Vantrue, BlackVue, Garmin, etc]
+			- film: true if manually marked during import [images only]
+			- other: true if no matches found [catchall]
+		- set exiftool_hardware/ffmpeg_hardware to true after extraction
+		-
+	-
