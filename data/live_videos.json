@@ -1,64 +1,272 @@
 {
-  "version": "0.1.1",
+  "version": "0.2.0",
   "last_updated": "2025-11-15",
-  "description": "Rules for matching live photos to their companion live videos",
+  "description": "Rules for matching live photos to their companion live videos with comprehensive edge case handling",
 
-  "matching_logic": {
-    "description": "Compare original locations and filenames to identify live photo/video pairs",
-    "steps": [
-      "Compare img_loco (original image location) with vid_loco (original video location)",
-      "Compare img_nameo (original image name) with vid_nameo (original video name)",
-      "If location matches and names are similar, mark as live photo/video pair",
-      "Store bidirectional references in both tables"
+  "matching_algorithm": {
+    "description": "Precise algorithm for identifying live photo/video pairs",
+    "requirements": [
+      "Both files must have valid img_loco/vid_loco (original location)",
+      "Both files must have valid img_nameo/vid_nameo (original filename)",
+      "Location must match exactly (same original folder)",
+      "Filenames must match according to pattern rules"
     ],
-    "actions": [
-      "Store image img_sha256 in videos.vid_imgs (JSON1 array)",
-      "Store video vid_sha256 in images.img_vids (JSON1 array)",
-      "Categorize video as 'other' (live videos go to videos/original_other folder)"
+    "steps": [
+      {
+        "step": 1,
+        "action": "Compare original locations",
+        "rule": "img_loco MUST equal vid_loco (exact match, case-sensitive paths)",
+        "fail_action": "Skip - different source folders cannot be live photo pairs"
+      },
+      {
+        "step": 2,
+        "action": "Extract base filenames",
+        "rule": "Remove file extension from both img_nameo and vid_nameo",
+        "example": {
+          "img_nameo": "IMG_1234.HEIC",
+          "vid_nameo": "IMG_1234.MOV",
+          "img_base": "IMG_1234",
+          "vid_base": "IMG_1234"
+        }
+      },
+      {
+        "step": 3,
+        "action": "Compare base filenames",
+        "rule": "Case-insensitive comparison of base names",
+        "rationale": "Handles cross-platform filename inconsistencies",
+        "example": {
+          "matches": [
+            ["IMG_1234", "IMG_1234"],
+            ["img_1234", "IMG_1234"],
+            ["Img_1234", "IMG_1234"]
+          ],
+          "no_match": [
+            ["IMG_1234", "IMG_1234_EDIT"],
+            ["IMG_1234", "IMG_1235"]
+          ]
+        }
+      },
+      {
+        "step": 4,
+        "action": "Validate file extensions",
+        "rule": "Check if extensions match known live photo patterns",
+        "validation": "Image must be photo extension, video must be video extension"
+      },
+      {
+        "step": 5,
+        "action": "Apply pattern matching",
+        "rule": "Match against patterns in priority order (first match wins)",
+        "see": "patterns array below"
+      },
+      {
+        "step": 6,
+        "action": "Store bidirectional references",
+        "operations": [
+          "Append vid_sha256 to images.img_vids (JSON1 array)",
+          "Append img_sha256 to videos.vid_imgs (JSON1 array)",
+          "Set videos.other = 1 (categorize as 'other' for storage routing)"
+        ],
+        "note": "Use array append to support multiple matches per file if needed"
+      }
     ]
   },
 
   "patterns": [
     {
-      "type": "iPhone Live Photo",
-      "photo_pattern": "IMG_*.HEIC",
-      "video_pattern": "IMG_*.MOV",
-      "match_method": "prefix",
+      "priority": 1,
+      "type": "iPhone Live Photo (HEIC)",
+      "photo_extensions": ["HEIC", "heic"],
+      "video_extensions": ["MOV", "mov"],
+      "match_method": "exact_base_name",
       "example": {
         "photo": "IMG_1234.HEIC",
-        "video": "IMG_1234.MOV"
+        "video": "IMG_1234.MOV",
+        "base_match": "IMG_1234"
       },
-      "description": "iPhone Live Photos - same numeric prefix, different extensions"
+      "description": "iPhone Live Photos - HEIC format with MOV video"
     },
     {
+      "priority": 2,
       "type": "iPhone Live Photo (JPG)",
-      "photo_pattern": "IMG_*.JPG",
-      "video_pattern": "IMG_*.MOV",
-      "match_method": "prefix",
+      "photo_extensions": ["JPG", "jpg", "JPEG", "jpeg"],
+      "video_extensions": ["MOV", "mov"],
+      "match_method": "exact_base_name",
       "example": {
         "photo": "IMG_1234.JPG",
-        "video": "IMG_1234.MOV"
+        "video": "IMG_1234.MOV",
+        "base_match": "IMG_1234"
       },
-      "description": "iPhone Live Photos saved as JPG - same numeric prefix"
+      "description": "iPhone Live Photos - JPG format with MOV video (converted or saved as JPG)"
     },
     {
+      "priority": 3,
+      "type": "Google Motion Photo",
+      "photo_extensions": ["JPG", "jpg", "JPEG", "jpeg"],
+      "video_extensions": ["MP4", "mp4"],
+      "match_method": "exact_base_name",
+      "example": {
+        "photo": "PXL_20231115_123456789.jpg",
+        "video": "PXL_20231115_123456789.mp4",
+        "base_match": "PXL_20231115_123456789"
+      },
+      "description": "Google Pixel Motion Photos - same base name, different extensions",
+      "note": "Google phones may embed video in EXIF or use separate MP4"
+    },
+    {
+      "priority": 4,
+      "type": "Samsung Motion Photo",
+      "photo_extensions": ["JPG", "jpg", "JPEG", "jpeg"],
+      "video_extensions": ["MP4", "mp4"],
+      "match_method": "exact_base_name",
+      "example": {
+        "photo": "20231115_123456.jpg",
+        "video": "20231115_123456.mp4",
+        "base_match": "20231115_123456"
+      },
+      "description": "Samsung Galaxy motion photos - same base name pattern"
+    },
+    {
+      "priority": 999,
       "type": "Generic Live Photo",
-      "photo_pattern": "*",
-      "video_pattern": "*",
-      "match_method": "exact_prefix",
-      "description": "Match any photo/video pair with identical filename prefix (before extension)"
+      "photo_extensions": ["*"],
+      "video_extensions": ["*"],
+      "match_method": "exact_base_name",
+      "description": "Fallback: Match any photo/video pair with identical base filename",
+      "note": "Low priority - only matches if no specific pattern matched first"
     }
   ],
 
-  "storage": {
-    "photo": "Stored in appropriate hardware folder based on camera type",
-    "video": "Always stored in videos/original_other/ (special case for live videos)"
+  "edge_cases": {
+    "case_sensitivity": {
+      "rule": "Case-insensitive filename comparison for base names",
+      "rationale": "Handles files moved between macOS (case-insensitive) and Linux (case-sensitive)",
+      "examples": {
+        "match": [
+          ["IMG_1234.HEIC", "img_1234.mov"],
+          ["img_1234.heic", "IMG_1234.MOV"]
+        ]
+      }
+    },
+    "multiple_videos_per_image": {
+      "rule": "Store all matching videos in img_vids array",
+      "scenario": "User has IMG_1234.HEIC with both IMG_1234.MOV and IMG_1234(1).MOV",
+      "action": "Only match exact base name - IMG_1234(1).MOV would NOT match",
+      "validation": "Warn if multiple exact matches found (unusual, possible duplicate)"
+    },
+    "multiple_images_per_video": {
+      "rule": "Store all matching images in vid_imgs array",
+      "scenario": "User has IMG_1234.HEIC and IMG_1234.JPG (converted) with IMG_1234.MOV",
+      "action": "Match both - user may have converted HEIC→JPG but kept original",
+      "validation": "Log for manual review - this is an edge case"
+    },
+    "different_original_locations": {
+      "rule": "Do NOT match if img_loco != vid_loco",
+      "scenario": "User organized HEIC files into 'Photos' and MOV files into 'Videos' before import",
+      "action": "Skip matching - cannot reliably pair files from different source folders",
+      "rationale": "Prevents false positives from unrelated files with same name pattern"
+    },
+    "missing_original_metadata": {
+      "rule": "Skip if img_loco, img_nameo, vid_loco, or vid_nameo is NULL",
+      "action": "Cannot perform matching without original location/name data",
+      "log": "Warn - file imported without preserving original metadata"
+    },
+    "special_characters_in_filename": {
+      "rule": "Preserve all characters except extension separator",
+      "examples": {
+        "match": [
+          ["IMG_1234 (1).HEIC", "IMG_1234 (1).MOV"],
+          ["Photo-2023-11-15.jpg", "Photo-2023-11-15.mp4"]
+        ],
+        "no_match": [
+          ["IMG_1234 (1).HEIC", "IMG_1234.MOV"]
+        ]
+      }
+    },
+    "extension_case_variations": {
+      "rule": "Case-insensitive extension matching",
+      "examples": {
+        "all_match": [".heic", ".HEIC", ".Heic", ".HeIc"]
+      }
+    }
   },
 
-  "notes": [
+  "validation_rules": {
+    "consistency_checks": [
+      {
+        "check": "Bidirectional integrity",
+        "rule": "If img_vids contains vid_sha256, then vid_imgs must contain img_sha256",
+        "action": "Log error if inconsistent - indicates database corruption"
+      },
+      {
+        "check": "Category assignment",
+        "rule": "All matched videos must have other=1 flag set",
+        "action": "Warn if matched video has different category flag set"
+      },
+      {
+        "check": "Duplicate detection",
+        "rule": "Same sha256 should not appear multiple times in img_vids/vid_imgs array",
+        "action": "Deduplicate if found - log warning"
+      }
+    ],
+    "warnings": [
+      {
+        "condition": "Multiple videos match single image (>1 entry in img_vids)",
+        "log_level": "WARN",
+        "message": "Unusual: Multiple live videos found for same photo"
+      },
+      {
+        "condition": "Multiple images match single video (>1 entry in vid_imgs)",
+        "log_level": "INFO",
+        "message": "Multiple photos paired with same live video (may be HEIC+JPG conversion)"
+      },
+      {
+        "condition": "Matched pair has significantly different file timestamps",
+        "log_level": "INFO",
+        "message": "Live photo/video pair has mismatched timestamps - verify correct pairing",
+        "threshold": "More than 5 seconds difference in creation time"
+      }
+    ]
+  },
+
+  "storage": {
+    "photo": "Stored in appropriate hardware folder based on camera type (camera/phone/drone/go-pro/film/other)",
+    "video": "Always stored in videos/original_other/ regardless of source hardware (special case for live videos)",
+    "rationale": "Live videos are companions to photos, not standalone videos - categorized as 'other'"
+  },
+
+  "implementation_notes": [
     "Live photo detection happens during db_organize.py processing",
     "Requires original filename and location to be preserved (img_loco, img_nameo, vid_loco, vid_nameo)",
-    "Bidirectional relationships allow querying from either photo or video",
-    "Future: support for additional live photo formats from other manufacturers"
+    "Process after hardware categorization but before folder organization",
+    "Use database transaction to ensure atomic bidirectional updates",
+    "Log all matches to separate file for verification: live_photo_matches.log",
+    "Log all unmatched MOV files with IMG_*.MOV pattern for manual review"
+  ],
+
+  "query_examples": {
+    "find_all_live_photos": {
+      "sql": "SELECT * FROM images WHERE img_vids IS NOT NULL AND json_array_length(img_vids) > 0;",
+      "description": "Find all images that have associated live videos"
+    },
+    "find_orphaned_live_videos": {
+      "sql": "SELECT * FROM videos WHERE vid_name LIKE 'IMG_%.MOV' AND (vid_imgs IS NULL OR json_array_length(vid_imgs) = 0);",
+      "description": "Find MOV files that look like live videos but aren't paired"
+    },
+    "find_bidirectional_mismatches": {
+      "sql": "Find cases where A→B exists but B→A is missing",
+      "implementation": "Requires application logic to traverse JSON arrays"
+    },
+    "count_live_photos_per_location": {
+      "sql": "SELECT loc_uuid, COUNT(*) as live_photo_count FROM images WHERE img_vids IS NOT NULL GROUP BY loc_uuid;",
+      "description": "Statistics on live photo usage per location"
+    }
+  },
+
+  "future_enhancements": [
+    "Support for additional live photo formats from other manufacturers",
+    "Automatic detection of embedded motion photos (video data within image EXIF)",
+    "Option to extract embedded videos from Motion Photos",
+    "Metadata comparison to validate pairing (timestamp, GPS, etc.)",
+    "Machine learning-based pairing for non-standard formats"
   ]
 }

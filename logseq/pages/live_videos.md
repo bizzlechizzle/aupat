@@ -1,10 +1,79 @@
 - purpose
 	- live_videos.json
+	- Rules for matching live photos to their companion live videos
 -
-- find matching videos/image in data base
-	- compare "img_loco" "img_nameo" vs "vid_loco" "vid_nameo"
-	- record image img_sha256 in "videos" table vid_imgs
-	- record vid_sha256 in images table img_vids
-- find matching video in data base "vid_loco" "vid_nameo"
-	- record vid_sha256 in images table img_vids
-	- record img_sha256 in videos table vid_imgs
+- matching algorithm
+	- Step 1: Compare original locations
+		- img_loco MUST equal vid_loco (exact match)
+		- If different locations → skip (cannot be live photo pair)
+	- Step 2: Extract base filenames
+		- Remove file extension from img_nameo and vid_nameo
+		- Example: "IMG_1234.HEIC" → "IMG_1234"
+	- Step 3: Compare base filenames
+		- Case-insensitive comparison
+		- Must match exactly (no partial matches)
+		- Example matches: "IMG_1234" == "img_1234" == "Img_1234"
+		- Example no match: "IMG_1234" != "IMG_1234_EDIT"
+	- Step 4: Validate extensions match known patterns
+		- Check against patterns array (priority order)
+	- Step 5: Store bidirectional references
+		- record vid_sha256 in images table img_vids (JSON1 array)
+		- record img_sha256 in videos table vid_imgs (JSON1 array)
+		- set videos.other = 1 (for storage routing to videos/original_other)
+-
+- patterns (priority order)
+	- Priority 1: iPhone Live Photo (HEIC)
+		- Photo: IMG_*.HEIC or IMG_*.heic
+		- Video: IMG_*.MOV or IMG_*.mov
+		- Match: exact base name match
+	- Priority 2: iPhone Live Photo (JPG)
+		- Photo: IMG_*.JPG/JPEG (any case)
+		- Video: IMG_*.MOV or IMG_*.mov
+		- Match: exact base name match
+	- Priority 3: Google Motion Photo
+		- Photo: *.JPG/JPEG (any case)
+		- Video: *.MP4 or *.mp4
+		- Match: exact base name match
+		- Example: PXL_20231115_123456789.jpg + PXL_20231115_123456789.mp4
+	- Priority 4: Samsung Motion Photo
+		- Photo: *.JPG/JPEG (any case)
+		- Video: *.MP4 or *.mp4
+		- Match: exact base name match
+		- Example: 20231115_123456.jpg + 20231115_123456.mp4
+	- Priority 999: Generic Live Photo (fallback)
+		- Photo: any image extension
+		- Video: any video extension
+		- Match: exact base name match
+-
+- edge cases handled
+	- Case sensitivity: Case-insensitive filename comparison
+	- Different locations: Do NOT match if img_loco != vid_loco
+	- Missing metadata: Skip if img_loco, img_nameo, vid_loco, or vid_nameo is NULL
+	- Multiple matches: Store all matches in JSON1 arrays
+	- Special characters: Preserve all characters in filename (spaces, parentheses, etc)
+	- Extension variations: Case-insensitive extension matching
+-
+- validation rules
+	- Bidirectional integrity check
+		- If img_vids contains vid_sha256, then vid_imgs must contain img_sha256
+		- Log error if inconsistent
+	- Category assignment check
+		- All matched videos must have other=1
+		- Warn if different category set
+	- Duplicate detection
+		- Same sha256 should not appear multiple times in array
+		- Deduplicate if found
+-
+- storage routing
+	- Live photos: stored in appropriate hardware folder (camera/phone/drone/go-pro/film/other)
+	- Live videos: ALWAYS stored in videos/original_other/ (regardless of source hardware)
+	- Rationale: Live videos are companions to photos, not standalone videos
+-
+- implementation notes
+	- Process during db_organize.py
+	- Requires img_loco, img_nameo, vid_loco, vid_nameo to be preserved
+	- Process AFTER hardware categorization but BEFORE folder organization
+	- Use database transaction for atomic updates
+	- Log all matches to: live_photo_matches.log
+	- Log unmatched IMG_*.MOV files for manual review
+-
