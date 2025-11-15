@@ -8,6 +8,7 @@
 	- url: url
 	- domain: url domain
 	- url_uuid: uuid4 for location
+		- note: url_uuid8 (first 8 chars) is computed when needed using SUBSTR(url_uuid, 1, 8) or url_uuid[:8]
 	- url_loc: location folder for urls
 	- loc_uuid: uuid4 for location
 	- sub_uuid: uuid4 for sub-location
