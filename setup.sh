@@ -109,6 +109,7 @@ else
 fi
 python3 -c "import dateutil; print('  ✓ python-dateutil:', dateutil.__version__)" || print_error "python-dateutil installation failed"
 python3 -c "import pytest; print('  ✓ pytest:', pytest.__version__)" || print_error "pytest installation failed"
+python3 -c "import flask; print('  ✓ Flask:', flask.__version__)" || print_error "Flask installation failed"
 echo ""
 
 # Check postal (may fail on some systems)
@@ -166,11 +167,32 @@ echo ""
 
 # Step 9: Make scripts executable
 print_info "Step 9: Making scripts executable..."
+MADE_EXECUTABLE=0
+
+# Make workflow scripts executable
 if [ -d "scripts" ] && [ "$(ls -A scripts/*.py 2>/dev/null)" ]; then
     chmod +x scripts/*.py
-    print_success "All Python scripts are now executable"
+    print_success "All scripts/*.py are now executable"
+    MADE_EXECUTABLE=1
 else
     print_warning "No Python scripts found in scripts/ directory"
+fi
+
+# Make orchestration and web interface scripts executable
+if [ -f "run_workflow.py" ]; then
+    chmod +x run_workflow.py
+    print_success "run_workflow.py is now executable"
+    MADE_EXECUTABLE=1
+fi
+
+if [ -f "web_interface.py" ]; then
+    chmod +x web_interface.py
+    print_success "web_interface.py is now executable"
+    MADE_EXECUTABLE=1
+fi
+
+if [ $MADE_EXECUTABLE -eq 0 ]; then
+    print_warning "No executable scripts found"
 fi
 echo ""
 
@@ -223,13 +245,24 @@ if ! python3 -c "import postal" 2>/dev/null; then
     print_info "     - Ubuntu: apt-get install libpostal-dev && pip install postal"
 fi
 print_info "  4. Initialize database: python3 scripts/db_migrate.py"
-print_info "  5. Start importing media: python3 scripts/db_import.py --source /path/to/media"
+print_info "  5. Import media using one of these options:"
 echo ""
 print_success "Virtual environment is ready in venv/"
 print_info "  Activate: source venv/bin/activate"
 print_info "  Deactivate: deactivate"
 echo ""
-print_info "For full workflow, run these scripts in order:"
+print_info "Choose your workflow method:"
+echo ""
+print_info "Option A - Automated Workflow (Recommended):"
+print_info "  ./run_workflow.py --source /path/to/media --backup"
+print_info "  Runs all steps automatically with progress tracking"
+echo ""
+print_info "Option B - Web Interface:"
+print_info "  ./web_interface.py"
+print_info "  Then open browser to: http://127.0.0.1:5000"
+print_info "  User-friendly web dashboard for imports and monitoring"
+echo ""
+print_info "Option C - Manual Step-by-Step:"
 print_info "  1. db_migrate.py   - Create database schema"
 print_info "  2. db_import.py    - Import location and media"
 print_info "  3. db_organize.py  - Extract metadata and categorize"
@@ -237,4 +270,6 @@ print_info "  4. db_folder.py    - Create archive folder structure"
 print_info "  5. db_ingest.py    - Move files to archive"
 print_info "  6. db_verify.py    - Verify integrity and cleanup staging"
 print_info "  7. db_identify.py  - Generate JSON exports"
+echo ""
+print_info "See WORKFLOW_TOOLS.md for detailed documentation on all workflow options"
 echo ""
