@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
+import { ThemeScript } from "@/components/ThemeScript";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Abandoned Upstate",
@@ -13,8 +16,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body>
-        {children}
+        <Header />
+        <main id="main-content">
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );
