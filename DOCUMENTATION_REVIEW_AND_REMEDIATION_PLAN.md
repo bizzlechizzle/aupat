@@ -9,9 +9,13 @@
 
 ## Executive Summary
 
-A comprehensive review of all AUPAT documentation has identified **25 distinct issue categories** affecting **21 of 33 logseq files** plus inconsistencies in the root documentation files. Issues range from **CRITICAL schema errors** that would prevent implementation to **MINOR typos** that affect professionalism.
+A comprehensive review of all AUPAT documentation has identified **27 distinct issue categories** affecting **22 of 33 logseq files** plus inconsistencies in the root documentation files. Issues range from **CRITICAL schema errors** that would prevent implementation to **MINOR typos** that affect professionalism.
 
-**Key Finding**: The documentation contains multiple critical schema inconsistencies that would cause implementation failures if not corrected. Most critical are field naming mismatches, incorrect table column definitions, and missing configuration values.
+**Key Findings**:
+- Multiple critical schema inconsistencies that would cause implementation failures if not corrected
+- Critical database normalization violation (storing redundant uuid8/sha8 fields)
+- Design decision to remove host_domains functionality entirely (requires cleanup)
+- Most critical are field naming mismatches, incorrect table column definitions, and missing configuration values
 
 **Recommendation**: Address all CRITICAL and MAJOR issues before beginning any implementation work. MINOR issues can be addressed during implementation but should not be ignored.
 
@@ -266,9 +270,116 @@ Line 38: img_vids = [json1]
 
 ---
 
+### 10. Database Normalization Violation - Redundant uuid8/sha8 Fields
+**Files**: All table schema files
+**Issue**: Schema stores BOTH full identifiers (uuid, sha256) AND truncated 8-character versions (uuid8, sha8)
+
+**Current Design (INCORRECT)**:
+```
+locations table:
+  - loc_uuid (TEXT, PRIMARY KEY) - Full UUID4
+  - loc_uuid8 (TEXT, UNIQUE, NOT NULL) - First 8 chars ← REDUNDANT
+
+images table:
+  - img_sha256 (TEXT, UNIQUE, NOT NULL) - Full SHA256
+  - img_sha8 (TEXT, NOT NULL) - First 8 chars ← REDUNDANT
+
+[Same pattern in: sub_locations, videos, documents, urls]
+```
+
+**Why This Is Wrong**:
+1. **Violates 2NF/3NF normalization** - uuid8/sha8 are functionally dependent on full values
+2. **Data redundancy** - Every record stores duplicate information
+3. **Maintenance burden** - Must keep both in sync
+4. **Storage waste** - Stores computed data unnecessarily
+
+**Correct Design**:
+```
+locations table:
+  - loc_uuid (TEXT, PRIMARY KEY) - Store ONLY this
+  # loc_uuid8 REMOVED - compute with SUBSTR(loc_uuid, 1, 8) when needed
+
+images table:
+  - img_sha256 (TEXT, UNIQUE, NOT NULL) - Store ONLY this
+  # img_sha8 REMOVED - compute with sha256[:8] when needed
+```
+
+**How to Use 8-Character Values**:
+```sql
+-- Collision detection
+SELECT COUNT(*) FROM locations WHERE SUBSTR(loc_uuid, 1, 8) = ?;
+```
+
+```python
+# File naming
+loc_uuid8 = loc_uuid[:8]
+filename = f"{loc_uuid8}-img_{sha256[:8]}.jpg"
+```
+
+**Performance**: SUBSTR() and string slicing are negligible overhead. Used only during:
+- UUID collision detection (once per location creation)
+- File/folder naming (during import, not real-time)
+
+**Impact**: Violates core engineering principles (BPA, BPL, KISS). Creates technical debt and risks data inconsistency.
+
+**Fix Required**:
+- Remove all uuid8/sha8 column definitions from schema files
+- Update gen_uuid.py to use SUBSTR() for collision detection
+- Update all file/folder naming code to compute values on-the-fly
+- Document that uuid8/sha8 are computed, not stored
+
+**Detailed Analysis**: See `/home/user/aupat/CRITICAL_ISSUE_DATABASE_NORMALIZATION.md`
+
+---
+
 ## MAJOR SEVERITY ISSUES (Fix Before or During Implementation)
 
-### 10. Live Videos Configuration - Singular vs Plural Field Names
+### 11. Remove host_domains Functionality Entirely
+**Files**: Multiple files reference host_domains
+**Issue**: Design decision made to remove URL domain normalization feature entirely
+
+**Files Requiring Updates**:
+
+**Delete Entirely**:
+- `/home/user/aupat/logseq/pages/host_domains.md` - Delete this file
+- `/home/user/aupat/data/host_domains.json` - Will not be created
+
+**Remove References From**:
+- `project-overview.md` Lines: 131, 285, 303, 933, 1087-1120, 1774
+- `claude.md` Line: 107 (folder structure)
+- `logseq/pages/db_organize.md` Line: 39
+
+**Current References to Remove**:
+```
+project-overview.md Line 131:
+│   ├── host_domains.json      # URL domain normalization  ← DELETE
+
+project-overview.md Line 285:
+2. Normalize domain using host_domains.json rules  ← REMOVE/SIMPLIFY
+
+logseq/pages/db_organize.md Line 39:
+pulls "url" cleans domain against #host_domains  ← REMOVE
+```
+
+**Simplified URL Handling**:
+Instead of complex domain normalization (SmugMug, Blogspot, etc.), simply:
+1. Parse full domain from URL
+2. Store as-is in `domain` field
+3. No special normalization rules
+
+**Impact**: Simplifies URL handling significantly. Removes dependency on maintaining domain normalization rules. More straightforward implementation.
+
+**Fix Required**:
+1. Delete `logseq/pages/host_domains.md`
+2. Remove all references to host_domains from documentation
+3. Update db_organize.py specification to use simple domain parsing (no normalization)
+4. Update project-overview.md to remove host_domains section and references
+
+**Rationale**: Simpler is better (KISS principle). URL domain normalization adds complexity without sufficient value for this use case.
+
+---
+
+### 12. Live Videos Configuration - Singular vs Plural Field Names
 **File**: `/home/user/aupat/logseq/pages/live_videos.md`
 **Lines**: 6-7
 **Issue**: Uses singular field names when schema defines plural
@@ -295,7 +406,7 @@ Line 7: record vid_sha256 in images table img_vids
 
 ---
 
-### 11. Field Naming Convention - Original Field Suffix Inconsistency
+### 13. Field Naming Convention - Original Field Suffix Inconsistency
 **Files**: `images_table.md` vs `videos.md`
 **Issue**: Inconsistent use of "o" vs "_o" suffix for original fields
 
@@ -319,7 +430,7 @@ Line 28: img_name_o: original image file name
 
 ---
 
-### 12. Script Naming Inconsistency - db_cleanup vs database_cleanup
+### 14. Script Naming Inconsistency - db_cleanup vs database_cleanup
 **File**: `/home/user/aupat/logseq/pages/db_cleanup.md`
 **Line**: 2
 **Issue**: File is named "db_cleanup.md" but references "database_cleanup.py"
@@ -343,7 +454,7 @@ Line 2: - database_cleanup.py
 
 ---
 
-### 13. Folder Naming Convention - Hyphen vs Space
+### 15. Folder Naming Convention - Hyphen vs Space
 **File**: `/home/user/aupat/logseq/pages/folder_json.md`
 **Lines**: 5, 7, 15, 23
 **Issue**: Inconsistent use of "location name" vs "location-name"
@@ -366,7 +477,7 @@ Line 23: "location name"_ (with space)
 
 ---
 
-### 14. Sub-Location Naming Convention - Hyphen vs Underscore
+### 16. Sub-Location Naming Convention - Hyphen vs Underscore
 **Files**: Multiple files
 **Issue**: Inconsistent use of "sub-uuid8" vs "sub_uuid8"
 
@@ -386,7 +497,7 @@ Line 23: "location name"_ (with space)
 
 ---
 
-### 15. Incomplete Documentation Files
+### 17. Incomplete Documentation Files
 **Files**:
 - `/home/user/aupat/logseq/pages/contents.md` - Empty (only contains "- -")
 - `/home/user/aupat/logseq/pages/aupat_webapp.md` - Placeholder (only "- i am real")
@@ -401,7 +512,7 @@ Line 23: "location name"_ (with space)
 
 ---
 
-### 16. Incomplete Hardware Classification
+### 18. Incomplete Hardware Classification
 **File**: `/home/user/aupat/logseq/pages/camera_hardware.md`
 **Lines**: 16, 22, 35, 55
 **Issue**: Model lists are empty; only manufacturers listed
@@ -422,7 +533,7 @@ Line 55: point_shoot - moels [typo + empty]
 
 ---
 
-### 17. Incomplete Extension Configuration
+### 19. Incomplete Extension Configuration
 **Files**:
 - `/home/user/aupat/logseq/pages/approved_ext.md` - Only .srt and .xml documented
 - `/home/user/aupat/logseq/pages/ignored_ext.md` - Only .lrf documented
@@ -435,7 +546,7 @@ Line 55: point_shoot - moels [typo + empty]
 
 ---
 
-### 18. Missing Cross-References in Documentation
+### 20. Missing Cross-References in Documentation
 **Examples**:
 - `db_organize.md` references "#live_videos" but doesn't explain what makes a video "live"
 - `db_organize.md` references "#camera_hardware" but connection is unclear
@@ -448,7 +559,7 @@ Line 55: point_shoot - moels [typo + empty]
 
 ---
 
-### 19. Project-Overview.md - Inconsistency with logseq Files
+### 21. Project-Overview.md - Inconsistency with logseq Files
 **File**: `/home/user/aupat/project-overview.md`
 **Issue**: Several sections reference field names that don't match logseq schema files
 
@@ -466,7 +577,7 @@ Line 55: point_shoot - moels [typo + empty]
 
 ## MINOR SEVERITY ISSUES (Fix During Implementation)
 
-### 20. Typos - Spelling Errors
+### 22. Typos - Spelling Errors
 
 | File | Line | Current | Should Be |
 |------|------|---------|-----------|
@@ -483,7 +594,7 @@ Line 55: point_shoot - moels [typo + empty]
 
 ---
 
-### 21. Formatting Issues - List Indentation
+### 23. Formatting Issues - List Indentation
 **File**: `/home/user/aupat/logseq/pages/camera_hardware.md`
 **Lines**: 6-52
 **Issue**: Manufacturer lists not properly indented under "makes" headers
@@ -494,7 +605,7 @@ Line 55: point_shoot - moels [typo + empty]
 
 ---
 
-### 22. Formatting Issues - Inconsistent JSON Syntax
+### 24. Formatting Issues - Inconsistent JSON Syntax
 **File**: `/home/user/aupat/logseq/pages/db_cleanup.md`
 **Line**: 9
 **Issue**: Inconsistent quoting in JSON-like array syntax
@@ -515,7 +626,7 @@ Line 9: ["db_name","db_loc","db_backup"]
 
 ---
 
-### 23. Folder Structure Typo
+### 25. Folder Structure Typo
 **File**: `/home/user/aupat/logseq/pages/folder_json.md`
 **Line**: 15
 **Issue**: Says "video/" but should be "videos/"
@@ -538,7 +649,7 @@ Line 15: "location name"_"loc_uuid8"/videos/
 
 ## ALIGNMENT ISSUES WITH ROOT DOCUMENTATION
 
-### 24. project-overview.md Inconsistencies
+### 26. project-overview.md Inconsistencies
 
 **Issue**: Some field names and descriptions in project-overview.md don't match logseq schema files.
 
@@ -551,7 +662,7 @@ Line 15: "location name"_"loc_uuid8"/videos/
 
 ---
 
-### 25. claude.md and claudecode.md Alignment
+### 27. claude.md and claudecode.md Alignment
 
 **Files**: `/home/user/aupat/claude.md`, `/home/user/aupat/claudecode.md`
 
@@ -577,36 +688,38 @@ Line 15: "location name"_"loc_uuid8"/videos/
 7. Fix approved_ext.md UUID references (img_uuid → img_sha256) - **Issue #7**
 8. Fix user_json.md missing fields (add db_ingest, arch_loc) - **Issue #8**
 9. Fix images_table.md relationship description (documents → videos) - **Issue #9**
+10. Remove all uuid8/sha8 redundant fields from schema - **Issue #10**
 
-**Estimated Time**: 2-3 hours
-**Risk if Not Fixed**: Implementation will fail immediately
+**Estimated Time**: 3-4 hours
+**Risk if Not Fixed**: Implementation will fail immediately; database design will be fundamentally flawed
 
 ---
 
 ### Priority 2: SHOULD FIX BEFORE IMPLEMENTATION (Major Issues)
 
-10. Fix live_videos.md field names (singular → plural, add sha256) - **Issue #10**
-11. Standardize original field suffix convention - **Issue #11**
-12. Resolve script naming (db_cleanup vs database_cleanup) - **Issue #12**
-13. Standardize folder naming (spaces → hyphens) - **Issue #13**
-14. Standardize sub-location naming (hyphen → underscore) - **Issue #14**
-15. Complete or document incomplete files (contents, webapp, web_interface) - **Issue #15**
-16. Document hardware model matching approach - **Issue #16**
-17. Document extension configuration approach - **Issue #17**
-18. Add cross-references between related docs - **Issue #18**
-19. Update project-overview.md after logseq fixes - **Issue #19**
+11. Remove host_domains functionality entirely - **Issue #11**
+12. Fix live_videos.md field names (singular → plural, add sha256) - **Issue #12**
+13. Standardize original field suffix convention - **Issue #13**
+14. Resolve script naming (db_cleanup vs database_cleanup) - **Issue #14**
+15. Standardize folder naming (spaces → hyphens) - **Issue #15**
+16. Standardize sub-location naming (hyphen → underscore) - **Issue #16**
+17. Complete or document incomplete files (contents, webapp, web_interface) - **Issue #17**
+18. Document hardware model matching approach - **Issue #18**
+19. Document extension configuration approach - **Issue #19**
+20. Add cross-references between related docs - **Issue #20**
+21. Update project-overview.md after logseq fixes - **Issue #21**
 
-**Estimated Time**: 4-6 hours
-**Risk if Not Fixed**: Implementation will have inconsistencies and confusion
+**Estimated Time**: 5-7 hours
+**Risk if Not Fixed**: Implementation will have inconsistencies and confusion; unnecessary complexity retained
 
 ---
 
 ### Priority 3: FIX DURING IMPLEMENTATION (Minor Issues)
 
-20. Fix all spelling typos - **Issue #20**
-21. Fix list formatting in camera_hardware.md - **Issue #21**
-22. Fix JSON syntax in db_cleanup.md - **Issue #22**
-23. Fix folder_json.md folder name (video → videos) - **Issue #23**
+22. Fix all spelling typos - **Issue #22**
+23. Fix list formatting in camera_hardware.md - **Issue #23**
+24. Fix JSON syntax in db_cleanup.md - **Issue #24**
+25. Fix folder_json.md folder name (video → videos) - **Issue #25**
 
 **Estimated Time**: 1-2 hours
 **Risk if Not Fixed**: Reduced professionalism, minor confusion
@@ -761,11 +874,11 @@ After remediation, verify:
 
 ## ESTIMATED TOTAL REMEDIATION TIME
 
-- **Priority 1 (Critical)**: 2-3 hours
-- **Priority 2 (Major)**: 4-6 hours
+- **Priority 1 (Critical)**: 3-4 hours
+- **Priority 2 (Major)**: 5-7 hours
 - **Priority 3 (Minor)**: 1-2 hours
 
-**Total**: 7-11 hours of focused documentation work
+**Total**: 9-13 hours of focused documentation work
 
 **Recommendation**: Complete Priority 1 and 2 before starting any implementation. Priority 3 can be done concurrently with early implementation.
 
@@ -783,6 +896,8 @@ The AUPAT documentation is comprehensive and well-structured, but contains criti
 
 **Key Weaknesses**:
 - Critical schema field name errors
+- Database normalization violation (redundant uuid8/sha8 fields)
+- Unnecessary complexity (host_domains needs removal)
 - Inconsistent naming conventions
 - Some incomplete/placeholder content
 - Missing cross-references
