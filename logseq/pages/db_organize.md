@@ -36,7 +36,8 @@
 			- check #approved_ext for special instructions
 		-
 	- urls table run
-		- parse domain from URL and store as-is (no normalization)
+		- pulls "url" and extracts full domain without normalization
+		- stores complete domain (e.g., username.smugmug.com)
 	- films run
 	-
 	- true/false #camera_hardware

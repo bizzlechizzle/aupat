@@ -280,8 +280,8 @@ All scripts documented, none implemented yet. Implementation status: 0%.
 4. Set relationships (docs_img field for images, vid_docs/img_docs for videos)
 
 **For URLs**:
-1. Parse domain from URL
-2. Parse domain from URL and store as-is (no normalization)
+1. Parse full domain from URL (e.g., username.smugmug.com)
+2. Store complete domain without normalization
 3. Generate url_uuid for tracking
 
 **Hardware Detection Rules**:
@@ -927,9 +927,10 @@ All JSON files documented, none created yet. Implementation status: 0%.
 - `url_update` (TEXT) - Date/time updated
 - `imp_author` (TEXT) - Import author
 
-**Domain Normalization**:
-- Handles complex hosting (SmugMug, Blogspot, WordPress, GitHub Pages, etc.)
-- Extracts canonical domain for organization
+**Domain Storage**:
+- Stores full domain from URL without normalization
+- Preserves complete domain information (e.g., username.smugmug.com)
+- Maintains human-readable domains for file/folder organization
 
 **Use Cases**:
 - Website references for locations
@@ -1081,10 +1082,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-
----
-
-#### 12. live_videos.json
+#### 11. live_videos.json
 **Purpose**: Rules for matching live photos to live videos
 
 **Matching Logic**:
@@ -1119,7 +1117,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-#### 13. folder.json
+#### 12. folder.json
 **Purpose**: Folder structure template
 
 **Structure**:
@@ -1168,7 +1166,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ---
 
-#### 14. name.json
+#### 13. name.json
 **Purpose**: File naming conventions
 
 **Structure**:
@@ -1207,7 +1205,7 @@ locations.json   | 1.0.0   | 2025-01-15T10:30:00Z
 
 ### User Configuration
 
-#### 15. user.json
+#### 14. user.json
 **Purpose**: User configuration and database paths
 
 **Location**: user/user.json
@@ -1733,8 +1731,8 @@ For each document:
 - Match to related images/videos if applicable
 
 For each URL:
-- Parse domain
-- Parse domain and store as-is
+- Parse full domain from URL
+- Store domain without normalization
 - Generate url_uuid
 ```
 
