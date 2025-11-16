@@ -23,6 +23,7 @@ Last Updated: 2025-11-16
 import json
 import logging
 import os
+import platform
 import sqlite3
 import subprocess
 import sys
@@ -293,7 +294,6 @@ BASE_TEMPLATE = """
         .site-title {
             font-size: 1.5rem;
             font-family: 'Roboto Mono', monospace;
-            text-transform: uppercase;
             letter-spacing: 0.1em;
             margin: 0;
         }
@@ -695,11 +695,31 @@ BASE_TEMPLATE = """
         // File explorer functionality
         let currentPath = '/';
         let currentInputField = null;
+        let defaultPath = null;
 
-        function openFileExplorer(inputId) {
+        async function openFileExplorer(inputId) {
             currentInputField = inputId;
             const input = document.getElementById(inputId);
-            const startPath = input.value || '/home';
+
+            // Get default path from server if not already loaded
+            if (!defaultPath) {
+                try {
+                    const response = await fetch('/api/default-path');
+                    const data = await response.json();
+                    defaultPath = data.path;
+                } catch (error) {
+                    defaultPath = '/home';
+                }
+            }
+
+            // Use current value if it looks like a valid path, otherwise use default
+            let startPath = defaultPath;
+            if (input.value && input.value.length > 0 && !input.value.includes('/absolute')) {
+                // Check if it's a valid-looking path (Unix or Windows)
+                if (input.value.startsWith('/') || /^[A-Za-z]:[\\\/]/.test(input.value)) {
+                    startPath = input.value;
+                }
+            }
             currentPath = startPath;
 
             const modal = document.getElementById('fileExplorerModal');
@@ -728,14 +748,24 @@ BASE_TEMPLATE = """
                 const data = await response.json();
 
                 if (data.error) {
-                    alert('Error: ' + data.error);
+                    // If access denied, try to fall back to default directory
+                    if (response.status === 403 && defaultPath && path !== defaultPath) {
+                        loadDirectory(defaultPath);
+                        return;
+                    }
+
+                    const list = document.getElementById('directoryList');
+                    list.innerHTML = '<li class="directory-item" style="color: #dc3545; opacity: 0.8;">' +
+                                   '⚠️ ' + data.error + '</li>';
                     return;
                 }
 
                 currentPath = data.current_path;
                 displayDirectory(data);
             } catch (error) {
-                alert('Failed to load directory: ' + error);
+                const list = document.getElementById('directoryList');
+                list.innerHTML = '<li class="directory-item" style="color: #dc3545; opacity: 0.8;">' +
+                               '⚠️ Failed to load directory</li>';
             }
         }
 
@@ -790,7 +820,7 @@ BASE_TEMPLATE = """
 <body>
     <header class="header">
         <div class="header-content">
-            <h1 class="site-title">AUPAT</h1>
+            <h1 class="site-title">Abandoned Upstate</h1>
             <nav class="nav">
                 <a href="/" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
                 <a href="/locations" class="{{ 'active' if request.path == '/locations' else '' }}">Locations</a>
@@ -815,7 +845,7 @@ BASE_TEMPLATE = """
     </main>
 
     <footer style="text-align: center; padding: 2rem; opacity: 0.6; font-size: 0.9rem;">
-        <p>&copy; 2025 Abandoned Upstate Project Archive Tool</p>
+        <p>&copy; 2025 Bryant Neal</p>
     </footer>
 </body>
 </html>
@@ -939,16 +969,12 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
 <p style="margin-bottom: 2rem; opacity: 0.8;">Import a new location and associated media files</p>
 
 <div class="card">
-    <form method="POST" action="/import/submit">
+    <form method="POST" action="/import/submit" enctype="multipart/form-data" id="importForm">
         <div class="form-group">
-            <label>Location UUID</label>
-            <input type="text" name="loc_uuid" value="{{ uuid }}" readonly style="opacity: 0.6; cursor: not-allowed;">
-            <div class="help-text">Auto-generated unique identifier</div>
-        </div>
-
-        <div class="form-group">
-            <label>Location Name *</label>
-            <input type="text" name="loc_name" required placeholder="Abandoned Factory Building">
+            <label>Location Name * <span id="collision-warning" style="color: #dc3545; font-size: 0.85rem; display: none;">⚠️ Location already exists</span></label>
+            <input type="text" id="loc_name" name="loc_name" required placeholder="Abandoned Factory Building" autocomplete="off">
+            <div id="loc_name_suggestions" class="autocomplete-dropdown"></div>
+            <div class="help-text">Location name will be checked for duplicates</div>
         </div>
 
         <div class="form-group">
@@ -957,46 +983,282 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
         </div>
 
         <div class="form-group">
+            <label>Type *</label>
+            <input type="text" id="type" name="type" required placeholder="Start typing..." autocomplete="off">
+            <div id="type_suggestions" class="autocomplete-dropdown"></div>
+            <div class="help-text">Auto-fills based on existing database</div>
+        </div>
+
+        <div class="form-group">
+            <label>Sub-Type</label>
+            <input type="text" id="sub_type" name="sub_type" placeholder="Start typing..." autocomplete="off">
+            <div id="sub_type_suggestions" class="autocomplete-dropdown"></div>
+            <div class="help-text">Filtered based on selected type</div>
+        </div>
+
+        <div class="form-group">
             <label>State *</label>
-            <input type="text" name="state" required maxlength="2" placeholder="NY" style="text-transform: uppercase;">
-            <div class="help-text">Two-letter state code (e.g., NY, PA, VT)</div>
-        </div>
-
-        <div class="form-group">
-            <label>Location Type *</label>
-            <select name="type" required>
-                <option value="">Select type...</option>
-                <option value="industrial">Industrial</option>
-                <option value="residential">Residential</option>
-                <option value="commercial">Commercial</option>
-                <option value="institutional">Institutional</option>
-                <option value="recreational">Recreational</option>
-                <option value="other">Other</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Sub Type</label>
-            <input type="text" name="sub_type" placeholder="e.g., Factory, School, Hotel">
-        </div>
-
-        <div class="form-group">
-            <label>Source Directory *</label>
-            <input type="text" name="source_dir" required placeholder="/absolute/path/to/media">
-            <div class="help-text">Absolute path to directory containing media files</div>
+            <input type="text" id="state" name="state" required maxlength="2" placeholder="NY" style="text-transform: uppercase;" autocomplete="off">
+            <div id="state_suggestions" class="autocomplete-dropdown"></div>
+            <div class="help-text">Two-letter USPS state code (e.g., NY, PA, VT)</div>
         </div>
 
         <div class="form-group">
             <label>Author</label>
-            <input type="text" name="imp_author" placeholder="Your name">
+            <input type="text" id="imp_author" name="imp_author" placeholder="Your name" autocomplete="off">
+            <div id="imp_author_suggestions" class="autocomplete-dropdown"></div>
+            <div class="help-text">Auto-fills based on existing database</div>
+        </div>
+
+        <hr style="border: 1px solid var(--muted); margin: 2rem 0;">
+
+        <h3>Upload Media</h3>
+
+        <div class="form-group">
+            <label>Images & Videos</label>
+            <input type="file" name="media_files" id="media_files" multiple accept="image/*,video/*">
+            <div class="help-text">Select image and video files to import</div>
+        </div>
+
+        <div class="form-group">
+            <label>Documents</label>
+            <input type="file" name="document_files" id="document_files" multiple accept=".pdf,.doc,.docx,.txt,.md">
+            <div class="help-text">Select document files to import</div>
+        </div>
+
+        <div class="form-group">
+            <label>Web URLs</label>
+            <textarea name="web_urls" id="web_urls" rows="3" placeholder="One URL per line" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; background: var(--background); color: var(--foreground); font-family: 'Roboto Mono', monospace; font-size: 0.9rem;"></textarea>
+            <div class="help-text">Enter web URLs, one per line</div>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="is_film" name="is_film" style="width: auto; margin-right: 0.5rem;">
+                Film Photography
+            </label>
+        </div>
+
+        <div class="form-group" id="film_stock_group" style="display: none;">
+            <label>Film Stock</label>
+            <input type="text" name="film_stock" id="film_stock" placeholder="e.g., Kodak Portra 400">
+            <div class="help-text">Film stock used for photography</div>
+        </div>
+
+        <div class="form-group" id="film_format_group" style="display: none;">
+            <label>Film Format</label>
+            <input type="text" name="film_format" id="film_format" placeholder="e.g., 35mm, 120, 4x5">
+            <div class="help-text">Film format/size</div>
         </div>
 
         <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-            <button type="submit" class="btn">Import Media</button>
+            <button type="submit" class="btn" id="submit-btn">Import Location</button>
             <a href="/" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
+
+<style>
+.autocomplete-dropdown {
+    position: absolute;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.autocomplete-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--muted);
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover {
+    background: rgba(185, 151, 92, 0.1);
+}
+
+.form-group {
+    position: relative;
+}
+</style>
+
+<script>
+// Autocomplete functionality
+let debounceTimers = {};
+
+function setupAutocomplete(inputId, endpoint, onSelect = null) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(inputId + '_suggestions');
+
+    if (!input || !dropdown) return;
+
+    input.addEventListener('input', function() {
+        const query = this.value.trim();
+
+        // Clear existing timer
+        if (debounceTimers[inputId]) {
+            clearTimeout(debounceTimers[inputId]);
+        }
+
+        if (query.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        // Debounce API calls
+        debounceTimers[inputId] = setTimeout(async () => {
+            try {
+                let url = endpoint + '?q=' + encodeURIComponent(query);
+
+                // Add type filter for sub-type autocomplete
+                if (inputId === 'sub_type') {
+                    const typeInput = document.getElementById('type');
+                    if (typeInput && typeInput.value) {
+                        url += '&type=' + encodeURIComponent(typeInput.value);
+                    }
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.suggestions && data.suggestions.length > 0) {
+                    dropdown.innerHTML = '';
+                    data.suggestions.forEach(suggestion => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.textContent = suggestion;
+                        item.onclick = () => {
+                            input.value = suggestion;
+                            dropdown.style.display = 'none';
+                            if (onSelect) onSelect(suggestion);
+                        };
+                        dropdown.appendChild(item);
+                    });
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
+
+                // Set most popular as placeholder on first load
+                if (data.most_popular && !input.value) {
+                    input.placeholder = data.most_popular;
+                }
+            } catch (error) {
+                console.error('Autocomplete error:', error);
+                dropdown.style.display = 'none';
+            }
+        }, 300);
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== input) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    // Load most popular value on page load
+    fetch(endpoint + '?q=')
+        .then(r => r.json())
+        .then(data => {
+            if (data.most_popular) {
+                input.placeholder = data.most_popular;
+            }
+        })
+        .catch(e => console.error('Failed to load popular value:', e));
+}
+
+// Collision checking for location name
+let collisionCheckTimer = null;
+document.addEventListener('DOMContentLoaded', function() {
+    const locNameInput = document.getElementById('loc_name');
+    const collisionWarning = document.getElementById('collision-warning');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (locNameInput && collisionWarning) {
+        locNameInput.addEventListener('input', function() {
+            const name = this.value.trim();
+
+            if (collisionCheckTimer) {
+                clearTimeout(collisionCheckTimer);
+            }
+
+            if (name.length === 0) {
+                collisionWarning.style.display = 'none';
+                submitBtn.disabled = false;
+                return;
+            }
+
+            collisionCheckTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch('/api/check-collision?name=' + encodeURIComponent(name));
+                    const data = await response.json();
+
+                    if (data.exists) {
+                        collisionWarning.style.display = 'inline';
+                        submitBtn.disabled = true;
+                    } else {
+                        collisionWarning.style.display = 'none';
+                        submitBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Collision check error:', error);
+                }
+            }, 500);
+        });
+    }
+
+    // Setup all autocomplete fields
+    setupAutocomplete('loc_name', '/api/autocomplete/location-names');
+    setupAutocomplete('type', '/api/autocomplete/types', function(value) {
+        // Reload sub-type suggestions when type changes
+        const subTypeInput = document.getElementById('sub_type');
+        if (subTypeInput) {
+            subTypeInput.value = '';
+            subTypeInput.placeholder = 'Loading...';
+            fetch('/api/autocomplete/sub-types?q=&type=' + encodeURIComponent(value))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.most_popular) {
+                        subTypeInput.placeholder = data.most_popular;
+                    }
+                })
+                .catch(e => console.error('Failed to update sub-type:', e));
+        }
+    });
+    setupAutocomplete('sub_type', '/api/autocomplete/sub-types');
+    setupAutocomplete('state', '/api/autocomplete/states');
+    setupAutocomplete('imp_author', '/api/autocomplete/authors');
+
+    // Film checkbox toggle
+    const isFilmCheckbox = document.getElementById('is_film');
+    const filmStockGroup = document.getElementById('film_stock_group');
+    const filmFormatGroup = document.getElementById('film_format_group');
+
+    if (isFilmCheckbox) {
+        isFilmCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                filmStockGroup.style.display = 'block';
+                filmFormatGroup.style.display = 'block';
+            } else {
+                filmStockGroup.style.display = 'none';
+                filmFormatGroup.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 """)
 
@@ -1119,14 +1381,253 @@ def archives():
 def import_form():
     """Import form page."""
     config = load_config()
-    conn = get_db_connection(config)
-    if conn:
+    return render_template_string(IMPORT_TEMPLATE, config=config)
+
+
+@app.route('/api/autocomplete/location-names')
+def api_autocomplete_location_names():
+    """Get autocomplete suggestions for location names."""
+    try:
+        query = request.args.get('q', '').lower()
+        config = load_config()
+        conn = get_db_connection(config)
+        if not conn:
+            return jsonify({'suggestions': []})
+
         cursor = conn.cursor()
-        uuid = str(generate_uuid(cursor, 'locations', 'loc_uuid'))
+        cursor.execute("""
+            SELECT DISTINCT loc_name, aka_name
+            FROM locations
+            WHERE LOWER(loc_name) LIKE ? OR LOWER(aka_name) LIKE ?
+            ORDER BY loc_add DESC
+            LIMIT 10
+        """, (f'%{query}%', f'%{query}%'))
+
+        suggestions = list(set([row[0] for row in cursor.fetchall() if row[0]]))
         conn.close()
-    else:
-        uuid = 'database-not-initialized'
-    return render_template_string(IMPORT_TEMPLATE, uuid=uuid)
+
+        return jsonify({'suggestions': suggestions})
+    except Exception as e:
+        logger.error(f"Autocomplete error: {e}")
+        return jsonify({'suggestions': []})
+
+
+@app.route('/api/autocomplete/types')
+def api_autocomplete_types():
+    """Get autocomplete suggestions for location types with most popular first."""
+    try:
+        query = request.args.get('q', '').lower()
+        config = load_config()
+        conn = get_db_connection(config)
+        if not conn:
+            return jsonify({'suggestions': [], 'most_popular': None})
+
+        cursor = conn.cursor()
+
+        # Get most popular type
+        cursor.execute("""
+            SELECT type, COUNT(*) as count
+            FROM locations
+            WHERE type IS NOT NULL AND type != ''
+            GROUP BY type
+            ORDER BY count DESC
+            LIMIT 1
+        """)
+        most_popular_row = cursor.fetchone()
+        most_popular = most_popular_row[0] if most_popular_row else None
+
+        # Get matching types
+        cursor.execute("""
+            SELECT type, COUNT(*) as count
+            FROM locations
+            WHERE LOWER(type) LIKE ? AND type IS NOT NULL AND type != ''
+            GROUP BY type
+            ORDER BY count DESC
+            LIMIT 10
+        """, (f'%{query}%',))
+
+        suggestions = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({'suggestions': suggestions, 'most_popular': most_popular})
+    except Exception as e:
+        logger.error(f"Autocomplete error: {e}")
+        return jsonify({'suggestions': [], 'most_popular': None})
+
+
+@app.route('/api/autocomplete/sub-types')
+def api_autocomplete_sub_types():
+    """Get autocomplete suggestions for sub-types filtered by type."""
+    try:
+        query = request.args.get('q', '').lower()
+        type_filter = request.args.get('type', '')
+        config = load_config()
+        conn = get_db_connection(config)
+        if not conn:
+            return jsonify({'suggestions': [], 'most_popular': None})
+
+        cursor = conn.cursor()
+
+        # Get most popular sub-type for this type
+        if type_filter:
+            cursor.execute("""
+                SELECT sub_type, COUNT(*) as count
+                FROM locations
+                WHERE type = ? AND sub_type IS NOT NULL AND sub_type != ''
+                GROUP BY sub_type
+                ORDER BY count DESC
+                LIMIT 1
+            """, (type_filter,))
+        else:
+            cursor.execute("""
+                SELECT sub_type, COUNT(*) as count
+                FROM locations
+                WHERE sub_type IS NOT NULL AND sub_type != ''
+                GROUP BY sub_type
+                ORDER BY count DESC
+                LIMIT 1
+            """)
+
+        most_popular_row = cursor.fetchone()
+        most_popular = most_popular_row[0] if most_popular_row else None
+
+        # Get matching sub-types
+        if type_filter:
+            cursor.execute("""
+                SELECT sub_type, COUNT(*) as count
+                FROM locations
+                WHERE type = ? AND LOWER(sub_type) LIKE ? AND sub_type IS NOT NULL AND sub_type != ''
+                GROUP BY sub_type
+                ORDER BY count DESC
+                LIMIT 10
+            """, (type_filter, f'%{query}%'))
+        else:
+            cursor.execute("""
+                SELECT sub_type, COUNT(*) as count
+                FROM locations
+                WHERE LOWER(sub_type) LIKE ? AND sub_type IS NOT NULL AND sub_type != ''
+                GROUP BY sub_type
+                ORDER BY count DESC
+                LIMIT 10
+            """, (f'%{query}%',))
+
+        suggestions = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({'suggestions': suggestions, 'most_popular': most_popular})
+    except Exception as e:
+        logger.error(f"Autocomplete error: {e}")
+        return jsonify({'suggestions': [], 'most_popular': None})
+
+
+@app.route('/api/autocomplete/states')
+def api_autocomplete_states():
+    """Get autocomplete suggestions for states with most popular first."""
+    try:
+        query = request.args.get('q', '').upper()
+        config = load_config()
+        conn = get_db_connection(config)
+        if not conn:
+            return jsonify({'suggestions': [], 'most_popular': None})
+
+        cursor = conn.cursor()
+
+        # Get most popular state
+        cursor.execute("""
+            SELECT state, COUNT(*) as count
+            FROM locations
+            WHERE state IS NOT NULL AND state != ''
+            GROUP BY state
+            ORDER BY count DESC
+            LIMIT 1
+        """)
+        most_popular_row = cursor.fetchone()
+        most_popular = most_popular_row[0] if most_popular_row else None
+
+        # Get matching states
+        cursor.execute("""
+            SELECT DISTINCT state, COUNT(*) as count
+            FROM locations
+            WHERE UPPER(state) LIKE ? AND state IS NOT NULL AND state != ''
+            GROUP BY state
+            ORDER BY count DESC
+            LIMIT 10
+        """, (f'%{query}%',))
+
+        suggestions = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({'suggestions': suggestions, 'most_popular': most_popular})
+    except Exception as e:
+        logger.error(f"Autocomplete error: {e}")
+        return jsonify({'suggestions': [], 'most_popular': None})
+
+
+@app.route('/api/autocomplete/authors')
+def api_autocomplete_authors():
+    """Get autocomplete suggestions for authors with most popular first."""
+    try:
+        query = request.args.get('q', '').lower()
+        config = load_config()
+        conn = get_db_connection(config)
+        if not conn:
+            return jsonify({'suggestions': [], 'most_popular': None})
+
+        cursor = conn.cursor()
+
+        # Get most popular author
+        cursor.execute("""
+            SELECT imp_author, COUNT(*) as count
+            FROM locations
+            WHERE imp_author IS NOT NULL AND imp_author != ''
+            GROUP BY imp_author
+            ORDER BY count DESC
+            LIMIT 1
+        """)
+        most_popular_row = cursor.fetchone()
+        most_popular = most_popular_row[0] if most_popular_row else None
+
+        # Get matching authors
+        cursor.execute("""
+            SELECT DISTINCT imp_author, COUNT(*) as count
+            FROM locations
+            WHERE LOWER(imp_author) LIKE ? AND imp_author IS NOT NULL AND imp_author != ''
+            GROUP BY imp_author
+            ORDER BY count DESC
+            LIMIT 10
+        """, (f'%{query}%',))
+
+        suggestions = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({'suggestions': suggestions, 'most_popular': most_popular})
+    except Exception as e:
+        logger.error(f"Autocomplete error: {e}")
+        return jsonify({'suggestions': [], 'most_popular': None})
+
+
+@app.route('/api/check-collision')
+def api_check_collision():
+    """Check if location name already exists."""
+    try:
+        name = request.args.get('name', '')
+        config = load_config()
+        conn = get_db_connection(config)
+        if not conn:
+            return jsonify({'exists': False})
+
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM locations WHERE LOWER(loc_name) = LOWER(?)
+        """, (name,))
+
+        exists = cursor.fetchone()[0] > 0
+        conn.close()
+
+        return jsonify({'exists': exists})
+    except Exception as e:
+        logger.error(f"Collision check error: {e}")
+        return jsonify({'exists': False})
 
 
 @app.route('/import/submit', methods=['POST'])
@@ -1229,19 +1730,66 @@ def settings_save():
         return redirect(url_for('settings'))
 
 
+def get_allowed_prefixes():
+    """Get allowed directory prefixes based on the operating system."""
+    system = platform.system()
+
+    if system == 'Windows':
+        # Windows: Allow all drive letters and common network paths
+        allowed = []
+        for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            allowed.append(f'{letter}:\\')
+            allowed.append(f'{letter}:/')
+        allowed.extend(['\\\\', '//'])  # Network paths
+        return allowed
+    elif system == 'Darwin':  # macOS
+        return ['/Users', '/Volumes', '/Applications', '/Library', '/opt', '/var', '/srv', '/data', '/storage', '/backup']
+    else:  # Linux and other Unix-like
+        return ['/home', '/mnt', '/media', '/opt', '/var', '/srv', '/data', '/storage', '/backup']
+
+
+def get_default_home_path():
+    """Get the default home directory for the current OS."""
+    return str(Path.home())
+
+
+@app.route('/api/default-path')
+def api_default_path():
+    """Get the default starting path for file explorer."""
+    return jsonify({'path': get_default_home_path()})
+
+
 @app.route('/api/browse')
 def api_browse():
     """Browse filesystem directories for file explorer."""
     try:
-        path = request.args.get('path', '/home')
+        path = request.args.get('path', get_default_home_path())
         path_obj = Path(path).resolve()
 
         # Security: Prevent directory traversal attacks
         # Only allow browsing within reasonable directories
-        allowed_prefixes = ['/home', '/mnt', '/media', '/opt', '/var', '/srv']
+        allowed_prefixes = get_allowed_prefixes()
         path_str = str(path_obj)
-        if not any(path_str.startswith(prefix) for prefix in allowed_prefixes):
-            return jsonify({'error': 'Access denied to this directory'}), 403
+
+        # Normalize path for comparison (handle both / and \ on Windows)
+        normalized_path = path_str.replace('\\', '/')
+
+        is_allowed = False
+        for prefix in allowed_prefixes:
+            normalized_prefix = prefix.replace('\\', '/')
+            if normalized_path.startswith(normalized_prefix):
+                is_allowed = True
+                break
+
+        if not is_allowed:
+            system = platform.system()
+            if system == 'Windows':
+                error_msg = 'Access denied. Please browse from a local drive (C:, D:, etc.) or network path'
+            elif system == 'Darwin':
+                error_msg = 'Access denied. Allowed locations: /Users, /Volumes, /Applications, common system directories'
+            else:
+                error_msg = 'Access denied. Allowed locations: /home, /mnt, /media, /opt, /var, /srv, /data, /storage, /backup'
+            return jsonify({'error': error_msg}), 403
 
         if not path_obj.exists() or not path_obj.is_dir():
             return jsonify({'error': 'Directory does not exist'}), 404
@@ -1260,7 +1808,8 @@ def api_browse():
 
         # Get parent directory
         parent_path = None
-        if path_obj != Path('/'):
+        # Check if we're at a root (works for both Unix / and Windows C:\)
+        if path_obj.parent != path_obj:
             parent_path = str(path_obj.parent)
 
         return jsonify({
