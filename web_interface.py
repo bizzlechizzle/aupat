@@ -1748,7 +1748,15 @@ LOCATION_DETAIL_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock
 IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
 {% block content %}
 <h2>Import Media</h2>
-<p style="margin-bottom: 2rem; opacity: 0.8;">Import a new location and associated media files</p>
+<p style="margin-bottom: 1rem; opacity: 0.8;">Import a new location and associated media files</p>
+<div style="background: rgba(185, 151, 92, 0.1); border-left: 3px solid var(--accent); padding: 1rem; margin-bottom: 2rem; font-size: 0.9rem;">
+    <strong>Import Pipeline:</strong> This will run a 5-stage automated process:<br>
+    1. Import files to staging<br>
+    2. Extract metadata (EXIF, hardware detection)<br>
+    3. Create organized folder structure<br>
+    4. Move files to archive<br>
+    5. Verify integrity and cleanup
+</div>
 
 <div class="card">
     <form method="POST" action="/import/submit" enctype="multipart/form-data" id="importForm">
@@ -2731,10 +2739,10 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
 
         logger.info(f"[Task {task_id}] Database migration completed")
 
-        # Update status: Starting import
+        # Update status: Starting import (Stage 1/5)
         with WORKFLOW_LOCK:
-            WORKFLOW_STATUS[task_id]['current_step'] = f'Importing files for {data["loc_name"]}'
-            WORKFLOW_STATUS[task_id]['progress'] = 30
+            WORKFLOW_STATUS[task_id]['current_step'] = f'Stage 1/5: Importing files to staging'
+            WORKFLOW_STATUS[task_id]['progress'] = 10
 
         logger.info(f"[Task {task_id}] Starting import process...")
 
@@ -2781,27 +2789,146 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
                     WORKFLOW_STATUS[task_id]['logs'] = import_logs[-10:]  # Keep last 10 lines
                     WORKFLOW_STATUS[task_id]['elapsed_time'] = int(elapsed)
 
-                    # Parse progress from output if available
+                    # Parse progress from output if available (Stage 1: 10-20%)
                     if 'Processing file' in line or 'Importing' in line:
-                        WORKFLOW_STATUS[task_id]['progress'] = min(90, WORKFLOW_STATUS[task_id]['progress'] + 5)
+                        WORKFLOW_STATUS[task_id]['progress'] = min(20, WORKFLOW_STATUS[task_id]['progress'] + 1)
 
         # Get final status
         stderr = process.stderr.read()
         returncode = process.poll()
 
-        if returncode == 0:
-            logger.info(f"[Task {task_id}] Import completed successfully")
-            with WORKFLOW_LOCK:
-                WORKFLOW_STATUS[task_id]['current_step'] = 'Import completed'
-                WORKFLOW_STATUS[task_id]['progress'] = 100
-                WORKFLOW_STATUS[task_id]['running'] = False
-                WORKFLOW_STATUS[task_id]['completed'] = True
-        else:
+        if returncode != 0:
             error_msg = f"Import failed: {stderr}"
             logger.error(f"[Task {task_id}] {error_msg}")
             with WORKFLOW_LOCK:
                 WORKFLOW_STATUS[task_id]['error'] = error_msg
                 WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 1/5: Import to staging completed")
+
+        # STAGE 2: Extract metadata (db_organize.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Extracting metadata from images and videos'
+            WORKFLOW_STATUS[task_id]['progress'] = 20
+
+        logger.info(f"[Task {task_id}] Stage 2/5: Running db_organize.py...")
+
+        organize_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_organize.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout for metadata extraction
+        )
+
+        if organize_result.returncode != 0:
+            error_msg = f"Metadata extraction failed: {organize_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 2/5: Metadata extraction completed")
+
+        # STAGE 3: Create folder structure (db_folder.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Creating organized folder structure'
+            WORKFLOW_STATUS[task_id]['progress'] = 40
+
+        logger.info(f"[Task {task_id}] Stage 3/5: Running db_folder.py...")
+
+        folder_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_folder.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout for folder creation
+        )
+
+        if folder_result.returncode != 0:
+            error_msg = f"Folder creation failed: {folder_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 3/5: Folder structure created")
+
+        # STAGE 4: Move files to archive (db_ingest.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Moving files from staging to archive'
+            WORKFLOW_STATUS[task_id]['progress'] = 60
+
+        logger.info(f"[Task {task_id}] Stage 4/5: Running db_ingest.py...")
+
+        ingest_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_ingest.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1800  # 30 minute timeout for file movement
+        )
+
+        if ingest_result.returncode != 0:
+            error_msg = f"File ingest failed: {ingest_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 4/5: Files moved to archive")
+
+        # STAGE 5: Verify integrity and cleanup (db_verify.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Verifying file integrity and cleaning up'
+            WORKFLOW_STATUS[task_id]['progress'] = 80
+
+        logger.info(f"[Task {task_id}] Stage 5/5: Running db_verify.py...")
+
+        verify_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_verify.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout for verification
+        )
+
+        if verify_result.returncode != 0:
+            error_msg = f"Verification failed: {verify_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 5/5: Verification completed")
+
+        # All stages completed successfully
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Import pipeline completed successfully'
+            WORKFLOW_STATUS[task_id]['progress'] = 100
+            WORKFLOW_STATUS[task_id]['running'] = False
+            WORKFLOW_STATUS[task_id]['completed'] = True
+
+        logger.info(f"[Task {task_id}] ✓ FULL IMPORT PIPELINE COMPLETED")
+        logger.info(f"[Task {task_id}] Location: {data['loc_name']}")
+        logger.info(f"[Task {task_id}] Files are now in the archive with metadata extracted")
 
     except Exception as e:
         error_msg = f"Task error: {str(e)}"
