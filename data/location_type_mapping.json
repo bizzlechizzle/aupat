@@ -1,0 +1,98 @@
+{
+  "mappings": {
+    "medical": "healthcare",
+    "hospital": "healthcare",
+    "clinic": "healthcare",
+    "doctor": "healthcare",
+    "nursing-home": "healthcare",
+    "asylum": "healthcare",
+    "sanitarium": "healthcare",
+
+    "business": "commercial",
+    "businesses": "commercial",
+    "retail": "commercial",
+    "store": "commercial",
+    "shop": "commercial",
+    "mall": "commercial",
+    "office": "commercial",
+
+    "entertainment": "recreational",
+    "amusement": "recreational",
+    "park": "recreational",
+    "theater": "recreational",
+    "cinema": "recreational",
+    "pool": "recreational",
+    "waterpark": "recreational",
+
+    "faith": "religious",
+    "church": "religious",
+    "temple": "religious",
+    "mosque": "religious",
+    "synagogue": "religious",
+    "chapel": "religious",
+    "cathedral": "religious",
+
+    "school": "educational",
+    "college": "educational",
+    "university": "educational",
+    "academy": "educational",
+    "institute": "educational",
+
+    "factory": "industrial",
+    "warehouse": "industrial",
+    "plant": "industrial",
+    "mill": "industrial",
+    "foundry": "industrial",
+
+    "farm": "agricultural",
+    "ranch": "agricultural",
+    "barn": "agricultural",
+    "silo": "agricultural",
+
+    "house": "residential",
+    "home": "residential",
+    "apartment": "residential",
+    "condo": "residential",
+    "mansion": "residential",
+
+    "base": "military",
+    "fort": "military",
+    "barracks": "military",
+    "armory": "military",
+
+    "prison": "institutional",
+    "jail": "institutional",
+    "courthouse": "institutional",
+    "government": "institutional",
+    "city-hall": "institutional",
+
+    "road": "infrastructure",
+    "bridge": "infrastructure",
+    "tunnel": "infrastructure",
+    "dam": "infrastructure",
+    "power-plant": "infrastructure",
+
+    "train": "transportation",
+    "station": "transportation",
+    "depot": "transportation",
+    "airport": "transportation",
+    "terminal": "transportation"
+  },
+
+  "valid_types": [
+    "industrial",
+    "residential",
+    "commercial",
+    "institutional",
+    "agricultural",
+    "recreational",
+    "infrastructure",
+    "military",
+    "religious",
+    "educational",
+    "healthcare",
+    "transportation",
+    "mixed-use",
+    "other"
+  ]
+}

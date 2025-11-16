@@ -63,7 +63,7 @@ def test_drone_detection():
 
                 if 'DJI' in handler_name.upper() or 'DJI' in encoder.upper():
                     make = 'DJI'
-                    print(f"     ✓ DETECTED DJI from stream metadata!")
+                    print(f"     DETECTED DJI from stream metadata!")
                     break
 
                 if not make:
@@ -82,7 +82,7 @@ def test_drone_detection():
 
         print(f"\n4. Hardware categorization:")
         print(f"   Category: {category}")
-        print(f"   Is drone: {'YES ✓' if category == 'drone' else 'NO ✗'}")
+        print(f"   Is drone: {'YES' if category == 'drone' else 'NO'}")
 
         if category == 'drone':
             print(f"\n{'='*80}")

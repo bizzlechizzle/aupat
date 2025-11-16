@@ -312,6 +312,27 @@ def import_media_files(
     if not source_path.exists():
         raise FileNotFoundError(f"Source directory not found: {source_dir}")
 
+    # Pre-flight check: Verify sufficient disk space
+    logger.info("Running pre-flight checks...")
+
+    # Calculate total size of source files
+    total_size = sum(f.stat().st_size for f in source_path.rglob('*') if f.is_file())
+    total_size_gb = total_size / (1024**3)
+    required_gb = total_size_gb * 2.5  # 2.5x for safety (staging + archive + overhead)
+
+    # Check available space
+    stat = shutil.disk_usage(staging_dir)
+    free_gb = stat.free / (1024**3)
+
+    if free_gb < required_gb:
+        raise RuntimeError(
+            f"Insufficient disk space: {free_gb:.2f}GB free, {required_gb:.2f}GB required "
+            f"(source files: {total_size_gb:.2f}GB, need 2.5x for staging + archive). "
+            f"Free up space and try again."
+        )
+
+    logger.info(f"Disk space check passed: {free_gb:.2f}GB free, {required_gb:.2f}GB required")
+
     # Create staging directory
     loc_staging = staging_path / loc_uuid[:8]
     loc_staging.mkdir(parents=True, exist_ok=True)
@@ -326,8 +347,15 @@ def import_media_files(
     logger.info(f"Found {len(files)} files to process")
     print(f"PROGRESS: 0/{len(files)} files", flush=True)
 
-    conn = sqlite3.connect(db_path)
+    # Increase timeout for large imports and enable WAL mode
+    conn = sqlite3.connect(db_path, timeout=30.0)  # Increase from default 5s to 30s
     cursor = conn.cursor()
+
+    # Enable WAL mode for better concurrent access
+    cursor.execute("PRAGMA journal_mode=WAL")
+
+    # Transaction batching - commit every N files for large imports
+    BATCH_SIZE = 100
 
     stats = {
         'total': 0,
@@ -355,7 +383,11 @@ def import_media_files(
         logger.warning("Could not determine filesystem - defaulting to copy")
 
     try:
-        for file_path in files:
+        # Begin first transaction
+        conn.execute("BEGIN TRANSACTION")
+        batch_count = 0
+
+        for i, file_path in enumerate(files, 1):
             try:
                 # Get file extension and determine type
                 ext = normalize_extension(file_path.suffix)
@@ -482,6 +514,13 @@ def import_media_files(
                 stats['total'] += 1
                 print(f"PROGRESS: {stats['total']}/{len(files)} files", flush=True)
 
+                # Batch commit every BATCH_SIZE files for large imports
+                if i % BATCH_SIZE == 0:
+                    conn.commit()
+                    batch_count += 1
+                    logger.info(f"Committed batch {batch_count} ({i} files processed)")
+                    conn.execute("BEGIN TRANSACTION")  # Start new transaction
+
             except Exception as e:
                 logger.error(f"Failed to import {file_path.name}: {e}")
                 stats['errors'] += 1
@@ -499,7 +538,9 @@ def import_media_files(
             )
         )
 
+        # Final commit for remaining files (not yet committed in batches)
         conn.commit()
+        logger.info(f"Final commit completed - total files: {stats['total']}")
 
         # Verify match count
         logger.info("\nVerifying import match counts...")
@@ -650,14 +691,14 @@ Examples:
   python db_import.py --source /path/to/media --skip-backup
 
 Features (P0/P1):
-  ✓ Backup before import
-  ✓ Location name collision detection
-  ✓ File type detection (images/videos/documents)
-  ✓ SHA256 collision checking
-  ✓ Hardlink support for same-disk imports
-  ✓ Database record creation for all media
-  ✓ Versions table tracking
-  ✓ Import match count verification
+  - Backup before import
+  - Location name collision detection
+  - File type detection (images/videos/documents)
+  - SHA256 collision checking
+  - Hardlink support for same-disk imports
+  - Database record creation for all media
+  - Versions table tracking
+  - Import match count verification
         """
     )
     parser.add_argument(

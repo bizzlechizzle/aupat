@@ -98,11 +98,11 @@ def analyze_for_drone_markers(metadata: dict, source: str = "unknown") -> None:
                 found_markers.append((key, value, keyword))
 
     if found_markers:
-        print(f"✓ FOUND {len(found_markers)} DRONE MARKER(S):")
+        print(f"FOUND {len(found_markers)} DRONE MARKER(S):")
         for key, value, keyword in found_markers:
             print(f"  - {key}: {value} (matched: '{keyword}')")
     else:
-        print("✗ NO DRONE MARKERS FOUND")
+        print("NO DRONE MARKERS FOUND")
 
     # Check common make/model fields
     print(f"\nCOMMON MAKE/MODEL FIELDS:")
@@ -184,7 +184,7 @@ def main():
             print(f"\nExtracted Make: '{make}'")
             print(f"Extracted Model: '{model}'")
             if not make:
-                print("⚠️  WARNING: Current implementation found NO make field!")
+                print("WARNING: Current implementation found NO make field!")
         else:
             print(f"ERROR: {result.stderr}")
 

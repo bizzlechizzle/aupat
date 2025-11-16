@@ -67,10 +67,10 @@ def check_integrity(db_path: str) -> bool:
         result = cursor.fetchone()[0]
 
         if result == 'ok':
-            logger.info("✓ Database integrity check passed")
+            logger.info("Database integrity check passed")
             return True
         else:
-            logger.error(f"✗ Database integrity check failed: {result}")
+            logger.error(f"ERROR: Database integrity check failed: {result}")
             return False
 
     finally:
@@ -97,12 +97,12 @@ def check_foreign_keys(db_path: str) -> int:
         violations = cursor.fetchall()
 
         if violations:
-            logger.error(f"✗ Found {len(violations)} foreign key violations:")
+            logger.error(f"ERROR: Found {len(violations)} foreign key violations:")
             for violation in violations:
                 logger.error(f"  {violation}")
             return len(violations)
         else:
-            logger.info("✓ No foreign key violations found")
+            logger.info("No foreign key violations found")
             return 0
 
     finally:
