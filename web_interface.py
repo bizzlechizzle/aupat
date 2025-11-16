@@ -411,6 +411,171 @@ def get_locations_list(config: dict, page: int = 1, per_page: int = 20) -> tuple
     return locations, total
 
 
+def get_location_details(config: dict, loc_uuid: str) -> Optional[dict]:
+    """Get detailed information about a specific location including all associated files."""
+    try:
+        conn = get_db_connection(config)
+        if not conn:
+            return None
+
+        cursor = conn.cursor()
+
+        # Get location basic info
+        cursor.execute("""
+            SELECT
+                loc_uuid,
+                loc_name,
+                aka_name,
+                state,
+                type,
+                sub_type,
+                loc_loc,
+                org_loc,
+                loc_add,
+                loc_update,
+                imp_author
+            FROM locations
+            WHERE loc_uuid = ? OR loc_uuid LIKE ?
+        """, (loc_uuid, f"{loc_uuid}%"))
+
+        location_row = cursor.fetchone()
+        if not location_row:
+            return None
+
+        location = {
+            'uuid': location_row[0],
+            'uuid8': location_row[0][:8],
+            'name': location_row[1],
+            'aka_name': location_row[2],
+            'state': location_row[3],
+            'type': location_row[4],
+            'sub_type': location_row[5],
+            'location_path': location_row[6],
+            'original_path': location_row[7],
+            'date_added': location_row[8],
+            'date_updated': location_row[9],
+            'author': location_row[10]
+        }
+
+        # Get images
+        cursor.execute("""
+            SELECT
+                img_sha256,
+                img_name,
+                img_loc,
+                camera,
+                phone,
+                drone,
+                go_pro,
+                film,
+                img_add
+            FROM images
+            WHERE loc_uuid = ?
+            ORDER BY img_add DESC
+        """, (location['uuid'],))
+
+        location['images'] = [
+            {
+                'sha256': row[0],
+                'sha8': row[0][:8],
+                'name': row[1],
+                'path': row[2],
+                'camera': bool(row[3]),
+                'phone': bool(row[4]),
+                'drone': bool(row[5]),
+                'go_pro': bool(row[6]),
+                'film': bool(row[7]),
+                'date_added': row[8]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        # Get videos
+        cursor.execute("""
+            SELECT
+                vid_sha256,
+                vid_name,
+                vid_loc,
+                camera,
+                phone,
+                drone,
+                go_pro,
+                dash_cam,
+                vid_add
+            FROM videos
+            WHERE loc_uuid = ?
+            ORDER BY vid_add DESC
+        """, (location['uuid'],))
+
+        location['videos'] = [
+            {
+                'sha256': row[0],
+                'sha8': row[0][:8],
+                'name': row[1],
+                'path': row[2],
+                'camera': bool(row[3]),
+                'phone': bool(row[4]),
+                'drone': bool(row[5]),
+                'go_pro': bool(row[6]),
+                'dash_cam': bool(row[7]),
+                'date_added': row[8]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        # Get documents
+        cursor.execute("""
+            SELECT
+                doc_sha256,
+                doc_name,
+                doc_loc,
+                doc_ext,
+                doc_add
+            FROM documents
+            WHERE loc_uuid = ?
+            ORDER BY doc_add DESC
+        """, (location['uuid'],))
+
+        location['documents'] = [
+            {
+                'sha256': row[0],
+                'sha8': row[0][:8],
+                'name': row[1],
+                'path': row[2],
+                'extension': row[3],
+                'date_added': row[4]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        # Get sub-locations
+        cursor.execute("""
+            SELECT
+                sub_uuid,
+                sub_name
+            FROM sub_locations
+            WHERE loc_uuid = ?
+        """, (location['uuid'],))
+
+        location['sub_locations'] = [
+            {'uuid': row[0], 'uuid8': row[0][:8], 'name': row[1]}
+            for row in cursor.fetchall()
+        ]
+
+        # Calculate totals
+        location['total_images'] = len(location['images'])
+        location['total_videos'] = len(location['videos'])
+        location['total_documents'] = len(location['documents'])
+        location['total_files'] = location['total_images'] + location['total_videos'] + location['total_documents']
+
+        conn.close()
+        return location
+
+    except Exception as e:
+        logger.error(f"Failed to get location details: {e}")
+        return None
+
+
 # Base HTML template with Abandoned Upstate design
 BASE_TEMPLATE = """
 <!DOCTYPE html>
@@ -799,6 +964,23 @@ BASE_TEMPLATE = """
             font-family: 'Roboto Mono', monospace;
         }
 
+        .location-name:hover {
+            opacity: 0.8;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: rgba(185, 151, 92, 0.2);
+            color: var(--accent);
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
         .flash {
             padding: 1rem;
             border-radius: 4px;
@@ -917,7 +1099,7 @@ BASE_TEMPLATE = """
             let startPath = defaultPath;
             if (input.value && input.value.length > 0 && !input.value.includes('/absolute')) {
                 // Check if it's a valid-looking path (Unix or Windows)
-                if (input.value.startsWith('/') || /^[A-Za-z]:[\\\\\/]/.test(input.value)) {
+                if (input.value.startsWith('/') || /^[A-Za-z]:[\\\\/]/.test(input.value)) {
                     startPath = input.value;
                 }
             }
@@ -1301,7 +1483,9 @@ LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
     <div class="card">
         {% for location in locations %}
             <div class="location-item">
-                <div class="location-name">{{ location.name }}</div>
+                <a href="/location/{{ location.uuid8 }}" style="text-decoration: none; color: inherit;">
+                    <div class="location-name" style="color: var(--accent); transition: opacity 0.2s;">{{ location.name }}</div>
+                </a>
                 {% if location.aka_name %}
                     <div style="font-style: italic; font-size: 0.9rem; margin-bottom: 0.25rem;">
                         Also known as: {{ location.aka_name }}
@@ -1333,11 +1517,246 @@ LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
 {% endblock %}
 """)
 
+# Location detail page
+LOCATION_DETAIL_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="/locations" style="color: var(--accent); text-decoration: none; font-family: 'Roboto Mono', monospace; font-size: 0.9rem;">
+        ← Back to Locations
+    </a>
+</div>
+
+<div style="border-bottom: 2px solid var(--accent); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+    <h1 style="margin-bottom: 0.5rem;">{{ location.name }}</h1>
+    {% if location.aka_name %}
+        <p class="post-tagline" style="margin: 0.5rem 0 1rem;">Also known as: {{ location.aka_name }}</p>
+    {% endif %}
+
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 0.9rem; opacity: 0.8; margin-top: 1rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div>
+                <strong style="color: var(--accent);">UUID:</strong> {{ location.uuid8 }}
+            </div>
+            <div>
+                <strong style="color: var(--accent);">State:</strong> {{ location.state | upper }}
+            </div>
+            <div>
+                <strong style="color: var(--accent);">Type:</strong> {{ location.type | title }}
+            </div>
+            {% if location.sub_type %}
+            <div>
+                <strong style="color: var(--accent);">Sub-type:</strong> {{ location.sub_type | title }}
+            </div>
+            {% endif %}
+            <div>
+                <strong style="color: var(--accent);">Added:</strong> {{ location.date_added[:10] }}
+            </div>
+            {% if location.author %}
+            <div>
+                <strong style="color: var(--accent);">Author:</strong> {{ location.author | title }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
+    <div class="stat-card">
+        <div class="stat-number">{{ location.total_images }}</div>
+        <div class="stat-label">Images</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ location.total_videos }}</div>
+        <div class="stat-label">Videos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ location.total_documents }}</div>
+        <div class="stat-label">Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ location.total_files }}</div>
+        <div class="stat-label">Total Files</div>
+    </div>
+</div>
+
+<!-- Sub-locations -->
+{% if location.sub_locations %}
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem; color: var(--accent);">Sub-Locations</h3>
+    <div style="display: grid; gap: 0.5rem;">
+        {% for sub in location.sub_locations %}
+        <div style="padding: 0.75rem; background: rgba(185, 151, 92, 0.1); border-radius: 4px;">
+            <strong>{{ sub.name }}</strong> <span style="opacity: 0.6; font-size: 0.9rem;">({{ sub.uuid8 }})</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Images -->
+{% if location.images %}
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent);">
+        Images <span style="opacity: 0.6; font-size: 0.9rem; font-weight: normal;">({{ location.total_images }})</span>
+    </h3>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead style="position: sticky; top: 0; background: var(--background); border-bottom: 2px solid var(--accent);">
+                <tr style="text-align: left; font-family: 'Roboto Mono', monospace;">
+                    <th style="padding: 0.75rem;">Filename</th>
+                    <th style="padding: 0.75rem;">Type</th>
+                    <th style="padding: 0.75rem;">SHA8</th>
+                    <th style="padding: 0.75rem;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for img in location.images %}
+                <tr style="border-bottom: 1px solid rgba(185, 151, 92, 0.2);">
+                    <td style="padding: 0.75rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem;">
+                        {{ img.name }}
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        {% if img.camera %}
+                            <span class="badge">Camera</span>
+                        {% elif img.phone %}
+                            <span class="badge">Phone</span>
+                        {% elif img.drone %}
+                            <span class="badge">Drone</span>
+                        {% elif img.go_pro %}
+                            <span class="badge">GoPro</span>
+                        {% elif img.film %}
+                            <span class="badge">Film</span>
+                        {% else %}
+                            <span class="badge">Other</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.75rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; opacity: 0.7;">
+                        {{ img.sha8 }}
+                    </td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; opacity: 0.7;">
+                        {{ img.date_added[:10] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Videos -->
+{% if location.videos %}
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent);">
+        Videos <span style="opacity: 0.6; font-size: 0.9rem; font-weight: normal;">({{ location.total_videos }})</span>
+    </h3>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead style="position: sticky; top: 0; background: var(--background); border-bottom: 2px solid var(--accent);">
+                <tr style="text-align: left; font-family: 'Roboto Mono', monospace;">
+                    <th style="padding: 0.75rem;">Filename</th>
+                    <th style="padding: 0.75rem;">Type</th>
+                    <th style="padding: 0.75rem;">SHA8</th>
+                    <th style="padding: 0.75rem;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vid in location.videos %}
+                <tr style="border-bottom: 1px solid rgba(185, 151, 92, 0.2);">
+                    <td style="padding: 0.75rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem;">
+                        {{ vid.name }}
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        {% if vid.camera %}
+                            <span class="badge">Camera</span>
+                        {% elif vid.phone %}
+                            <span class="badge">Phone</span>
+                        {% elif vid.drone %}
+                            <span class="badge">Drone</span>
+                        {% elif vid.go_pro %}
+                            <span class="badge">GoPro</span>
+                        {% elif vid.dash_cam %}
+                            <span class="badge">Dashcam</span>
+                        {% else %}
+                            <span class="badge">Other</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.75rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; opacity: 0.7;">
+                        {{ vid.sha8 }}
+                    </td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; opacity: 0.7;">
+                        {{ vid.date_added[:10] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Documents -->
+{% if location.documents %}
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent);">
+        Documents <span style="opacity: 0.6; font-size: 0.9rem; font-weight: normal;">({{ location.total_documents }})</span>
+    </h3>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead style="position: sticky; top: 0; background: var(--background); border-bottom: 2px solid var(--accent);">
+                <tr style="text-align: left; font-family: 'Roboto Mono', monospace;">
+                    <th style="padding: 0.75rem;">Filename</th>
+                    <th style="padding: 0.75rem;">Type</th>
+                    <th style="padding: 0.75rem;">SHA8</th>
+                    <th style="padding: 0.75rem;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in location.documents %}
+                <tr style="border-bottom: 1px solid rgba(185, 151, 92, 0.2);">
+                    <td style="padding: 0.75rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem;">
+                        {{ doc.name }}
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <span class="badge">{{ doc.extension | upper }}</span>
+                    </td>
+                    <td style="padding: 0.75rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; opacity: 0.7;">
+                        {{ doc.sha8 }}
+                    </td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; opacity: 0.7;">
+                        {{ doc.date_added[:10] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not location.images and not location.videos and not location.documents %}
+<div class="card" style="text-align: center; padding: 3rem;">
+    <p style="opacity: 0.6; font-size: 1.1rem;">No files found for this location.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+""")
+
 # Import page
 IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
 {% block content %}
 <h2>Import Media</h2>
-<p style="margin-bottom: 2rem; opacity: 0.8;">Import a new location and associated media files</p>
+<p style="margin-bottom: 1rem; opacity: 0.8;">Import a new location and associated media files</p>
+<div style="background: rgba(185, 151, 92, 0.1); border-left: 3px solid var(--accent); padding: 1rem; margin-bottom: 2rem; font-size: 0.9rem;">
+    <strong>Import Pipeline:</strong> This will run a 5-stage automated process:<br>
+    1. Import files to staging<br>
+    2. Extract metadata (EXIF, hardware detection)<br>
+    3. Create organized folder structure<br>
+    4. Move files to archive<br>
+    5. Verify integrity and cleanup
+</div>
 
 <div class="card">
     <form method="POST" action="/import/submit" enctype="multipart/form-data" id="importForm">
@@ -1955,6 +2374,19 @@ def locations():
     return render_template_string(LOCATIONS_TEMPLATE, locations=locations_list, total=total)
 
 
+@app.route('/location/<uuid>')
+def location_detail(uuid):
+    """Location detail page showing all associated files."""
+    config = load_config()
+    location = get_location_details(config, uuid)
+
+    if not location:
+        flash(f'Location not found: {uuid}', 'error')
+        return redirect(url_for('locations'))
+
+    return render_template_string(LOCATION_DETAIL_TEMPLATE, location=location)
+
+
 @app.route('/archives')
 def archives():
     """Archives page (placeholder)."""
@@ -2307,10 +2739,10 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
 
         logger.info(f"[Task {task_id}] Database migration completed")
 
-        # Update status: Starting import
+        # Update status: Starting import (Stage 1/5)
         with WORKFLOW_LOCK:
-            WORKFLOW_STATUS[task_id]['current_step'] = f'Importing files for {data["loc_name"]}'
-            WORKFLOW_STATUS[task_id]['progress'] = 30
+            WORKFLOW_STATUS[task_id]['current_step'] = f'Stage 1/5: Importing files to staging'
+            WORKFLOW_STATUS[task_id]['progress'] = 10
 
         logger.info(f"[Task {task_id}] Starting import process...")
 
@@ -2357,27 +2789,146 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
                     WORKFLOW_STATUS[task_id]['logs'] = import_logs[-10:]  # Keep last 10 lines
                     WORKFLOW_STATUS[task_id]['elapsed_time'] = int(elapsed)
 
-                    # Parse progress from output if available
+                    # Parse progress from output if available (Stage 1: 10-20%)
                     if 'Processing file' in line or 'Importing' in line:
-                        WORKFLOW_STATUS[task_id]['progress'] = min(90, WORKFLOW_STATUS[task_id]['progress'] + 5)
+                        WORKFLOW_STATUS[task_id]['progress'] = min(20, WORKFLOW_STATUS[task_id]['progress'] + 1)
 
         # Get final status
         stderr = process.stderr.read()
         returncode = process.poll()
 
-        if returncode == 0:
-            logger.info(f"[Task {task_id}] Import completed successfully")
-            with WORKFLOW_LOCK:
-                WORKFLOW_STATUS[task_id]['current_step'] = 'Import completed'
-                WORKFLOW_STATUS[task_id]['progress'] = 100
-                WORKFLOW_STATUS[task_id]['running'] = False
-                WORKFLOW_STATUS[task_id]['completed'] = True
-        else:
+        if returncode != 0:
             error_msg = f"Import failed: {stderr}"
             logger.error(f"[Task {task_id}] {error_msg}")
             with WORKFLOW_LOCK:
                 WORKFLOW_STATUS[task_id]['error'] = error_msg
                 WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 1/5: Import to staging completed")
+
+        # STAGE 2: Extract metadata (db_organize.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Extracting metadata from images and videos'
+            WORKFLOW_STATUS[task_id]['progress'] = 20
+
+        logger.info(f"[Task {task_id}] Stage 2/5: Running db_organize.py...")
+
+        organize_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_organize.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout for metadata extraction
+        )
+
+        if organize_result.returncode != 0:
+            error_msg = f"Metadata extraction failed: {organize_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 2/5: Metadata extraction completed")
+
+        # STAGE 3: Create folder structure (db_folder.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Creating organized folder structure'
+            WORKFLOW_STATUS[task_id]['progress'] = 40
+
+        logger.info(f"[Task {task_id}] Stage 3/5: Running db_folder.py...")
+
+        folder_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_folder.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout for folder creation
+        )
+
+        if folder_result.returncode != 0:
+            error_msg = f"Folder creation failed: {folder_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 3/5: Folder structure created")
+
+        # STAGE 4: Move files to archive (db_ingest.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Moving files from staging to archive'
+            WORKFLOW_STATUS[task_id]['progress'] = 60
+
+        logger.info(f"[Task {task_id}] Stage 4/5: Running db_ingest.py...")
+
+        ingest_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_ingest.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1800  # 30 minute timeout for file movement
+        )
+
+        if ingest_result.returncode != 0:
+            error_msg = f"File ingest failed: {ingest_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 4/5: Files moved to archive")
+
+        # STAGE 5: Verify integrity and cleanup (db_verify.py)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Verifying file integrity and cleaning up'
+            WORKFLOW_STATUS[task_id]['progress'] = 80
+
+        logger.info(f"[Task {task_id}] Stage 5/5: Running db_verify.py...")
+
+        verify_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_verify.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout for verification
+        )
+
+        if verify_result.returncode != 0:
+            error_msg = f"Verification failed: {verify_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Stage 5/5: Verification completed")
+
+        # All stages completed successfully
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Import pipeline completed successfully'
+            WORKFLOW_STATUS[task_id]['progress'] = 100
+            WORKFLOW_STATUS[task_id]['running'] = False
+            WORKFLOW_STATUS[task_id]['completed'] = True
+
+        logger.info(f"[Task {task_id}] ✓ FULL IMPORT PIPELINE COMPLETED")
+        logger.info(f"[Task {task_id}] Location: {data['loc_name']}")
+        logger.info(f"[Task {task_id}] Files are now in the archive with metadata extracted")
 
     except Exception as e:
         error_msg = f"Task error: {str(e)}"
