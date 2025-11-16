@@ -1203,7 +1203,7 @@ BASE_TEMPLATE = """
 <body>
     <header class="header">
         <div class="header-content">
-            <h1 class="site-title">Abandoned Upstate</h1>
+            <h1 class="site-title"><a href="/" style="text-decoration: none; color: inherit;">Abandoned Upstate</a></h1>
             <nav class="nav">
                 <a href="/import" class="{{ 'active' if request.path == '/import' else '' }}">Import</a>
                 <a href="/" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
@@ -1273,7 +1273,9 @@ DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
         <ul class="location-list">
             {% for location in stats.recent_imports %}
                 <li class="location-item">
-                    <div class="location-name">{{ location.name }}</div>
+                    <a href="/location/{{ location.uuid8 }}" style="text-decoration: none; color: inherit;">
+                        <div class="location-name" style="color: var(--accent); transition: opacity 0.2s;">{{ location.name }}</div>
+                    </a>
                     <div class="location-meta">
                         {{ location.state | upper }} · {{ location.type | title }} · {{ location.date[:10] }}
                     </div>
@@ -1488,7 +1490,7 @@ LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
                 </a>
                 {% if location.aka_name %}
                     <div style="font-style: italic; font-size: 0.9rem; margin-bottom: 0.25rem;">
-                        Also known as: {{ location.aka_name }}
+                        AKA: {{ location.aka_name }}
                     </div>
                 {% endif %}
                 <div class="location-meta">
@@ -1529,7 +1531,7 @@ LOCATION_DETAIL_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock
 <div style="border-bottom: 2px solid var(--accent); padding-bottom: 1.5rem; margin-bottom: 2rem;">
     <h1 style="margin-bottom: 0.5rem;">{{ location.name }}</h1>
     {% if location.aka_name %}
-        <p class="post-tagline" style="margin: 0.5rem 0 1rem;">Also known as: {{ location.aka_name }}</p>
+        <p class="post-tagline" style="margin: 0.5rem 0 1rem;">AKA: {{ location.aka_name }}</p>
     {% endif %}
 
     <div style="font-family: 'Roboto Mono', monospace; font-size: 0.9rem; opacity: 0.8; margin-top: 1rem;">
@@ -3085,7 +3087,6 @@ def import_submit():
         session['last_import_task'] = task_id
 
         # Redirect to dashboard immediately
-        flash(f'Import started for {data["loc_name"]}. Processing in background...', 'success')
         return redirect(url_for('dashboard'))
 
     except Exception as e:
