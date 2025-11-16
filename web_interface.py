@@ -1049,6 +1049,24 @@ BASE_TEMPLATE = """
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Loading spinner */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--muted);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
     </style>
     <script>
         // Theme toggle functionality
@@ -1751,14 +1769,6 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
 {% block content %}
 <h2>Import Media</h2>
 <p style="margin-bottom: 1rem; opacity: 0.8;">Import a new location and associated media files</p>
-<div style="background: rgba(185, 151, 92, 0.1); border-left: 3px solid var(--accent); padding: 1rem; margin-bottom: 2rem; font-size: 0.9rem;">
-    <strong>Import Pipeline:</strong> This will run a 5-stage automated process:<br>
-    1. Import files to staging<br>
-    2. Extract metadata (EXIF, hardware detection)<br>
-    3. Create organized folder structure<br>
-    4. Move files to archive<br>
-    5. Verify integrity and cleanup
-</div>
 
 <div class="card">
     <form method="POST" action="/import/submit" enctype="multipart/form-data" id="importForm">
@@ -2176,7 +2186,7 @@ function uploadWithProgress(formData) {
         xhr.upload.addEventListener('load', () => {
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
-            progressStatus.textContent = 'Upload complete - Processing files on server...';
+            progressStatus.innerHTML = 'Upload complete - Processing files on server...<span class="spinner"></span>';
         });
 
         // Request complete
@@ -2811,24 +2821,66 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
 
         # STAGE 2: Extract metadata (db_organize.py)
         with WORKFLOW_LOCK:
-            WORKFLOW_STATUS[task_id]['current_step'] = 'Extracting metadata from images and videos'
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Stage 2/5: Extracting metadata from images and videos'
             WORKFLOW_STATUS[task_id]['progress'] = 20
 
         logger.info(f"[Task {task_id}] Stage 2/5: Running db_organize.py...")
 
-        organize_result = subprocess.run(
+        # Use Popen to stream progress
+        organize_process = subprocess.Popen(
             [
                 sys.executable,
                 'scripts/db_organize.py',
                 '--config', 'user/user.json'
             ],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=600  # 10 minute timeout for metadata extraction
+            bufsize=1
         )
 
-        if organize_result.returncode != 0:
-            error_msg = f"Metadata extraction failed: {organize_result.stderr}"
+        organize_logs = []
+
+        # Read output and parse progress
+        while True:
+            output = organize_process.stdout.readline()
+            if output == '' and organize_process.poll() is not None:
+                break
+            if output:
+                line = output.strip()
+                organize_logs.append(line)
+                logger.info(f"[Task {task_id}] {line}")
+
+                # Parse progress: "PROGRESS: X/Y images" or "PROGRESS: X/Y videos"
+                if line.startswith('PROGRESS:'):
+                    try:
+                        # Extract "X/Y" from "PROGRESS: X/Y images"
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            progress_str = parts[1]  # "X/Y"
+                            current, total = progress_str.split('/')
+                            current = int(current)
+                            total = int(total)
+
+                            # Calculate percentage within Stage 2 range (20% to 40%)
+                            if total > 0:
+                                stage_progress = (current / total) * 100
+                                # Map 0-100% of stage to 20-40% overall
+                                overall_progress = 20 + (stage_progress * 0.20)
+
+                                with WORKFLOW_LOCK:
+                                    WORKFLOW_STATUS[task_id]['progress'] = int(overall_progress)
+                                    WORKFLOW_STATUS[task_id]['current_step'] = f'Stage 2/5: Processing {current}/{total} files'
+                                    WORKFLOW_STATUS[task_id]['logs'] = organize_logs[-10:]
+                    except (ValueError, IndexError) as e:
+                        logger.debug(f"[Task {task_id}] Could not parse progress from: {line}")
+
+        # Get final status
+        stderr = organize_process.stderr.read()
+        returncode = organize_process.poll()
+
+        if returncode != 0:
+            error_msg = f"Metadata extraction failed: {stderr}"
             logger.error(f"[Task {task_id}] {error_msg}")
             with WORKFLOW_LOCK:
                 WORKFLOW_STATUS[task_id]['error'] = error_msg
