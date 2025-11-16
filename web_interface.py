@@ -2792,7 +2792,7 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
                     WORKFLOW_STATUS[task_id]['elapsed_time'] = int(elapsed)
 
                     # Parse progress from output if available (Stage 1: 10-20%)
-                    if 'Processing file' in line or 'Importing' in line:
+                    if 'Processing file' in line or 'Imported' in line:
                         WORKFLOW_STATUS[task_id]['progress'] = min(20, WORKFLOW_STATUS[task_id]['progress'] + 1)
 
         # Get final status
