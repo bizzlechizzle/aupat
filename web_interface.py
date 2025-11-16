@@ -86,6 +86,7 @@ def load_config(config_path: str = 'user/user.json') -> dict:
             config = json.load(f)
 
         # Check if db_loc is a directory (common misconfiguration)
+        config_modified = False
         if 'db_loc' in config:
             db_path = Path(config['db_loc'])
             if db_path.exists() and db_path.is_dir():
@@ -93,6 +94,16 @@ def load_config(config_path: str = 'user/user.json') -> dict:
                 logger.error(f"Change db_loc to: {config['db_loc']}/aupat.db")
                 config['db_loc'] = str(db_path / 'aupat.db')  # Auto-fix
                 logger.info(f"Auto-corrected db_loc to: {config['db_loc']}")
+                config_modified = True
+
+        # Save corrected config back to file so scripts use correct path
+        if config_modified:
+            try:
+                with open(config_path, 'w') as f:
+                    json.dump(config, f, indent=2)
+                logger.info(f"Saved auto-corrected configuration to {config_path}")
+            except Exception as save_error:
+                logger.warning(f"Failed to save corrected config: {save_error}")
 
         return config
     except Exception as e:
@@ -1722,7 +1733,10 @@ SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', "
 <p style="margin-bottom: 2rem; opacity: 0.8;">Configure AUPAT system paths and options</p>
 
 <div class="settings-info">
-    <p><strong>Note:</strong> These settings are stored in <code>user/user.json</code>. All paths should be absolute paths.</p>
+    <p><strong>Note:</strong> These settings are stored in <code>user/user.json</code>. The system will auto-correct paths if needed.</p>
+    <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+        <strong>Important:</strong> Database Location must be a FILE path (ending in .db), all others must be DIRECTORY paths (ending in /).
+    </p>
 </div>
 
 <div class="card">
@@ -1734,12 +1748,12 @@ SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', "
         </div>
 
         <div class="form-group">
-            <label>Database Location</label>
+            <label>Database Location <span style="color: var(--accent); font-weight: normal;">(must be a FILE path)</span></label>
             <div class="input-with-browse">
                 <input type="text" name="db_loc" id="db_loc" value="{{ config.get('db_loc', '') }}" required placeholder="/absolute/path/to/database/aupat.db">
                 <button type="button" class="btn btn-browse" onclick="openFileExplorer('db_loc')">Browse</button>
             </div>
-            <div class="help-text">Absolute path to database file</div>
+            <div class="help-text">Must end with .db - Example: /path/to/tempdata/database/aupat.db</div>
         </div>
 
         <div class="form-group">
@@ -2377,19 +2391,46 @@ def settings_save():
             'arch_loc': request.form.get('arch_loc')
         }
 
+        # Auto-correct db_loc if it's a directory path
+        db_loc = new_config.get('db_loc', '')
+        if db_loc:
+            # Remove trailing slashes
+            db_loc = db_loc.rstrip('/')
+
+            # If it doesn't end with .db, assume it's a directory and add the filename
+            if not db_loc.endswith('.db'):
+                db_name = new_config.get('db_name', 'aupat.db')
+                new_config['db_loc'] = f"{db_loc}/{db_name}"
+                flash(f'Auto-corrected database path to: {new_config["db_loc"]}', 'success')
+                logger.info(f"Auto-corrected db_loc from '{db_loc}' to '{new_config['db_loc']}'")
+
+        # Validate and create parent directory for database
+        if 'db_loc' in new_config and new_config['db_loc']:
+            db_path = Path(new_config['db_loc'])
+            if not db_path.parent.exists():
+                try:
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created database directory: {db_path.parent}")
+                except Exception as e:
+                    flash(f'Warning: Could not create database directory {db_path.parent}: {str(e)}', 'error')
+
         # Validate paths exist or can be created
         paths_to_check = ['db_backup', 'db_ingest', 'arch_loc']
         for path_key in paths_to_check:
             path = new_config.get(path_key)
             if path:
-                path_obj = Path(path)
+                # Ensure directory paths end with /
+                if not path.endswith('/'):
+                    new_config[path_key] = path + '/'
+
+                path_obj = Path(new_config[path_key])
                 # If it's a directory that doesn't exist, try to create it
                 if not path_obj.exists():
                     try:
                         path_obj.mkdir(parents=True, exist_ok=True)
-                        logger.info(f"Created directory: {path}")
+                        logger.info(f"Created directory: {path_obj}")
                     except Exception as e:
-                        flash(f'Warning: Could not create directory {path}: {str(e)}', 'error')
+                        flash(f'Warning: Could not create directory {path_obj}: {str(e)}', 'error')
 
         # Save to user/user.json
         config_path = 'user/user.json'
