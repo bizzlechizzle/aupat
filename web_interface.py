@@ -28,6 +28,8 @@ import sqlite3
 import subprocess
 import sys
 import threading
+import uuid
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -58,7 +60,7 @@ from normalize import (
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -66,14 +68,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Global state
-WORKFLOW_STATUS = {
-    'running': False,
-    'current_step': None,
-    'progress': 0,
-    'logs': [],
-    'error': None
-}
+# Global state for background tasks (thread-safe)
+WORKFLOW_STATUS = {}
+WORKFLOW_LOCK = threading.Lock()
 
 
 def load_config(config_path: str = 'user/user.json') -> dict:
@@ -938,6 +935,14 @@ DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
 <h2>Archive Dashboard</h2>
 <p style="margin-bottom: 2rem; opacity: 0.8;">Overview of your media archive and recent activity</p>
 
+<!-- Active Imports Section -->
+<div id="active-imports-section" style="display: none; margin-bottom: 2rem;">
+    <div class="card" style="border-color: var(--accent); background: rgba(185, 151, 92, 0.05);">
+        <h3 style="margin-bottom: 1.5rem;">Active Imports</h3>
+        <div id="active-imports-container"></div>
+    </div>
+</div>
+
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-number">{{ stats.locations }}</div>
@@ -993,6 +998,168 @@ DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
         </p>
     </div>
 </div>
+
+<script>
+// Poll for active imports
+let pollInterval = null;
+let lastTaskCount = 0;
+
+function updateActiveImports() {
+    fetch('/api/task-status')
+        .then(response => response.json())
+        .then(tasks => {
+            const container = document.getElementById('active-imports-container');
+            const section = document.getElementById('active-imports-section');
+
+            const taskIds = Object.keys(tasks);
+
+            if (taskIds.length === 0) {
+                section.style.display = 'none';
+
+                // If we had tasks before and now we don't, refresh the page to show new data
+                if (lastTaskCount > 0) {
+                    console.log('Import completed - refreshing page...');
+                    setTimeout(() => window.location.reload(), 1000);
+                }
+                lastTaskCount = 0;
+                return;
+            }
+
+            lastTaskCount = taskIds.length;
+            section.style.display = 'block';
+            container.innerHTML = '';
+
+            taskIds.forEach(taskId => {
+                const task = tasks[taskId];
+                const taskDiv = document.createElement('div');
+                taskDiv.style.marginBottom = '1.5rem';
+                taskDiv.style.paddingBottom = '1.5rem';
+                taskDiv.style.borderBottom = '1px solid var(--muted)';
+
+                // Task header
+                const header = document.createElement('div');
+                header.style.marginBottom = '0.75rem';
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'center';
+
+                const locationName = document.createElement('div');
+                locationName.style.fontWeight = '600';
+                locationName.style.fontSize = '1.1rem';
+                locationName.textContent = task.location_name;
+
+                const status = document.createElement('div');
+                status.style.fontSize = '0.9rem';
+                status.style.fontFamily = "'Roboto Mono', monospace";
+                status.style.opacity = '0.8';
+
+                if (task.error) {
+                    status.textContent = 'Failed';
+                    status.style.color = '#dc3545';
+                } else if (task.completed) {
+                    status.textContent = 'Completed';
+                    status.style.color = 'var(--accent)';
+                } else if (task.running) {
+                    status.textContent = 'Running...';
+                    status.style.color = 'var(--accent)';
+                } else {
+                    status.textContent = 'Stopped';
+                }
+
+                header.appendChild(locationName);
+                header.appendChild(status);
+                taskDiv.appendChild(header);
+
+                // Current step
+                const stepDiv = document.createElement('div');
+                stepDiv.style.fontSize = '0.9rem';
+                stepDiv.style.marginBottom = '0.75rem';
+                stepDiv.style.opacity = '0.8';
+                stepDiv.textContent = task.current_step;
+                taskDiv.appendChild(stepDiv);
+
+                // Progress bar
+                const progressContainer = document.createElement('div');
+                progressContainer.style.background = 'var(--muted)';
+                progressContainer.style.borderRadius = '8px';
+                progressContainer.style.overflow = 'hidden';
+                progressContainer.style.height = '32px';
+                progressContainer.style.position = 'relative';
+                progressContainer.style.marginBottom = '0.5rem';
+
+                const progressBar = document.createElement('div');
+                progressBar.style.background = task.error ? '#dc3545' : 'var(--accent)';
+                progressBar.style.height = '100%';
+                progressBar.style.width = task.progress + '%';
+                progressBar.style.transition = 'width 0.3s ease';
+                progressBar.style.display = 'flex';
+                progressBar.style.alignItems = 'center';
+                progressBar.style.justifyContent = 'center';
+
+                const progressText = document.createElement('span');
+                progressText.style.color = 'var(--background)';
+                progressText.style.fontFamily = "'Roboto Mono', monospace";
+                progressText.style.fontWeight = '700';
+                progressText.style.fontSize = '0.9rem';
+                progressText.style.position = 'absolute';
+                progressText.style.width = '100%';
+                progressText.style.textAlign = 'center';
+                progressText.textContent = task.progress + '%';
+
+                progressContainer.appendChild(progressBar);
+                progressContainer.appendChild(progressText);
+                taskDiv.appendChild(progressContainer);
+
+                // Error message
+                if (task.error) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = '#dc3545';
+                    errorDiv.style.fontSize = '0.85rem';
+                    errorDiv.style.marginTop = '0.5rem';
+                    errorDiv.style.padding = '0.5rem';
+                    errorDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+                    errorDiv.style.borderRadius = '4px';
+                    errorDiv.textContent = task.error;
+                    taskDiv.appendChild(errorDiv);
+                }
+
+                // Recent logs
+                if (task.logs && task.logs.length > 0) {
+                    const logsDiv = document.createElement('div');
+                    logsDiv.style.marginTop = '0.75rem';
+                    logsDiv.style.fontSize = '0.75rem';
+                    logsDiv.style.fontFamily = "'Roboto Mono', monospace";
+                    logsDiv.style.opacity = '0.6';
+                    logsDiv.style.maxHeight = '100px';
+                    logsDiv.style.overflow = 'auto';
+                    logsDiv.textContent = task.logs.slice(-3).join('\\n');
+                    taskDiv.appendChild(logsDiv);
+                }
+
+                container.appendChild(taskDiv);
+            });
+        })
+        .catch(error => {
+            console.error('Failed to fetch task status:', error);
+        });
+}
+
+// Start polling when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Check immediately
+    updateActiveImports();
+
+    // Then poll every 2 seconds
+    pollInterval = setInterval(updateActiveImports, 2000);
+});
+
+// Stop polling when page unloads
+window.addEventListener('beforeunload', () => {
+    if (pollInterval) {
+        clearInterval(pollInterval);
+    }
+});
+</script>
 {% endblock %}
 """)
 
@@ -1926,9 +2093,133 @@ def api_check_collision():
         return jsonify({'exists': False})
 
 
+def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
+    """
+    Run import task in background thread.
+
+    This function monitors the import subprocess and updates task status.
+    """
+    import shutil
+
+    try:
+        # Update status: Starting migration
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Initializing database schema'
+            WORKFLOW_STATUS[task_id]['progress'] = 10
+
+        logger.info(f"[Task {task_id}] Running database migration...")
+
+        # Run db_migrate.py
+        migrate_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_migrate.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if migrate_result.returncode != 0:
+            error_msg = f"Database migration failed: {migrate_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Database migration completed")
+
+        # Update status: Starting import
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = f'Importing files for {data["loc_name"]}'
+            WORKFLOW_STATUS[task_id]['progress'] = 30
+
+        logger.info(f"[Task {task_id}] Starting import process...")
+
+        # Run import with Popen to monitor output
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                'scripts/db_import.py',
+                '--source', str(temp_dir),
+                '--config', 'user/user.json'
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+        # Monitor output for progress
+        import_logs = []
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                line = output.strip()
+                import_logs.append(line)
+                logger.info(f"[Task {task_id}] {line}")
+
+                # Update progress based on output
+                with WORKFLOW_LOCK:
+                    WORKFLOW_STATUS[task_id]['logs'] = import_logs[-10:]  # Keep last 10 lines
+
+                    # Parse progress from output if available
+                    if 'Processing file' in line or 'Importing' in line:
+                        WORKFLOW_STATUS[task_id]['progress'] = min(90, WORKFLOW_STATUS[task_id]['progress'] + 5)
+
+        # Get final status
+        stderr = process.stderr.read()
+        returncode = process.poll()
+
+        if returncode == 0:
+            logger.info(f"[Task {task_id}] Import completed successfully")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['current_step'] = 'Import completed'
+                WORKFLOW_STATUS[task_id]['progress'] = 100
+                WORKFLOW_STATUS[task_id]['running'] = False
+                WORKFLOW_STATUS[task_id]['completed'] = True
+        else:
+            error_msg = f"Import failed: {stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+
+    except Exception as e:
+        error_msg = f"Task error: {str(e)}"
+        logger.error(f"[Task {task_id}] {error_msg}", exc_info=True)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['error'] = error_msg
+            WORKFLOW_STATUS[task_id]['running'] = False
+
+    finally:
+        # Clean up temporary directory
+        try:
+            import shutil
+            shutil.rmtree(temp_dir)
+            logger.info(f"[Task {task_id}] Cleaned up temporary directory: {temp_dir}")
+        except Exception as cleanup_error:
+            logger.warning(f"[Task {task_id}] Failed to clean up temp directory: {cleanup_error}")
+
+        # Schedule task cleanup after 1 hour
+        def cleanup_task():
+            time.sleep(3600)
+            with WORKFLOW_LOCK:
+                if task_id in WORKFLOW_STATUS:
+                    del WORKFLOW_STATUS[task_id]
+                    logger.info(f"[Task {task_id}] Cleaned up task status")
+
+        cleanup_thread = threading.Thread(target=cleanup_task, daemon=True)
+        cleanup_thread.start()
+
+
 @app.route('/import/submit', methods=['POST'])
 def import_submit():
-    """Handle import submission."""
+    """Handle import submission - starts background task and redirects to dashboard."""
     import tempfile
 
     try:
@@ -1972,86 +2263,98 @@ def import_submit():
         temp_dir = Path(tempfile.mkdtemp(prefix='aupat_import_'))
         logger.info(f"Created temporary directory: {temp_dir}")
 
-        try:
-            # Save uploaded files to temp directory
-            for file in uploaded_files:
-                if file.filename:
-                    # For folder uploads, preserve directory structure
-                    # The filename includes the relative path for folder uploads
-                    from werkzeug.utils import secure_filename
+        # Save uploaded files to temp directory
+        for file in uploaded_files:
+            if file.filename:
+                # For folder uploads, preserve directory structure
+                # The filename includes the relative path for folder uploads
+                from werkzeug.utils import secure_filename
 
-                    # Normalize path separators
-                    rel_path = file.filename.replace('\\', '/')
+                # Normalize path separators
+                rel_path = file.filename.replace('\\', '/')
 
-                    # Secure each part of the path
-                    path_parts = rel_path.split('/')
-                    secured_parts = [secure_filename(part) for part in path_parts if part]
+                # Secure each part of the path
+                path_parts = rel_path.split('/')
+                secured_parts = [secure_filename(part) for part in path_parts if part]
 
-                    # Create subdirectories if needed
-                    if len(secured_parts) > 1:
-                        subdir = temp_dir / Path(*secured_parts[:-1])
-                        subdir.mkdir(parents=True, exist_ok=True)
-                        file_path = temp_dir / Path(*secured_parts)
-                    else:
-                        file_path = temp_dir / secured_parts[0]
+                # Create subdirectories if needed
+                if len(secured_parts) > 1:
+                    subdir = temp_dir / Path(*secured_parts[:-1])
+                    subdir.mkdir(parents=True, exist_ok=True)
+                    file_path = temp_dir / Path(*secured_parts)
+                else:
+                    file_path = temp_dir / secured_parts[0]
 
-                    file.save(str(file_path))
-                    logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
+                file.save(str(file_path))
+                logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
 
-            # First, run db_migrate.py to ensure database is properly initialized
-            logger.info("Running database migration to ensure schema is up-to-date...")
-            migrate_result = subprocess.run(
-                [
-                    sys.executable,
-                    'scripts/db_migrate.py',
-                    '--config', 'user/user.json'
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+        # Create background task
+        task_id = str(uuid.uuid4())
 
-            if migrate_result.returncode != 0:
-                logger.error(f"Database migration failed: {migrate_result.stderr}")
-                flash(f'Database initialization failed: {migrate_result.stderr}', 'error')
-                return redirect(url_for('import_form'))
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id] = {
+                'running': True,
+                'current_step': 'Preparing import',
+                'progress': 5,
+                'logs': [],
+                'error': None,
+                'location_name': data['loc_name'],
+                'started_at': datetime.now().isoformat(),
+                'completed': False
+            }
 
-            logger.info("Database migration completed successfully")
+        # Start background thread
+        thread = threading.Thread(
+            target=run_import_task,
+            args=(task_id, temp_dir, data, config),
+            daemon=True
+        )
+        thread.start()
 
-            # Run import script with temp directory as source
-            logger.info("Starting import process...")
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    'scripts/db_import.py',
-                    '--source', str(temp_dir),
-                    '--config', 'user/user.json'
-                ],
-                capture_output=True,
-                text=True,
-                timeout=3600
-            )
+        logger.info(f"Started background import task {task_id} for {data['loc_name']}")
 
-            if result.returncode == 0:
-                flash(f'Successfully imported {data["loc_name"]}', 'success')
-                return redirect(url_for('locations'))
-            else:
-                flash(f'Import failed: {result.stderr}', 'error')
-                return redirect(url_for('import_form'))
+        # Store task_id in session for dashboard to pick up
+        session['last_import_task'] = task_id
 
-        finally:
-            # Clean up temporary directory
-            try:
-                import shutil
-                shutil.rmtree(temp_dir)
-                logger.info(f"Cleaned up temporary directory: {temp_dir}")
-            except Exception as cleanup_error:
-                logger.warning(f"Failed to clean up temp directory: {cleanup_error}")
+        # Redirect to dashboard immediately
+        flash(f'Import started for {data["loc_name"]}. Processing in background...', 'success')
+        return redirect(url_for('dashboard'))
 
     except Exception as e:
         flash(f'Import error: {str(e)}', 'error')
         logger.error(f"Import error: {e}", exc_info=True)
         return redirect(url_for('import_form'))
+
+
+@app.route('/api/task-status')
+def api_task_status():
+    """Get status of all active tasks."""
+    with WORKFLOW_LOCK:
+        # Return all active tasks
+        active_tasks = {
+            task_id: {
+                'running': status['running'],
+                'current_step': status['current_step'],
+                'progress': status['progress'],
+                'logs': status.get('logs', []),
+                'error': status.get('error'),
+                'location_name': status.get('location_name', 'Unknown'),
+                'started_at': status.get('started_at'),
+                'completed': status.get('completed', False)
+            }
+            for task_id, status in WORKFLOW_STATUS.items()
+        }
+    return jsonify(active_tasks)
+
+
+@app.route('/api/task-status/<task_id>')
+def api_task_status_single(task_id):
+    """Get status of a specific task."""
+    with WORKFLOW_LOCK:
+        if task_id in WORKFLOW_STATUS:
+            return jsonify(WORKFLOW_STATUS[task_id])
+        else:
+            return jsonify({'error': 'Task not found'}), 404
 
 
 @app.route('/settings')
