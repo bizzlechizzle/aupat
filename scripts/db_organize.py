@@ -102,16 +102,19 @@ def extract_video_metadata(file_path: str) -> dict:
         file_path: Path to video file
 
     Returns:
-        dict: Video metadata as JSON with format tags (make, Make, model, Model)
+        dict: Video metadata as JSON with format tags AND stream tags
+              (includes make, Make, model, Model, handler_name, encoder, etc.)
     """
     try:
+        # Extract both format tags AND stream tags to catch DJI drone metadata
         result = subprocess.run(
             [
                 'ffprobe',
                 '-v', 'quiet',
                 '-print_format', 'json',
-                '-show_entries', 'format_tags=make,Make,model,Model',
+                '-show_entries', 'format_tags:stream_tags',
                 '-show_format',
+                '-show_streams',
                 file_path
             ],
             capture_output=True,
@@ -282,12 +285,35 @@ def organize_videos(db_path: str) -> int:
             # Extract metadata
             metadata = extract_video_metadata(vid_loc)
 
-            # Try to get make/model from format tags
-            tags = metadata.get('format', {}).get('tags', {})
-            make = tags.get('make', tags.get('Make', ''))
-            model = tags.get('model', tags.get('Model', ''))
+            # Try to get make/model from format tags first
+            format_tags = metadata.get('format', {}).get('tags', {})
+            make = format_tags.get('make', format_tags.get('Make', ''))
+            model = format_tags.get('model', format_tags.get('Model', ''))
 
-            # Fallback: Check original filename for DJI if no make/model in metadata
+            # Check stream tags if format tags didn't have make/model
+            # This is critical for DJI drone videos
+            if not make and metadata.get('streams'):
+                for stream in metadata['streams']:
+                    stream_tags = stream.get('tags', {})
+
+                    # Check for DJI-specific fields (handler_name, encoder)
+                    handler_name = stream_tags.get('handler_name', '')
+                    encoder = stream_tags.get('encoder', '')
+
+                    if 'DJI' in handler_name.upper() or 'DJI' in encoder.upper():
+                        make = 'DJI'
+                        logger.debug(f"Detected DJI from stream metadata: handler_name='{handler_name}', encoder='{encoder}'")
+                        break
+
+                    # Also check standard make/model fields in stream tags
+                    if not make:
+                        make = stream_tags.get('make', stream_tags.get('Make', ''))
+                        model = stream_tags.get('model', stream_tags.get('Model', ''))
+                        if make:
+                            logger.debug(f"Found make/model in stream tags: make='{make}', model='{model}'")
+                            break
+
+            # Final fallback: Check original filename for DJI if still no make found
             if not make and vid_nameo and 'DJI' in vid_nameo.upper():
                 make = 'DJI'
                 logger.debug(f"Detected DJI from filename: {vid_nameo}")
