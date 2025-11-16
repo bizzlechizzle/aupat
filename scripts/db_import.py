@@ -413,13 +413,12 @@ def import_media_files(
         # Update versions table
         cursor.execute(
             """
-            INSERT INTO versions (version_type, version_number, description, date_applied)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO versions (modules, version, ver_updated)
+            VALUES (?, ?, ?)
             """,
             (
-                'import',
+                f'import_{loc_uuid[:8]}',
                 '2.0.0',
-                f'Import for location {loc_uuid[:8]} - {stats["total"]} files',
                 timestamp
             )
         )
