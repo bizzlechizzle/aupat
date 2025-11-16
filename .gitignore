@@ -34,6 +34,17 @@ test_data/
 tmp/
 temp/
 *.test.db
+test_*.txt
+test_*.json
+*_test_*.md
+AUDIT_*.md
+CLEANUP_*.md
+COMPLETE.md
+FINAL_TEST_*.md
+IMPLEMENTATION_GUIDE_*_FIX.md
+TEST_IMPORT_*.md
+RESET_*.md
+PLAN_*.md
 
 # AUPAT - Generated archives and ingest staging
 data/archive/
