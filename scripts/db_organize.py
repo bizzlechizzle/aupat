@@ -186,6 +186,7 @@ def organize_images(db_path: str) -> int:
         images = cursor.fetchall()
 
         logger.info(f"Found {len(images)} images to process")
+        print(f"PROGRESS: 0/{len(images)} images", flush=True)
 
         for img_sha256, img_loc, img_loco in images:
             if not img_loc or not Path(img_loc).exists():
@@ -234,6 +235,7 @@ def organize_images(db_path: str) -> int:
 
             processed_count += 1
             logger.debug(f"Categorized image as {category}: {Path(img_loc).name}")
+            print(f"PROGRESS: {processed_count}/{len(images)} images", flush=True)
 
         conn.commit()
         logger.info(f"Processed {processed_count} images")
@@ -270,6 +272,7 @@ def organize_videos(db_path: str) -> int:
         videos = cursor.fetchall()
 
         logger.info(f"Found {len(videos)} videos to process")
+        print(f"PROGRESS: 0/{len(videos)} videos", flush=True)
 
         for vid_sha256, vid_loc in videos:
             if not vid_loc or not Path(vid_loc).exists():
@@ -320,6 +323,7 @@ def organize_videos(db_path: str) -> int:
 
             processed_count += 1
             logger.debug(f"Categorized video as {category}: {Path(vid_loc).name}")
+            print(f"PROGRESS: {processed_count}/{len(videos)} videos", flush=True)
 
         conn.commit()
         logger.info(f"Processed {processed_count} videos")
