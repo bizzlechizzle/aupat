@@ -2968,6 +2968,7 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
             with WORKFLOW_LOCK:
                 WORKFLOW_STATUS[task_id]['error'] = error_msg
                 WORKFLOW_STATUS[task_id]['running'] = False
+                WORKFLOW_STATUS[task_id]['logs'] = []  # Clear logs on error
             return
 
         logger.info(f"[Task {task_id}] Stage 1/5: Import to staging completed")
@@ -3157,6 +3158,7 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
             WORKFLOW_STATUS[task_id]['progress'] = 100
             WORKFLOW_STATUS[task_id]['running'] = False
             WORKFLOW_STATUS[task_id]['completed'] = True
+            WORKFLOW_STATUS[task_id]['logs'] = []  # Clear old progress logs
 
         logger.info(f"[Task {task_id}] ✓ FULL IMPORT PIPELINE COMPLETED")
         logger.info(f"[Task {task_id}] Location: {data['loc_name']}")
