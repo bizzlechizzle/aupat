@@ -145,13 +145,13 @@ def generate_filename(
     Generate standardized filename for media files.
 
     Creates filenames following the AUPAT naming convention:
-    - Without sub-location: {loc_uuid8}-{media_type}_{sha8}.{ext}
-    - With sub-location: {loc_uuid8}-{sub_uuid8}-{media_type}_{sha8}.{ext}
+    - Without sub-location: {loc_uuid8}-{sha8}.{ext}
+    - With sub-location: {loc_uuid8}-{sub_uuid8}-{sha8}.{ext}
 
     All uuid8 and sha8 values are computed from the full values.
 
     Args:
-        media_type: Type of media ('img', 'vid', or 'doc')
+        media_type: Type of media ('img', 'vid', or 'doc') - used for validation only
         loc_uuid: Full location UUID (uuid8 computed as loc_uuid[:8])
         sha256: Full SHA256 hash (sha8 computed as sha256[:8])
         extension: File extension without dot (e.g., 'jpg', 'mp4', 'pdf')
@@ -166,14 +166,14 @@ def generate_filename(
     Examples:
         >>> # Image without sub-location
         >>> filename = generate_filename('img', 'a1b2c3d4-...', 'e5f6g7h8...', 'jpg')
-        >>> # Returns: 'a1b2c3d4-img_e5f6g7h8.jpg'
+        >>> # Returns: 'a1b2c3d4-e5f6g7h8.jpg'
 
         >>> # Video with sub-location
         >>> filename = generate_filename('vid', 'a1b2c3d4-...', 'e5f6g7h8...', 'mp4', 'i9j0k1l2-...')
-        >>> # Returns: 'a1b2c3d4-i9j0k1l2-vid_e5f6g7h8.mp4'
+        >>> # Returns: 'a1b2c3d4-i9j0k1l2-e5f6g7h8.mp4'
 
     Notes:
-        - media_type must be one of: 'img', 'vid', 'doc'
+        - media_type must be one of: 'img', 'vid', 'doc' (validated but not included in filename)
         - Extension should be lowercase (normalized)
         - uuid8 and sha8 are computed, not retrieved from database
         - Naming pattern defined in data/name.json
@@ -197,9 +197,9 @@ def generate_filename(
     # Generate filename based on whether sub-location exists
     if sub_uuid:
         sub_uuid8 = sub_uuid[:8]
-        filename = f"{loc_uuid8}-{sub_uuid8}-{media_type}_{sha8}.{ext}"
+        filename = f"{loc_uuid8}-{sub_uuid8}-{sha8}.{ext}"
     else:
-        filename = f"{loc_uuid8}-{media_type}_{sha8}.{ext}"
+        filename = f"{loc_uuid8}-{sha8}.{ext}"
 
     return filename
 

@@ -618,8 +618,8 @@ BASE_TEMPLATE = """
             --accent: #b9975c;
             --muted: #e6e6e6;
             --border: #b9975c;
-            --header-bg: #45372b;
-            --header-fg: #fbfbfb;
+            --header-bg: #fffbf7;
+            --header-fg: #454545;
 
             /* Fluid Typography Scale - Exact match from Abandoned Upstate */
             --font-heading: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -637,8 +637,8 @@ BASE_TEMPLATE = """
             --accent: #b9975c;
             --muted: #343f60;
             --border: #b9975c;
-            --header-bg: #45372b;
-            --header-fg: #fbfbfb;
+            --header-bg: #474747;
+            --header-fg: #fffbf7;
         }
 
         * {
