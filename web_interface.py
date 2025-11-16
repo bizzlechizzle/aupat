@@ -620,6 +620,15 @@ BASE_TEMPLATE = """
             --border: #b9975c;
             --header-bg: #45372b;
             --header-fg: #fbfbfb;
+
+            /* Fluid Typography Scale - Exact match from Abandoned Upstate */
+            --font-heading: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+            --font-body: "Lora", Georgia, serif;
+            --step--1: clamp(0.88rem, 0.82rem + 0.3vw, 0.95rem);
+            --step-0: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
+            --step-1: clamp(1.25rem, 1.1rem + 1.2vw, 1.6rem);
+            --step-2: clamp(1.6rem, 1.3rem + 2vw, 2.25rem);
+            --step-3: clamp(2.25rem, 1.6rem + 3.5vw, 3.5rem);
         }
 
         html[data-theme="dark"] {
@@ -636,81 +645,163 @@ BASE_TEMPLATE = """
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            outline-color: rgba(185, 151, 92, 0.75);
+            scrollbar-width: auto;
+            scrollbar-color: var(--muted) transparent;
+        }
+
+        html {
+            overflow-y: scroll;
+            scroll-behavior: smooth;
         }
 
         body {
-            font-family: 'Lora', Georgia, serif;
-            font-size: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+            font-family: var(--font-body);
+            font-size: var(--step-0);
             line-height: 1.65;
             background: var(--background);
             color: var(--foreground);
             transition: background 0.3s, color 0.3s;
         }
 
+        /* Text selection styling - exact match */
+        ::selection {
+            background: rgba(185, 151, 92, 0.75);
+            color: var(--background);
+        }
+
+        ::-moz-selection {
+            background: rgba(185, 151, 92, 0.75);
+            color: var(--background);
+        }
+
         h1, h2, h3 {
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-weight: 700;
             line-height: 1.1;
             letter-spacing: 0.05em;
             margin: 0 0 0.5em;
+            text-wrap: balance;
         }
 
         h1 {
-            font-size: clamp(2.25rem, 1.6rem + 3.5vw, 3.5rem);
+            font-size: var(--step-3);
             text-transform: uppercase;
         }
 
         h2 {
-            font-size: clamp(1.6rem, 1.3rem + 2vw, 2.25rem);
+            font-size: var(--step-2);
         }
 
         h3 {
-            font-size: clamp(1.25rem, 1.1rem + 1.2vw, 1.6rem);
+            font-size: var(--step-1);
+        }
+
+        h4, h5, h6 {
+            font-family: var(--font-heading);
+            font-weight: 500;
+            line-height: 1.25;
+            letter-spacing: 0.04em;
+            margin: 0 0 0.5em;
+        }
+
+        p {
+            margin: 0 0 1.25em;
+            font-size: var(--step-0);
+        }
+
+        a {
+            outline-offset: 1px;
+            outline-color: rgba(185, 151, 92, 0.75);
+        }
+
+        a:focus-visible,
+        button:focus-visible {
+            outline: 2px dashed rgba(185, 151, 92, 0.75);
+            outline-offset: 1px;
+            text-decoration: none;
+        }
+
+        button:not(:disabled),
+        [role="button"]:not(:disabled) {
+            cursor: pointer;
         }
 
         .header {
             background: var(--header-bg);
             color: var(--header-fg);
-            padding: 1.5rem 2rem;
-            border-bottom: 3px solid var(--accent);
+            padding: 0;
         }
 
         .header-content {
             max-width: 64rem;
             margin: 0 auto;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+            padding: 1rem 2rem 0.75rem;
+        }
+
+        .title-link {
+            text-decoration: none;
+            color: inherit;
+            text-align: center;
+            padding: 0.25rem 0;
         }
 
         .site-title {
-            font-size: 1.5rem;
-            font-family: 'Roboto Mono', monospace;
-            letter-spacing: 0.1em;
+            font-family: var(--font-heading);
+            font-size: var(--step-2);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            line-height: 1.1;
+            text-transform: uppercase;
             margin: 0;
+            color: var(--header-fg);
+        }
+
+        .site-tagline {
+            margin-top: 0.25rem;
+            font-size: var(--step--1);
+            font-family: var(--font-heading);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--accent);
         }
 
         .nav {
             display: flex;
-            gap: 2rem;
+            gap: 1.25rem;
             align-items: center;
+            justify-content: center;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
         }
 
         .nav a {
             color: var(--header-fg);
             text-decoration: none;
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            padding: 0.5rem 0;
-            border-bottom: 2px solid transparent;
-            transition: border-color 0.2s;
+            padding: 0.5rem 0.75rem;
+            transition: all 0.2s;
         }
 
-        .nav a:hover,
+        .nav a:hover {
+            color: var(--accent);
+        }
+
         .nav a.active {
-            border-bottom-color: var(--accent);
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+            text-decoration-color: var(--accent);
         }
 
         /* File explorer modal */
@@ -789,7 +880,7 @@ BASE_TEMPLATE = """
         }
 
         .current-path {
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-size: 0.9rem;
             padding: 0.75rem;
             background: var(--muted);
@@ -812,7 +903,7 @@ BASE_TEMPLATE = """
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-size: 0.9rem;
             transition: background 0.2s;
         }
@@ -882,10 +973,20 @@ BASE_TEMPLATE = """
             border-color: var(--accent);
         }
 
+        main {
+            flex: 1;
+        }
+
         .container {
             max-width: 64rem;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 2rem 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                padding: 2rem 2rem;
+            }
         }
 
         .card {
@@ -918,7 +1019,7 @@ BASE_TEMPLATE = """
         }
 
         .stat-number {
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-size: 2.5rem;
             font-weight: 700;
             color: var(--accent);
@@ -926,7 +1027,9 @@ BASE_TEMPLATE = """
         }
 
         .stat-label {
+            font-family: var(--font-heading);
             font-size: 0.9rem;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--foreground);
@@ -939,8 +1042,9 @@ BASE_TEMPLATE = """
             background: var(--accent);
             color: var(--background);
             text-decoration: none;
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-size: 0.9rem;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             border: none;
@@ -987,7 +1091,7 @@ BASE_TEMPLATE = """
             font-size: 0.85rem;
             color: var(--foreground);
             opacity: 0.7;
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
         }
 
         .location-name:hover {
@@ -1001,7 +1105,7 @@ BASE_TEMPLATE = """
             color: var(--accent);
             border-radius: 3px;
             font-size: 0.8rem;
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -1029,7 +1133,7 @@ BASE_TEMPLATE = """
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
-            font-family: 'Roboto Mono', monospace;
+            font-family: var(--font-heading);
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -1043,8 +1147,8 @@ BASE_TEMPLATE = """
             border: 1px solid var(--border);
             border-radius: 4px;
             color: var(--foreground);
-            font-family: 'Lora', Georgia, serif;
-            font-size: 1rem;
+            font-family: var(--font-body);
+            font-size: var(--step-0);
         }
 
         .form-group input:focus,
@@ -1060,15 +1164,68 @@ BASE_TEMPLATE = """
             opacity: 0.7;
         }
 
+        .header-separator {
+            width: 100%;
+            max-width: 64rem;
+            margin: 0 auto;
+            border: 0;
+            border-top: 3px solid var(--accent);
+        }
+
+        /* Footer styling - exact match from Abandoned Upstate */
+        .footer {
+            width: 100%;
+            margin-top: auto;
+        }
+
+        .footer-separator-wrapper {
+            width: 100%;
+            padding: 0 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .footer-separator-wrapper {
+                padding: 0 8rem;
+            }
+        }
+
+        .footer-separator {
+            margin: 0 auto;
+            width: 100%;
+            max-width: 64rem;
+            border: 0;
+            border-top: 1px solid var(--accent);
+        }
+
+        .footer-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            max-width: 64rem;
+            margin: 0 auto;
+        }
+
+        .footer-content p {
+            margin: 0;
+            font-size: var(--step--1);
+            opacity: 0.8;
+        }
+
         @media (max-width: 768px) {
             .header-content {
-                flex-direction: column;
-                gap: 1rem;
+                padding: 1rem 1rem 0.75rem;
             }
 
             .nav {
-                flex-wrap: wrap;
-                justify-content: center;
+                gap: 0.75rem;
+            }
+
+            .nav a {
+                font-size: 0.8rem;
+                padding: 0.5rem;
             }
 
             .stats-grid {
@@ -1247,7 +1404,10 @@ BASE_TEMPLATE = """
 <body>
     <header class="header">
         <div class="header-content">
-            <h1 class="site-title"><a href="/" style="text-decoration: none; color: inherit;">Abandoned Upstate</a></h1>
+            <a href="/" class="title-link">
+                <h1 class="site-title">Abandoned Upstate</h1>
+                <p class="site-tagline">Preserving History. Documenting Decay.</p>
+            </a>
             <nav class="nav">
                 <a href="/import" class="{{ 'active' if request.path == '/import' else '' }}">Import</a>
                 <a href="/" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
@@ -1257,6 +1417,7 @@ BASE_TEMPLATE = """
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☾</button>
             </nav>
         </div>
+        <hr class="header-separator" aria-hidden="true" />
     </header>
 
     <main class="container">
@@ -1271,8 +1432,13 @@ BASE_TEMPLATE = """
         {% block content %}{% endblock %}
     </main>
 
-    <footer style="text-align: center; padding: 2rem; opacity: 0.6; font-size: 0.9rem;">
-        <p>&copy; 2025 Bryant Neal</p>
+    <footer class="footer">
+        <div class="footer-separator-wrapper">
+            <hr class="footer-separator" aria-hidden="true" />
+        </div>
+        <div class="footer-content">
+            <p>&copy; 2025 Abandoned Upstate</p>
+        </div>
     </footer>
 </body>
 </html>
