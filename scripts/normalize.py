@@ -14,9 +14,11 @@ Version: 1.0.0
 Last Updated: 2025-11-15
 """
 
+import json
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List
 
 try:
@@ -66,6 +68,28 @@ VALID_LOCATION_TYPES = {
     'religious', 'educational', 'healthcare', 'transportation',
     'mixed-use', 'other'
 }
+
+
+# Load type mapping for auto-correction
+def load_type_mapping() -> dict:
+    """Load location type mapping from JSON file."""
+    mapping_path = Path(__file__).parent.parent / 'data' / 'location_type_mapping.json'
+
+    if not mapping_path.exists():
+        logger.warning("location_type_mapping.json not found - type suggestions disabled")
+        return {'mappings': {}, 'valid_types': list(VALID_LOCATION_TYPES)}
+
+    try:
+        with open(mapping_path, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load type mapping: {e}")
+        return {'mappings': {}, 'valid_types': list(VALID_LOCATION_TYPES)}
+
+
+# Load mapping at module level (once)
+TYPE_MAPPING_DATA = load_type_mapping()
+TYPE_MAPPINGS = TYPE_MAPPING_DATA.get('mappings', {})
 
 
 def normalize_location_name(name: str, use_postal: bool = True) -> str:
@@ -208,18 +232,20 @@ def normalize_state_code(state: str) -> str:
     return state_code
 
 
-def normalize_location_type(location_type: str) -> str:
+def normalize_location_type(location_type: str, auto_correct: bool = True) -> str:
     """
-    Normalize location type for consistent categorization.
+    Normalize location type with auto-correction support.
 
     Applies:
     1. Unicode to ASCII (via unidecode)
     2. Lowercase conversion
     3. Whitespace cleanup
-    4. Optional validation against known types
+    4. Auto-correction using type mappings (if enabled)
+    5. Validation against known types
 
     Args:
-        location_type: Location type (e.g., "Industrial", "Residential")
+        location_type: Location type (e.g., "Industrial", "hospital", "businesses")
+        auto_correct: Enable auto-correction using type mappings (default: True)
 
     Returns:
         str: Normalized lowercase location type
@@ -227,12 +253,18 @@ def normalize_location_type(location_type: str) -> str:
     Examples:
         >>> normalize_location_type("Industrial")
         'industrial'
+        >>> normalize_location_type("hospital")
+        'healthcare'  # Auto-corrected
+        >>> normalize_location_type("businesses")
+        'commercial'  # Auto-corrected
         >>> normalize_location_type("  Mixed Use  ")
         'mixed-use'
 
     Notes:
         - Returns lowercase for consistency
-        - Validates against VALID_LOCATION_TYPES (logs warning if unknown)
+        - Auto-corrects common variations (hospital → healthcare, etc.)
+        - Validates against VALID_LOCATION_TYPES
+        - Allows unknown types but logs warning
     """
     if not location_type or not location_type.strip():
         raise ValueError("Location type cannot be empty")
@@ -249,12 +281,24 @@ def normalize_location_type(location_type: str) -> str:
     # Replace spaces with hyphens for multi-word types
     normalized = normalized.replace(' ', '-')
 
-    # Validate (warn if unknown, but allow it)
-    if normalized not in VALID_LOCATION_TYPES:
-        logger.warning(
-            f"Unknown location type: '{normalized}'. "
-            f"Valid types: {sorted(VALID_LOCATION_TYPES)}"
+    # Check if already valid
+    if normalized in VALID_LOCATION_TYPES:
+        return normalized
+
+    # Try auto-correction using type mapping
+    if auto_correct and normalized in TYPE_MAPPINGS:
+        corrected = TYPE_MAPPINGS[normalized]
+        logger.info(
+            f"Location type '{normalized}' auto-corrected to '{corrected}'"
         )
+        return corrected
+
+    # Unknown type - warn but allow
+    logger.warning(
+        f"Unknown location type: '{normalized}'. "
+        f"Valid types: {sorted(VALID_LOCATION_TYPES)}. "
+        f"Using '{normalized}' as-is."
+    )
 
     return normalized
 
@@ -422,7 +466,7 @@ if __name__ == '__main__':
     print("-" * 50)
     caps = get_normalization_capabilities()
     for lib, available in caps.items():
-        status = "✓ Available" if available else "✗ Not Available"
+        status = "Available" if available else "Not Available"
         print(f"{lib:15} {status}")
 
     print("\n" + "=" * 50)
