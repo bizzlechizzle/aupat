@@ -579,7 +579,6 @@ BASE_TEMPLATE = """
 
 # Dashboard page
 DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block title %}Dashboard{% endblock %}
 {% block content %}
 <h2>Archive Dashboard</h2>
 <p style="margin-bottom: 2rem; opacity: 0.8;">Overview of your media archive and recent activity</p>
@@ -644,7 +643,6 @@ DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
 
 # Locations page
 LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block title %}Locations{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
@@ -692,7 +690,6 @@ LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
 
 # Import page
 IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block title %}Import{% endblock %}
 {% block content %}
 <h2>Import Media</h2>
 <p style="margin-bottom: 2rem; opacity: 0.8;">Import a new location and associated media files</p>
@@ -782,7 +779,6 @@ def locations():
 def archives():
     """Archives page (placeholder)."""
     return render_template_string(BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block title %}Archives{% endblock %}
 {% block content %}
 <h2>Archives</h2>
 <p>Archive management coming soon...</p>
@@ -793,7 +789,14 @@ def archives():
 @app.route('/import')
 def import_form():
     """Import form page."""
-    uuid = str(generate_uuid(None, 'locations', 'loc_uuid')) if get_db_connection(load_config()) else 'database-not-initialized'
+    config = load_config()
+    conn = get_db_connection(config)
+    if conn:
+        cursor = conn.cursor()
+        uuid = str(generate_uuid(cursor, 'locations', 'loc_uuid'))
+        conn.close()
+    else:
+        uuid = 'database-not-initialized'
     return render_template_string(IMPORT_TEMPLATE, uuid=uuid)
 
 
