@@ -699,7 +699,12 @@ BASE_TEMPLATE = """
         function openFileExplorer(inputId) {
             currentInputField = inputId;
             const input = document.getElementById(inputId);
-            const startPath = input.value || '/home';
+
+            // Use current value if it looks like a valid path, otherwise use user's home
+            let startPath = '/home/user';
+            if (input.value && input.value.startsWith('/') && !input.value.includes('/absolute')) {
+                startPath = input.value;
+            }
             currentPath = startPath;
 
             const modal = document.getElementById('fileExplorerModal');
@@ -728,14 +733,24 @@ BASE_TEMPLATE = """
                 const data = await response.json();
 
                 if (data.error) {
-                    alert('Error: ' + data.error);
+                    // If access denied, try to fall back to a safe directory
+                    if (response.status === 403 && path !== '/home/user') {
+                        loadDirectory('/home/user');
+                        return;
+                    }
+
+                    const list = document.getElementById('directoryList');
+                    list.innerHTML = '<li class="directory-item" style="color: #dc3545; opacity: 0.8;">' +
+                                   '⚠️ ' + data.error + '</li>';
                     return;
                 }
 
                 currentPath = data.current_path;
                 displayDirectory(data);
             } catch (error) {
-                alert('Failed to load directory: ' + error);
+                const list = document.getElementById('directoryList');
+                list.innerHTML = '<li class="directory-item" style="color: #dc3545; opacity: 0.8;">' +
+                               '⚠️ Failed to load directory</li>';
             }
         }
 
@@ -1238,10 +1253,10 @@ def api_browse():
 
         # Security: Prevent directory traversal attacks
         # Only allow browsing within reasonable directories
-        allowed_prefixes = ['/home', '/mnt', '/media', '/opt', '/var', '/srv']
+        allowed_prefixes = ['/home', '/mnt', '/media', '/opt', '/var', '/srv', '/data', '/storage', '/backup']
         path_str = str(path_obj)
         if not any(path_str.startswith(prefix) for prefix in allowed_prefixes):
-            return jsonify({'error': 'Access denied to this directory'}), 403
+            return jsonify({'error': 'Access denied to this directory. Allowed locations: /home, /mnt, /media, /opt, /var, /srv, /data, /storage, /backup'}), 403
 
         if not path_obj.exists() or not path_obj.is_dir():
             return jsonify({'error': 'Directory does not exist'}), 404
