@@ -1,69 +1,116 @@
 # AUPAT - Abandoned Upstate Project Archive Tool
 
-Location-based media archive system. Organizes photos/videos by location and camera hardware.
+Digital asset management for location-based photo/video archives. Organizes media by location and camera hardware. Bulletproof. No BS.
 
 ## What It Does
 
-1. Import media by location (name, type, state)
-2. Extract camera make/model from EXIF/metadata
-3. Categorize by hardware (DSLR, phone, drone, GoPro, dash cam)
-4. Store in organized archive with deduplication
-5. Generate location exports as JSON
+Import photos/videos by location → Extract EXIF/metadata → Categorize by camera hardware → Store in organized archive → Deduplicate via SHA256
+
+That's it.
 
 ## Quick Start
 
 ```bash
-# Setup
+# First time setup
 bash setup.sh
 
 # Run web interface
 python web_interface.py
 
-# Navigate to http://localhost:5000
-# Import media, system handles the rest
+# Open http://localhost:5000 and import
 ```
+
+Or run CLI pipeline manually (see Import Pipeline below).
 
 ## Requirements
 
 - Python 3
-- exiftool (for image metadata)
-- ffmpeg/ffprobe (for video metadata)
+- exiftool (image EXIF)
+- ffprobe (video metadata)
 - SQLite with JSON1
 
-## Project Structure
+Install tools:
+```bash
+# macOS
+brew install exiftool ffmpeg
 
-```
-aupat/
-├── scripts/           # Python pipeline scripts
-├── data/              # JSON configs + database
-├── user/              # User config (gitignored)
-├── logseq/pages/      # Complete documentation
-├── claude.md          # AI collaboration guide
-└── web_interface.py   # Web UI
+# Linux
+apt install libimage-exiftool-perl ffmpeg
 ```
 
 ## Import Pipeline
 
-1. `db_migrate.py` - Create database schema
-2. `db_import.py` - Import location and media
-3. `db_organize.py` - Extract metadata and categorize
-4. `db_folder.py` - Create folder structure
-5. `db_ingest.py` - Move files to archive
-6. `db_verify.py` - Verify integrity
-7. `db_identify.py` - Generate JSON exports
+The full import pipeline runs these scripts in order:
 
-Web interface runs this automatically.
+1. **db_migrate.py** - Create/update database schema
+2. **db_import.py** - Import location and files to staging
+3. **db_organize.py** - Extract metadata, categorize hardware
+4. **db_folder.py** - Create archive folder structure
+5. **db_ingest.py** - Move files from staging to archive
+6. **db_verify.py** - Verify SHA256 integrity, cleanup staging
+7. **db_identify.py** - Generate master JSON per location
 
-## Camera Categories
+Web interface runs this automatically. CLI users run each script manually.
 
-- **DSLR**: Canon, Nikon, Sony, Fujifilm, Panasonic, Olympus, Leica, etc.
-- **Phone**: iPhone, Samsung, Google Pixel, etc.
-- **Drone**: DJI, Autel, Parrot
-- **GoPro**: GoPro action cameras
-- **Dash Cam**: Vantrue, BlackVue, Garmin, etc.
-- **Other**: Unknown or uncategorized
+## Archive Structure
 
-Categories defined in `data/camera_hardware.json`.
+Files organized by location and hardware:
+
+```
+archive/
+└── {state}-{type}/                    # e.g., ny-industrial
+    └── {location}_{uuid8}/            # e.g., middletown-state-hospital_a1b2c3d4
+        ├── photos/
+        │   ├── original_camera/       # DSLR photos
+        │   ├── original_phone/        # Phone photos
+        │   ├── original_drone/        # Drone photos
+        │   ├── original_go-pro/       # GoPro photos
+        │   ├── original_film/         # Scanned film
+        │   └── original_other/        # Uncategorized
+        ├── videos/
+        │   ├── original_camera/       # DSLR videos
+        │   ├── original_phone/        # Phone videos
+        │   ├── original_drone/        # Drone videos
+        │   ├── original_go-pro/       # GoPro videos
+        │   ├── original_dash-cam/     # Dash cam videos
+        │   └── original_other/        # Uncategorized + live videos
+        └── documents/
+            ├── file-extensions/       # .srt, .xml, etc.
+            ├── zips/                  # ZIP archives
+            ├── pdfs/                  # PDF files
+            └── websites/              # URL archives
+```
+
+## Hardware Categories
+
+Categories auto-detected from EXIF Make/Model:
+
+- **camera** - Canon, Nikon, Sony, Fujifilm, Olympus, Pentax, Leica, Panasonic, Hasselblad
+- **phone** - iPhone, Samsung, Google, OnePlus, etc.
+- **drone** - DJI, Autel, Parrot, Skydio, Yuneec
+- **go_pro** - GoPro action cameras
+- **dash_cam** - Vantrue, BlackVue, Garmin, Nextbase
+- **film** - Scanned film (manual flag or metadata)
+- **other** - Everything else
+
+Rules in `data/camera_hardware.json`.
+
+## File Naming
+
+Content-addressable naming for deduplication:
+
+```
+{loc_uuid8}-img_{sha8}.ext          # Images
+{loc_uuid8}-vid_{sha8}.ext          # Videos
+{loc_uuid8}-doc_{sha8}.ext          # Documents
+
+{loc_uuid8}-{sub_uuid8}-img_{sha8}.ext   # With sub-location
+```
+
+- `uuid8` = first 8 chars of location UUID
+- `sha8` = first 8 chars of file SHA256
+
+Prevents duplicates. Enables integrity verification. No filename collisions.
 
 ## Configuration
 
@@ -72,105 +119,147 @@ Edit `user/user.json` (created by setup.sh):
 ```json
 {
   "db_name": "aupat.db",
-  "db_loc": "/path/to/database/aupat.db",
-  "db_backup": "/path/to/backups/",
-  "db_ingest": "/path/to/ingest/",
-  "arch_loc": "/path/to/archive/"
+  "db_loc": "/home/user/aupat/data/aupat.db",
+  "db_backup": "/home/user/aupat/data/backups/",
+  "db_ingest": "/home/user/aupat/data/ingest/",
+  "arch_loc": "/home/user/aupat/data/archive/"
 }
+```
+
+**CRITICAL**: `db_loc` must point to a FILE (ends with .db), not a directory.
+
+## Project Structure
+
+```
+aupat/
+├── scripts/              # Python pipeline scripts
+│   ├── db_import.py      # Import to staging
+│   ├── db_organize.py    # Metadata extraction
+│   ├── db_folder.py      # Create folders
+│   ├── db_ingest.py      # Move to archive (FIXED!)
+│   └── db_verify.py      # Integrity check
+├── data/                 # Database + JSON configs
+│   ├── aupat.db          # SQLite database
+│   ├── camera_hardware.json
+│   ├── folder.json       # Archive structure template
+│   └── *.json            # Other configs
+├── user/                 # User config (gitignored)
+│   └── user.json         # Paths configuration
+├── logseq/pages/         # Complete technical specs
+├── tempdata/testphotos/  # Test data
+├── web_interface.py      # Flask web UI
+└── freshstart.py         # Testing utility
 ```
 
 ## Database Schema
 
-- **locations** - Location info (name, type, state, GPS)
-- **images** - Image files with EXIF and categorization
-- **videos** - Video files with metadata and categorization
-- **documents** - Documents and other files
-- **urls** - Web URLs related to locations
+- **locations** - Location info (name, state, type, UUID)
+- **images** - Images with EXIF + hardware categorization
+- **videos** - Videos with metadata + hardware categorization
+- **documents** - Documents and sidecar files
+- **urls** - Web URLs for locations
+- **versions** - Schema version tracking
 
-Full schema in `logseq/pages/`.
-
-## File Naming
-
-Archives use content-addressable naming:
-
-- Images: `loc_uuid8-img_sha8.ext`
-- Videos: `loc_uuid8-vid_sha8.ext`
-- Documents: `loc_uuid8-doc_sha8.ext`
-
-With sub-locations: `loc_uuid8-sub_uuid8-{img|vid|doc}_sha8.ext`
-
-- `uuid8` = first 8 chars of location UUID
-- `sha8` = first 8 chars of file SHA256
-
-## Documentation
-
-Complete specifications in `logseq/pages/`:
-
-- **claude.md** - AI collaboration guide
-- **claudecode.md** - Development methodology
-- **db_*.md** - Script specifications
-- **{table}_table.md** - Database schemas
-- **camera_hardware.md** - Hardware categorization rules
-
-## Development
-
-Follows KISS and bulletproof longterm principles:
-
-- Transaction-safe database operations
-- SHA256 deduplication
-- Staging before final ingest
-- Verification before cleanup
-- No destructive operations without backup
-
-See `claude.md` for complete development guidelines.
+Full specs in `logseq/pages/`.
 
 ## Troubleshooting
 
-**Import fails with "user.json not found"**:
+### "user.json not found"
 ```bash
 bash setup.sh
 ```
 
-**Camera categorization not working**:
-Check exiftool is installed:
+### "Database path is a directory"
+Fix `user/user.json` - `db_loc` must end with `/aupat.db` (FILE), not just directory.
+
+### Camera categorization fails
 ```bash
-brew install exiftool  # macOS
+# Install exiftool
+brew install exiftool          # macOS
 apt install libimage-exiftool-perl  # Linux
+
+# Verify
+exiftool -ver
 ```
 
-**Video metadata extraction fails**:
-Check ffmpeg is installed:
+### Video metadata fails
 ```bash
-brew install ffmpeg  # macOS
-apt install ffmpeg  # Linux
+# Install ffmpeg/ffprobe
+brew install ffmpeg            # macOS
+apt install ffmpeg             # Linux
+
+# Verify
+ffprobe -version
 ```
 
-**Database errors**:
+### Pipeline creates empty folders
+This was the bug. Fixed in db_ingest.py. Files now properly move from staging to categorized archive folders.
+
+### Blank archive folders after import
+Run the FULL pipeline:
 ```bash
-# Check database exists
-ls -la data/aupat.db
-
-# Recreate schema
-python scripts/db_migrate.py
+python scripts/db_import.py     # Import to staging
+python scripts/db_organize.py   # Categorize
+python scripts/db_folder.py     # Create folders
+python scripts/db_ingest.py     # Move files (THIS WAS BROKEN, NOW FIXED)
+python scripts/db_verify.py     # Verify + cleanup
 ```
+
+Or use web interface which runs everything.
 
 ## Testing
 
 Test data in `tempdata/testphotos/`:
-- Middletown State Hospital (8 Nikon NEF files)
-- Water Slide World (DNG files + videos)
+- Middletown State Hospital - 8 Nikon .NEF files
+- Water Slide World - 29 .DNG photos + 2 .MOV videos + 1 .JPG edit
 
-Use for pipeline testing.
+Run freshstart test:
+```bash
+python freshstart.py
+```
+
+## Data Integrity
+
+Bulletproof principles:
+- SHA256 deduplication (no duplicate imports)
+- Transaction-safe database ops (ACID compliance)
+- Staging before ingest (reversible)
+- Verification before cleanup (integrity check)
+- Automated backups (before schema changes)
+- Foreign key enforcement (referential integrity)
+
+## Documentation
+
+Full technical specs in `logseq/pages/`:
+- `claude.md` - AI collaboration guide
+- `claudecode.md` - Development methodology
+- `db_*.md` - Script specifications
+- `*_table.md` - Database schemas
+- `camera_hardware.md` - Hardware detection rules
+- `folder.md` - Archive structure template
+
+## Development Status
+
+**Stage 1**: CLI + Web import tool (ACTIVE)
+- Import pipeline: COMPLETE
+- Web interface: FUNCTIONAL
+- Hardware categorization: WORKING
+- Archive organization: WORKING (recently fixed)
+
+**Future Stages**:
+- Stage 2: Enhanced web UI
+- Stage 3: Docker deployment
+- Stage 4: Mobile app + Docker backend
+
+## Known Issues
+
+NONE. Pipeline fixed. Files move to archive correctly.
 
 ## License
 
 See LICENSE file.
 
-## Status
+---
 
-Stage 1 (CLI/Web Import Tool) - Active development
-
-Future stages:
-- Stage 2: Enhanced web interface
-- Stage 3: Docker deployment
-- Stage 4: Mobile app with Docker backend
+**Built with**: Python, SQLite, exiftool, ffprobe
+**Principles**: KISS, bulletproof longterm, best practices always

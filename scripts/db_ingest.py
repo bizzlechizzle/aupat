@@ -156,12 +156,16 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     Args:
         db_path: Path to database
         arch_loc: Archive root directory
-        ingest_dir: Staging/ingest directory path (optional, loaded from config if not provided)
+        ingest_dir: Staging/ingest directory path (required for detecting staging files)
 
     Returns:
         int: Number of images ingested
     """
     logger.info("Ingesting images...")
+
+    if not ingest_dir:
+        logger.warning("No ingest_dir specified - cannot determine which files are in staging")
+        return 0
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -169,25 +173,27 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     ingested_count = 0
 
     try:
-        # Get images that need ingesting (img_loc is NULL, meaning not yet in archive)
+        # Get images that need ingesting (img_loc points to staging, not archive)
+        # Images in staging will have img_loc starting with ingest_dir path
         cursor.execute(
             """
             SELECT
-                i.img_sha256, i.img_name, i.img_loco,
+                i.img_sha256, i.img_name, i.img_loco, i.img_loc,
                 i.camera, i.phone, i.drone, i.go_pro, i.film, i.other,
                 i.loc_uuid, i.sub_uuid,
                 l.loc_name, l.state, l.type
             FROM images i
             JOIN locations l ON i.loc_uuid = l.loc_uuid
-            WHERE i.img_loc IS NULL OR i.img_loc = ''
-            """
+            WHERE i.img_loc LIKE ? OR i.img_loc IS NULL OR i.img_loc = ''
+            """,
+            (f"{ingest_dir}%",)
         )
         images = cursor.fetchall()
 
         logger.info(f"Found {len(images)} images to ingest")
 
         for row in images:
-            (img_sha256, img_name, img_loco,
+            (img_sha256, img_name, img_loco, img_loc,
              camera, phone, drone, go_pro, film, other,
              loc_uuid, sub_uuid,
              loc_name, state, loc_type) = row
@@ -206,10 +212,13 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
             else:
                 category = 'other'
 
-            # Source file is in staging at img_loco (which now points to staging path)
-            # If img_loco is NULL or doesn't exist, try to construct staging path from img_name
+            # Source file is currently at img_loc (staging path set by db_import)
+            # Use img_loc as the source if it exists, otherwise try fallback paths
             source_file = None
-            if img_loco and Path(img_loco).exists():
+            if img_loc and Path(img_loc).exists():
+                source_file = Path(img_loc)
+            elif img_loco and Path(img_loco).exists():
+                # Fallback to original location (shouldn't happen in normal flow)
                 source_file = Path(img_loco)
             elif ingest_dir and img_name:
                 # Fallback: construct staging path from ingest_dir/loc_uuid8/img_name
@@ -219,7 +228,7 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
                     source_file = staging_path
 
             if not source_file:
-                logger.warning(f"Source file not found for {img_name} (img_loco: {img_loco})")
+                logger.warning(f"Source file not found for {img_name} (img_loc: {img_loc}, img_loco: {img_loco})")
                 continue
 
             # Get file extension
@@ -252,7 +261,7 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
                 logger.debug(f"Ingested ({method}): {filename}")
 
             except Exception as e:
-                logger.error(f"Failed to ingest {img_nameo}: {e}")
+                logger.error(f"Failed to ingest {img_name}: {e}")
 
         conn.commit()
         logger.info(f"Ingested {ingested_count} images")
@@ -270,12 +279,16 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     Args:
         db_path: Path to database
         arch_loc: Archive root directory
-        ingest_dir: Staging/ingest directory path (optional, loaded from config if not provided)
+        ingest_dir: Staging/ingest directory path (required for detecting staging files)
 
     Returns:
         int: Number of videos ingested
     """
     logger.info("Ingesting videos...")
+
+    if not ingest_dir:
+        logger.warning("No ingest_dir specified - cannot determine which files are in staging")
+        return 0
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -283,25 +296,27 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     ingested_count = 0
 
     try:
-        # Get videos that need ingesting (vid_loc is NULL, meaning not yet in archive)
+        # Get videos that need ingesting (vid_loc points to staging, not archive)
+        # Videos in staging will have vid_loc starting with ingest_dir path
         cursor.execute(
             """
             SELECT
-                v.vid_sha256, v.vid_name, v.vid_loco,
+                v.vid_sha256, v.vid_name, v.vid_loco, v.vid_loc,
                 v.camera, v.phone, v.drone, v.go_pro, v.dash_cam, v.other,
                 v.loc_uuid, v.sub_uuid,
                 l.loc_name, l.state, l.type
             FROM videos v
             JOIN locations l ON v.loc_uuid = l.loc_uuid
-            WHERE v.vid_loc IS NULL OR v.vid_loc = ''
-            """
+            WHERE v.vid_loc LIKE ? OR v.vid_loc IS NULL OR v.vid_loc = ''
+            """,
+            (f"{ingest_dir}%",)
         )
         videos = cursor.fetchall()
 
         logger.info(f"Found {len(videos)} videos to ingest")
 
         for row in videos:
-            (vid_sha256, vid_name, vid_loco,
+            (vid_sha256, vid_name, vid_loco, vid_loc,
              camera, phone, drone, go_pro, dash_cam, other,
              loc_uuid, sub_uuid,
              loc_name, state, loc_type) = row
@@ -320,10 +335,13 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
             else:
                 category = 'other'
 
-            # Source file is in staging at vid_loco (which now points to staging path)
-            # If vid_loco is NULL or doesn't exist, try to construct staging path from vid_name
+            # Source file is currently at vid_loc (staging path set by db_import)
+            # Use vid_loc as the source if it exists, otherwise try fallback paths
             source_file = None
-            if vid_loco and Path(vid_loco).exists():
+            if vid_loc and Path(vid_loc).exists():
+                source_file = Path(vid_loc)
+            elif vid_loco and Path(vid_loco).exists():
+                # Fallback to original location (shouldn't happen in normal flow)
                 source_file = Path(vid_loco)
             elif ingest_dir and vid_name:
                 # Fallback: construct staging path from ingest_dir/loc_uuid8/vid_name
@@ -333,7 +351,7 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
                     source_file = staging_path
 
             if not source_file:
-                logger.warning(f"Source file not found for {vid_name} (vid_loco: {vid_loco})")
+                logger.warning(f"Source file not found for {vid_name} (vid_loc: {vid_loc}, vid_loco: {vid_loco})")
                 continue
 
             # Get file extension
@@ -366,7 +384,7 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
                 logger.debug(f"Ingested ({method}): {filename}")
 
             except Exception as e:
-                logger.error(f"Failed to ingest {vid_nameo}: {e}")
+                logger.error(f"Failed to ingest {vid_name}: {e}")
 
         conn.commit()
         logger.info(f"Ingested {ingested_count} videos")
