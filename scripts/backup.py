@@ -134,7 +134,6 @@ def create_backup(source_db: str, backup_dir: str, db_name: str) -> str:
             # Directory exists but database doesn't - this is OK for first run
             logger.info(f"Database file not found but directory exists. Will be created on first import: {source_db}")
             # Create empty database so backup can proceed
-            import sqlite3
             conn = sqlite3.connect(source_db)
             conn.close()
             logger.info(f"Created new database file: {source_db}")
