@@ -2304,6 +2304,47 @@ function validateFiles() {
 }
 
 // Upload with progress tracking
+function pollTaskProgress(taskId, progressBar, progressText, progressStatus) {
+    return new Promise((resolve, reject) => {
+        const pollInterval = setInterval(() => {
+            fetch('/api/task-status')
+                .then(response => response.json())
+                .then(tasks => {
+                    const task = tasks[taskId];
+
+                    if (!task) {
+                        clearInterval(pollInterval);
+                        reject(new Error('Task not found'));
+                        return;
+                    }
+
+                    // Update progress bar
+                    progressBar.style.width = task.progress + '%';
+                    progressText.textContent = task.progress + '%';
+
+                    // Update status with detailed message
+                    if (task.error) {
+                        clearInterval(pollInterval);
+                        progressStatus.innerHTML = `<span style="color: #dc3545;">Error: ${task.error}</span>`;
+                        reject(new Error(task.error));
+                    } else if (!task.running && task.completed) {
+                        clearInterval(pollInterval);
+                        progressBar.style.width = '100%';
+                        progressText.textContent = '100%';
+                        resolve();
+                    } else {
+                        // Show current step with spinner
+                        progressStatus.innerHTML = `${task.current_step}<span class="spinner"></span>`;
+                    }
+                })
+                .catch(error => {
+                    clearInterval(pollInterval);
+                    reject(error);
+                });
+        }, 1000); // Poll every second for better responsiveness
+    });
+}
+
 function uploadWithProgress(formData) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -2340,16 +2381,26 @@ function uploadWithProgress(formData) {
 
         // Request complete
         xhr.addEventListener('load', () => {
-            if (xhr.status === 200 || xhr.status === 302) {
-                progressStatus.textContent = 'Import complete! Redirecting...';
-                // Follow redirect
-                if (xhr.responseURL) {
-                    window.location.href = xhr.responseURL;
-                } else {
-                    // Parse redirect from response
-                    window.location.href = '/locations';
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    const taskId = response.task_id;
+
+                    // Start polling for task progress
+                    progressStatus.innerHTML = 'Processing import...<span class="spinner"></span>';
+                    pollTaskProgress(taskId, progressBar, progressText, progressStatus)
+                        .then(() => {
+                            progressStatus.textContent = 'Import complete! Redirecting...';
+                            setTimeout(() => {
+                                window.location.href = '/';
+                            }, 1000);
+                            resolve(xhr);
+                        })
+                        .catch(reject);
+                } catch (e) {
+                    progressStatus.textContent = 'Import failed - Invalid response';
+                    reject(new Error('Invalid server response: ' + e.message));
                 }
-                resolve(xhr);
             } else {
                 progressStatus.textContent = 'Import failed - See error below';
                 reject(new Error('Upload failed with status: ' + xhr.status));
@@ -3330,8 +3381,8 @@ def import_submit():
         # Store task_id in session for dashboard to pick up
         session['last_import_task'] = task_id
 
-        # Redirect to dashboard immediately
-        return redirect(url_for('dashboard'))
+        # Return task_id to client for progress tracking
+        return jsonify({'task_id': task_id, 'status': 'started'})
 
     except Exception as e:
         flash(f'Import error: {str(e)}', 'error')
