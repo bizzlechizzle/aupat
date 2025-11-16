@@ -86,6 +86,70 @@ def load_config(config_path: str = 'user/user.json') -> dict:
         return {}
 
 
+def validate_config(config: dict) -> tuple[bool, list[str]]:
+    """
+    Validate configuration is complete and ready for use.
+    Returns (is_valid, list_of_issues).
+    """
+    issues = []
+
+    if not config:
+        issues.append('Configuration file not found or invalid')
+        return False, issues
+
+    # Check required keys exist
+    required_keys = ['db_name', 'db_loc', 'db_backup', 'db_ingest', 'arch_loc']
+    missing_keys = [key for key in required_keys if key not in config]
+    if missing_keys:
+        issues.append(f'Missing required configuration keys: {", ".join(missing_keys)}')
+
+    # Check for placeholder paths
+    placeholder_keys = []
+    for key in required_keys:
+        if key in config and config[key].startswith('/absolute/path'):
+            placeholder_keys.append(key)
+    if placeholder_keys:
+        issues.append(f'Configuration has placeholder paths that need to be updated: {", ".join(placeholder_keys)}')
+
+    # Check database location
+    if 'db_loc' in config:
+        db_path = Path(config['db_loc'])
+        if not db_path.exists():
+            # Database doesn't exist - check if parent directory exists and is writable
+            if not db_path.parent.exists():
+                issues.append(f'Database directory does not exist: {db_path.parent}')
+            elif not os.access(db_path.parent, os.W_OK):
+                issues.append(f'Database directory is not writable: {db_path.parent}')
+        elif not os.access(db_path, os.R_OK):
+            issues.append(f'Database file is not readable: {db_path}')
+
+    # Check backup directory
+    if 'db_backup' in config:
+        backup_path = Path(config['db_backup'])
+        if not backup_path.exists():
+            issues.append(f'Backup directory does not exist: {backup_path}')
+        elif not os.access(backup_path, os.W_OK):
+            issues.append(f'Backup directory is not writable: {backup_path}')
+
+    # Check ingest directory
+    if 'db_ingest' in config:
+        ingest_path = Path(config['db_ingest'])
+        if not ingest_path.exists():
+            issues.append(f'Ingest directory does not exist: {ingest_path}')
+        elif not os.access(ingest_path, os.W_OK):
+            issues.append(f'Ingest directory is not writable: {ingest_path}')
+
+    # Check archive directory
+    if 'arch_loc' in config:
+        arch_path = Path(config['arch_loc'])
+        if not arch_path.exists():
+            issues.append(f'Archive directory does not exist: {arch_path}')
+        elif not os.access(arch_path, os.W_OK):
+            issues.append(f'Archive directory is not writable: {arch_path}')
+
+    return len(issues) == 0, issues
+
+
 def get_db_connection(config: dict):
     """Get database connection."""
     db_path = config.get('db_loc', 'aupat.db')
@@ -1013,37 +1077,30 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
         <hr style="border: 1px solid var(--muted); margin: 2rem 0;">
 
         <h3>Upload Media</h3>
+        <p style="margin-bottom: 1.5rem; opacity: 0.7; font-size: 0.9rem;">
+            You can use any combination of the upload options below
+        </p>
 
         <div class="form-group">
-            <label>Select Files or Folder</label>
-            <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; text-transform: none; font-weight: normal;">
-                    <input type="radio" name="upload_mode" value="files" checked style="width: auto; margin: 0;" onchange="toggleUploadMode()">
-                    Individual Files
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; text-transform: none; font-weight: normal;">
-                    <input type="radio" name="upload_mode" value="folder" style="width: auto; margin: 0;" onchange="toggleUploadMode()">
-                    Folder (with subfolders)
-                </label>
-            </div>
-        </div>
-
-        <div id="files-upload-group" class="form-group">
             <label>Images & Videos</label>
             <input type="file" name="media_files" id="media_files" multiple accept="image/*,video/*">
-            <div class="help-text">Select image and video files to import</div>
+            <div class="help-text">Select image and video files (JPG, PNG, MP4, etc.)</div>
         </div>
 
-        <div id="files-documents-group" class="form-group">
+        <div class="form-group">
             <label>Documents</label>
             <input type="file" name="document_files" id="document_files" multiple accept=".pdf,.doc,.docx,.txt,.md">
-            <div class="help-text">Select document files to import</div>
+            <div class="help-text">Select document files (PDF, Word, text, etc.)</div>
         </div>
 
-        <div id="folder-upload-group" class="form-group" style="display: none;">
-            <label>Select Folder</label>
+        <div id="folder-upload-group" class="form-group">
+            <label>Upload Folder <span style="font-size: 0.85rem; opacity: 0.6; font-weight: normal;">(preserves subfolder structure)</span></label>
             <input type="file" name="folder_files" id="folder_files" webkitdirectory directory multiple>
-            <div class="help-text">Select a folder - all files in subfolders will be imported</div>
+            <div class="help-text">Select a folder - all files and subfolders will be imported</div>
+            <div id="folder-not-supported-warning" class="help-text" style="color: #dc3545; margin-top: 0.5rem; display: none;">
+                <strong>⚠️ Note:</strong> Folder upload is not supported on this browser/device.
+                Please use individual file upload or access from a desktop browser (Chrome, Edge, or Safari).
+            </div>
         </div>
 
         <div class="form-group">
@@ -1279,31 +1336,95 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Toggle between file and folder upload modes
-function toggleUploadMode() {
-    const mode = document.querySelector('input[name="upload_mode"]:checked').value;
-    const filesUploadGroup = document.getElementById('files-upload-group');
-    const filesDocumentsGroup = document.getElementById('files-documents-group');
-    const folderUploadGroup = document.getElementById('folder-upload-group');
+// Detect browser support for folder uploads
+function checkFolderUploadSupport() {
+    const folderGroup = document.getElementById('folder-upload-group');
+    const folderInput = document.getElementById('folder_files');
+    const warning = document.getElementById('folder-not-supported-warning');
 
-    if (mode === 'files') {
-        filesUploadGroup.style.display = 'block';
-        filesDocumentsGroup.style.display = 'block';
-        folderUploadGroup.style.display = 'none';
-        // Clear folder input
-        const folderInput = document.getElementById('folder_files');
-        if (folderInput) folderInput.value = '';
-    } else {
-        filesUploadGroup.style.display = 'none';
-        filesDocumentsGroup.style.display = 'none';
-        folderUploadGroup.style.display = 'block';
-        // Clear file inputs
-        const mediaInput = document.getElementById('media_files');
-        const docInput = document.getElementById('document_files');
-        if (mediaInput) mediaInput.value = '';
-        if (docInput) docInput.value = '';
+    if (!folderInput || !folderGroup) return;
+
+    // Check if browser supports directory upload
+    const supportsDirectoryUpload = 'webkitdirectory' in folderInput || 'directory' in folderInput;
+
+    // Additional check for mobile devices which may not support folder upload even with the attribute
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (!supportsDirectoryUpload || (isMobile && /iPhone|iPad|iPod/.test(navigator.userAgent))) {
+        // Hide folder upload section entirely and show warning
+        folderGroup.style.display = 'none';
     }
 }
+
+// Validate files before submission
+function validateFiles() {
+    // Collect files from all inputs
+    const mediaFiles = document.getElementById('media_files').files;
+    const docFiles = document.getElementById('document_files').files;
+    const folderFiles = document.getElementById('folder_files').files;
+
+    const allFiles = [...mediaFiles, ...docFiles, ...folderFiles];
+
+    // Check if any files selected
+    if (allFiles.length === 0) {
+        alert('Please select at least one file or folder to import.');
+        return false;
+    }
+
+    // Validate file extensions
+    const validExtensions = [
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif',
+        '.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v',
+        '.pdf', '.doc', '.docx', '.txt', '.md'
+    ];
+
+    const invalidFiles = [];
+    for (const file of allFiles) {
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!validExtensions.includes(ext)) {
+            invalidFiles.push(file.name);
+        }
+    }
+
+    if (invalidFiles.length > 0) {
+        const maxShow = 5;
+        const fileList = invalidFiles.slice(0, maxShow).join('\n  • ');
+        const more = invalidFiles.length > maxShow ? `\n  ... and ${invalidFiles.length - maxShow} more` : '';
+
+        const proceed = confirm(
+            `${invalidFiles.length} file(s) have unsupported extensions and will be skipped:\n\n  • ${fileList}${more}\n\nContinue with import?`
+        );
+
+        if (!proceed) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkFolderUploadSupport();
+
+    // Add form validation
+    const importForm = document.getElementById('importForm');
+    if (importForm) {
+        importForm.addEventListener('submit', function(e) {
+            if (!validateFiles()) {
+                e.preventDefault();
+                return false;
+            }
+
+            // Disable submit button to prevent double submission
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Importing...';
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
 """)
@@ -1683,6 +1804,14 @@ def import_submit():
 
     try:
         config = load_config()
+
+        # Validate configuration before proceeding
+        is_valid, issues = validate_config(config)
+        if not is_valid:
+            error_msg = 'Configuration error:\n' + '\n'.join(f'• {issue}' for issue in issues)
+            flash(error_msg, 'error')
+            logger.error(f"Configuration validation failed: {issues}")
+            return redirect(url_for('import_form'))
 
         # Get and normalize form data
         data = {

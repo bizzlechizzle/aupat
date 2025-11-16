@@ -146,22 +146,35 @@ else
 fi
 echo ""
 
-# Step 8: Create user.json template
-print_info "Step 8: Creating user/user.json template..."
+# Step 8: Create user.json configuration
+print_info "Step 8: Creating user/user.json configuration..."
 if [ -f "user/user.json" ]; then
     print_warning "user/user.json already exists, skipping creation"
 else
-    cat > user/user.json << 'EOF'
+    # Get current directory
+    CURRENT_DIR="$(pwd)"
+
+    # Create data directories if they don't exist
+    mkdir -p "${CURRENT_DIR}/data/backups"
+    mkdir -p "${CURRENT_DIR}/data/ingest"
+    mkdir -p "${CURRENT_DIR}/data/archive"
+
+    # Create user.json with working default paths
+    cat > user/user.json << EOF
 {
   "db_name": "aupat.db",
-  "db_loc": "/absolute/path/to/database/aupat.db",
-  "db_backup": "/absolute/path/to/backups/",
-  "db_ingest": "/absolute/path/to/ingest/staging/",
-  "arch_loc": "/absolute/path/to/archive/"
+  "db_loc": "${CURRENT_DIR}/data/aupat.db",
+  "db_backup": "${CURRENT_DIR}/data/backups/",
+  "db_ingest": "${CURRENT_DIR}/data/ingest/",
+  "arch_loc": "${CURRENT_DIR}/data/archive/"
 }
 EOF
-    print_success "Created user/user.json template"
-    print_warning "IMPORTANT: Edit user/user.json with your actual paths before running scripts"
+    print_success "Created user/user.json with default paths in ${CURRENT_DIR}/data/"
+    print_info "  Database: ${CURRENT_DIR}/data/aupat.db"
+    print_info "  Backups:  ${CURRENT_DIR}/data/backups/"
+    print_info "  Ingest:   ${CURRENT_DIR}/data/ingest/"
+    print_info "  Archive:  ${CURRENT_DIR}/data/archive/"
+    print_warning "You can edit user/user.json to customize these paths if needed"
 fi
 echo ""
 

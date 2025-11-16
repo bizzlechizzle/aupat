@@ -121,7 +121,23 @@ def create_backup(source_db: str, backup_dir: str, db_name: str) -> str:
 
     # Validate source exists
     if not source_path.exists():
-        raise FileNotFoundError(f"Source database not found: {source_db}")
+        # Check if parent directory exists
+        if not source_path.parent.exists():
+            raise FileNotFoundError(
+                f"Database directory does not exist: {source_path.parent}\n\n"
+                f"Please ensure:\n"
+                f"1. The directory '{source_path.parent}' exists\n"
+                f"2. user.json has valid database path (not placeholder)\n"
+                f"3. Create directory with: mkdir -p {source_path.parent}"
+            )
+        else:
+            # Directory exists but database doesn't - this is OK for first run
+            logger.info(f"Database file not found but directory exists. Will be created on first import: {source_db}")
+            # Create empty database so backup can proceed
+            import sqlite3
+            conn = sqlite3.connect(source_db)
+            conn.close()
+            logger.info(f"Created new database file: {source_db}")
 
     # Create backup directory if it doesn't exist
     backup_path.mkdir(parents=True, exist_ok=True)
@@ -151,6 +167,18 @@ def create_backup(source_db: str, backup_dir: str, db_name: str) -> str:
         logger.info(f"Backup created successfully: {backup_file}")
         return str(backup_file)
 
+    except sqlite3.Error as e:
+        logger.error(f"SQLite error during backup: {e}")
+        # Clean up partial backup if it exists
+        if backup_file.exists():
+            backup_file.unlink()
+        raise IOError(
+            f"Failed to create database backup: {e}\n\n"
+            f"This usually means:\n"
+            f"1. Database file is corrupted or locked\n"
+            f"2. Insufficient permissions to read database: {source_db}\n"
+            f"3. Insufficient permissions to write backup: {backup_dir}"
+        )
     except Exception as e:
         logger.error(f"Backup failed: {e}")
         # Clean up partial backup if it exists
