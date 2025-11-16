@@ -286,6 +286,52 @@ Where uuid8 = first 8 chars of UUID, sha8 = first 8 chars of SHA256
 
 ---
 
+## CRITICAL SETUP REQUIREMENTS
+
+### First-Time Setup (MUST DO BEFORE ANYTHING ELSE)
+
+**STOP! Before running ANY scripts or the web interface:**
+
+1. **Run setup.sh first**: `bash setup.sh`
+   - This creates the required folder structure
+   - This creates user/user.json with valid paths
+   - This sets up the Python virtual environment
+
+2. **Verify user/user.json exists**: `cat user/user.json`
+   - File must exist (not just user.json.template)
+   - Paths must NOT contain "/absolute/path" placeholders
+   - db_loc must be a FILE path (e.g., `/path/to/aupat.db`), NOT a directory
+   - All directory paths must end with `/`
+
+3. **Common Setup Errors**:
+   - **ERROR**: "unable to open database file"
+     - **CAUSE**: user.json doesn't exist or has placeholder paths
+     - **FIX**: Run `bash setup.sh` or manually edit user/user.json
+   - **ERROR**: "Database path is a directory, not a file"
+     - **CAUSE**: db_loc points to directory instead of file
+     - **FIX**: Change `"db_loc": "/path/to/database"` to `"db_loc": "/path/to/database/aupat.db"`
+   - **ERROR**: "Database directory does not exist"
+     - **CAUSE**: Parent directories not created
+     - **FIX**: Run `bash setup.sh` or `mkdir -p /path/to/database`
+
+### Example Valid user.json
+
+```json
+{
+  "db_name": "aupat.db",
+  "db_loc": "/Users/bryant/Documents/tools/aupat/data/aupat.db",
+  "db_backup": "/Users/bryant/Documents/tools/aupat/data/backups/",
+  "db_ingest": "/Users/bryant/Documents/tools/aupat/data/ingest/",
+  "arch_loc": "/Users/bryant/Documents/tools/aupat/data/archive/"
+}
+```
+
+**Note the differences**:
+- `db_loc` ends with `/aupat.db` (FILE)
+- Other paths end with `/` (DIRECTORIES)
+
+---
+
 ## Critical Reminders
 
 ### Before Any Code Implementation
@@ -297,6 +343,7 @@ Where uuid8 = first 8 chars of UUID, sha8 = first 8 chars of SHA256
 - [ ] Have I included transaction safety for database operations?
 - [ ] Have I written tests?
 - [ ] Is the code bulletproof for long-term use?
+- [ ] Have I verified user.json exists and is configured correctly?
 
 ### Before Committing Code
 
