@@ -822,10 +822,10 @@ BASE_TEMPLATE = """
         <div class="header-content">
             <h1 class="site-title">Abandoned Upstate</h1>
             <nav class="nav">
+                <a href="/import" class="{{ 'active' if request.path == '/import' else '' }}">Import</a>
                 <a href="/" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
                 <a href="/locations" class="{{ 'active' if request.path == '/locations' else '' }}">Locations</a>
                 <a href="/archives" class="{{ 'active' if request.path == '/archives' else '' }}">Archives</a>
-                <a href="/import" class="{{ 'active' if request.path == '/import' else '' }}">Import</a>
                 <a href="/settings" class="{{ 'active' if request.path == '/settings' else '' }}">Settings</a>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☾</button>
             </nav>
@@ -1015,15 +1015,35 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
         <h3>Upload Media</h3>
 
         <div class="form-group">
+            <label>Select Files or Folder</label>
+            <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; text-transform: none; font-weight: normal;">
+                    <input type="radio" name="upload_mode" value="files" checked style="width: auto; margin: 0;" onchange="toggleUploadMode()">
+                    Individual Files
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; text-transform: none; font-weight: normal;">
+                    <input type="radio" name="upload_mode" value="folder" style="width: auto; margin: 0;" onchange="toggleUploadMode()">
+                    Folder (with subfolders)
+                </label>
+            </div>
+        </div>
+
+        <div id="files-upload-group" class="form-group">
             <label>Images & Videos</label>
             <input type="file" name="media_files" id="media_files" multiple accept="image/*,video/*">
             <div class="help-text">Select image and video files to import</div>
         </div>
 
-        <div class="form-group">
+        <div id="files-documents-group" class="form-group">
             <label>Documents</label>
             <input type="file" name="document_files" id="document_files" multiple accept=".pdf,.doc,.docx,.txt,.md">
             <div class="help-text">Select document files to import</div>
+        </div>
+
+        <div id="folder-upload-group" class="form-group" style="display: none;">
+            <label>Select Folder</label>
+            <input type="file" name="folder_files" id="folder_files" webkitdirectory directory multiple>
+            <div class="help-text">Select a folder - all files in subfolders will be imported</div>
         </div>
 
         <div class="form-group">
@@ -1258,6 +1278,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Toggle between file and folder upload modes
+function toggleUploadMode() {
+    const mode = document.querySelector('input[name="upload_mode"]:checked').value;
+    const filesUploadGroup = document.getElementById('files-upload-group');
+    const filesDocumentsGroup = document.getElementById('files-documents-group');
+    const folderUploadGroup = document.getElementById('folder-upload-group');
+
+    if (mode === 'files') {
+        filesUploadGroup.style.display = 'block';
+        filesDocumentsGroup.style.display = 'block';
+        folderUploadGroup.style.display = 'none';
+        // Clear folder input
+        const folderInput = document.getElementById('folder_files');
+        if (folderInput) folderInput.value = '';
+    } else {
+        filesUploadGroup.style.display = 'none';
+        filesDocumentsGroup.style.display = 'none';
+        folderUploadGroup.style.display = 'block';
+        // Clear file inputs
+        const mediaInput = document.getElementById('media_files');
+        const docInput = document.getElementById('document_files');
+        if (mediaInput) mediaInput.value = '';
+        if (docInput) docInput.value = '';
+    }
+}
 </script>
 {% endblock %}
 """)
@@ -1633,6 +1679,8 @@ def api_check_collision():
 @app.route('/import/submit', methods=['POST'])
 def import_submit():
     """Handle import submission."""
+    import tempfile
+
     try:
         config = load_config()
 
@@ -1644,37 +1692,86 @@ def import_submit():
             'state': normalize_state_code(request.form.get('state')),
             'type': normalize_location_type(request.form.get('type')),
             'sub_type': normalize_sub_type(request.form.get('sub_type')) if request.form.get('sub_type') else None,
-            'source_dir': request.form.get('source_dir'),
             'imp_author': normalize_author(request.form.get('imp_author')) if request.form.get('imp_author') else None
         }
 
-        # Validate source directory
-        if not Path(data['source_dir']).exists():
-            flash('Source directory does not exist', 'error')
+        # Handle uploaded files (both individual files and folder uploads)
+        media_files = request.files.getlist('media_files')
+        document_files = request.files.getlist('document_files')
+        folder_files = request.files.getlist('folder_files')
+
+        # Combine all uploaded files
+        all_files = media_files + document_files + folder_files
+
+        # Check if any files were uploaded
+        uploaded_files = [f for f in all_files if f.filename]
+
+        if not uploaded_files:
+            flash('No files uploaded. Please select at least one file or folder to import.', 'error')
             return redirect(url_for('import_form'))
 
-        # Run import script
-        result = subprocess.run(
-            [
-                sys.executable,
-                'scripts/db_import.py',
-                '--source', data['source_dir'],
-                '--config', 'user/user.json'
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3600
-        )
+        # Create temporary directory for uploaded files
+        temp_dir = Path(tempfile.mkdtemp(prefix='aupat_import_'))
+        logger.info(f"Created temporary directory: {temp_dir}")
 
-        if result.returncode == 0:
-            flash(f'Successfully imported {data["loc_name"]}', 'success')
-            return redirect(url_for('locations'))
-        else:
-            flash(f'Import failed: {result.stderr}', 'error')
-            return redirect(url_for('import_form'))
+        try:
+            # Save uploaded files to temp directory
+            for file in uploaded_files:
+                if file.filename:
+                    # For folder uploads, preserve directory structure
+                    # The filename includes the relative path for folder uploads
+                    from werkzeug.utils import secure_filename
+
+                    # Normalize path separators
+                    rel_path = file.filename.replace('\\', '/')
+
+                    # Secure each part of the path
+                    path_parts = rel_path.split('/')
+                    secured_parts = [secure_filename(part) for part in path_parts if part]
+
+                    # Create subdirectories if needed
+                    if len(secured_parts) > 1:
+                        subdir = temp_dir / Path(*secured_parts[:-1])
+                        subdir.mkdir(parents=True, exist_ok=True)
+                        file_path = temp_dir / Path(*secured_parts)
+                    else:
+                        file_path = temp_dir / secured_parts[0]
+
+                    file.save(str(file_path))
+                    logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
+
+            # Run import script with temp directory as source
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    'scripts/db_import.py',
+                    '--source', str(temp_dir),
+                    '--config', 'user/user.json'
+                ],
+                capture_output=True,
+                text=True,
+                timeout=3600
+            )
+
+            if result.returncode == 0:
+                flash(f'Successfully imported {data["loc_name"]}', 'success')
+                return redirect(url_for('locations'))
+            else:
+                flash(f'Import failed: {result.stderr}', 'error')
+                return redirect(url_for('import_form'))
+
+        finally:
+            # Clean up temporary directory
+            try:
+                import shutil
+                shutil.rmtree(temp_dir)
+                logger.info(f"Cleaned up temporary directory: {temp_dir}")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to clean up temp directory: {cleanup_error}")
 
     except Exception as e:
         flash(f'Import error: {str(e)}', 'error')
+        logger.error(f"Import error: {e}", exc_info=True)
         return redirect(url_for('import_form'))
 
 
