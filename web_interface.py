@@ -671,29 +671,50 @@ BASE_TEMPLATE = """
         .header {
             background: var(--header-bg);
             color: var(--header-fg);
-            padding: 1.5rem 2rem;
-            border-bottom: 3px solid var(--accent);
+            padding: 0;
         }
 
         .header-content {
             max-width: 64rem;
             margin: 0 auto;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+            padding: 1rem 2rem 0.75rem;
+        }
+
+        .title-link {
+            text-decoration: none;
+            color: inherit;
+            text-align: center;
+            padding: 0.25rem 0;
         }
 
         .site-title {
-            font-size: 1.5rem;
+            font-size: clamp(1.6rem, 1.3rem + 2vw, 2.25rem);
             font-family: 'Roboto Mono', monospace;
             letter-spacing: 0.1em;
             margin: 0;
+            color: var(--header-fg);
+        }
+
+        .site-tagline {
+            margin-top: 0.25rem;
+            font-size: clamp(0.88rem, 0.82rem + 0.3vw, 0.95rem);
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--accent);
         }
 
         .nav {
             display: flex;
-            gap: 2rem;
+            gap: 1.25rem;
             align-items: center;
+            justify-content: center;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
         }
 
         .nav a {
@@ -703,9 +724,9 @@ BASE_TEMPLATE = """
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            padding: 0.5rem 0;
+            padding: 0.5rem 0.75rem;
             border-bottom: 2px solid transparent;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
 
         .nav a:hover,
@@ -1060,15 +1081,26 @@ BASE_TEMPLATE = """
             opacity: 0.7;
         }
 
+        .header-separator {
+            width: 100%;
+            max-width: 64rem;
+            margin: 0 auto;
+            border: 0;
+            border-top: 3px solid var(--accent);
+        }
+
         @media (max-width: 768px) {
             .header-content {
-                flex-direction: column;
-                gap: 1rem;
+                padding: 1rem 1rem 0.75rem;
             }
 
             .nav {
-                flex-wrap: wrap;
-                justify-content: center;
+                gap: 0.75rem;
+            }
+
+            .nav a {
+                font-size: 0.8rem;
+                padding: 0.5rem;
             }
 
             .stats-grid {
@@ -1247,7 +1279,10 @@ BASE_TEMPLATE = """
 <body>
     <header class="header">
         <div class="header-content">
-            <h1 class="site-title"><a href="/" style="text-decoration: none; color: inherit;">Abandoned Upstate</a></h1>
+            <a href="/" class="title-link">
+                <h1 class="site-title">Abandoned Upstate</h1>
+                <p class="site-tagline">Preserving History. Documenting Decay.</p>
+            </a>
             <nav class="nav">
                 <a href="/import" class="{{ 'active' if request.path == '/import' else '' }}">Import</a>
                 <a href="/" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
@@ -1257,6 +1292,7 @@ BASE_TEMPLATE = """
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☾</button>
             </nav>
         </div>
+        <hr class="header-separator" aria-hidden="true" />
     </header>
 
     <main class="container">
