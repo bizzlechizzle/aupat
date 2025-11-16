@@ -3213,13 +3213,32 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
         except Exception as cleanup_error:
             logger.warning(f"[Task {task_id}] Failed to clean up temp directory: {cleanup_error}")
 
-        # Schedule task cleanup after 5 seconds to trigger page refresh
+        # Schedule task cleanup with different delays based on status
+        # Failed tasks stay visible much longer so users can see errors
         def cleanup_task():
-            time.sleep(5)
             with WORKFLOW_LOCK:
-                if task_id in WORKFLOW_STATUS:
-                    del WORKFLOW_STATUS[task_id]
-                    logger.info(f"[Task {task_id}] Cleaned up task status")
+                task_status = WORKFLOW_STATUS.get(task_id, {})
+                is_error = task_status.get('error') is not None
+                is_completed = task_status.get('completed', False)
+
+                # If task failed with error, wait 30 minutes before cleanup
+                if is_error:
+                    logger.info(f"[Task {task_id}] Task failed - keeping visible for 30 minutes")
+                    time.sleep(1800)  # 30 minutes
+                # If task completed successfully, wait 5 minutes
+                elif is_completed:
+                    logger.info(f"[Task {task_id}] Task completed - cleaning up in 5 minutes")
+                    time.sleep(300)  # 5 minutes
+                # If task is still running (shouldn't happen), wait briefly
+                else:
+                    logger.info(f"[Task {task_id}] Task status unclear - waiting 1 minute")
+                    time.sleep(60)  # 1 minute
+
+                # Now remove from status
+                with WORKFLOW_LOCK:
+                    if task_id in WORKFLOW_STATUS:
+                        del WORKFLOW_STATUS[task_id]
+                        logger.info(f"[Task {task_id}] Cleaned up task status")
 
         cleanup_thread = threading.Thread(target=cleanup_task, daemon=True)
         cleanup_thread.start()
