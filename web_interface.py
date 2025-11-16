@@ -1077,40 +1077,29 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
         <hr style="border: 1px solid var(--muted); margin: 2rem 0;">
 
         <h3>Upload Media</h3>
+        <p style="margin-bottom: 1.5rem; opacity: 0.7; font-size: 0.9rem;">
+            You can use any combination of the upload options below
+        </p>
 
         <div class="form-group">
-            <label>Select Files or Folder</label>
-            <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; text-transform: none; font-weight: normal;">
-                    <input type="radio" name="upload_mode" value="files" checked style="width: auto; margin: 0;" onchange="toggleUploadMode()">
-                    Individual Files
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; text-transform: none; font-weight: normal;">
-                    <input type="radio" name="upload_mode" value="folder" style="width: auto; margin: 0;" onchange="toggleUploadMode()">
-                    Folder (with subfolders)
-                </label>
-            </div>
-        </div>
-
-        <div id="files-upload-group" class="form-group">
             <label>Images & Videos</label>
             <input type="file" name="media_files" id="media_files" multiple accept="image/*,video/*">
-            <div class="help-text">Select image and video files to import</div>
+            <div class="help-text">Select image and video files (JPG, PNG, MP4, etc.)</div>
         </div>
 
-        <div id="files-documents-group" class="form-group">
+        <div class="form-group">
             <label>Documents</label>
             <input type="file" name="document_files" id="document_files" multiple accept=".pdf,.doc,.docx,.txt,.md">
-            <div class="help-text">Select document files to import</div>
+            <div class="help-text">Select document files (PDF, Word, text, etc.)</div>
         </div>
 
-        <div id="folder-upload-group" class="form-group" style="display: none;">
-            <label>Select Folder</label>
+        <div id="folder-upload-group" class="form-group">
+            <label>Upload Folder <span style="font-size: 0.85rem; opacity: 0.6; font-weight: normal;">(preserves subfolder structure)</span></label>
             <input type="file" name="folder_files" id="folder_files" webkitdirectory directory multiple>
-            <div class="help-text">Select a folder - all files in subfolders will be imported</div>
+            <div class="help-text">Select a folder - all files and subfolders will be imported</div>
             <div id="folder-not-supported-warning" class="help-text" style="color: #dc3545; margin-top: 0.5rem; display: none;">
                 <strong>⚠️ Note:</strong> Folder upload is not supported on this browser/device.
-                Please use individual file upload mode or access from a desktop browser (Chrome, Edge, or Safari).
+                Please use individual file upload or access from a desktop browser (Chrome, Edge, or Safari).
             </div>
         </div>
 
@@ -1347,39 +1336,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Toggle between file and folder upload modes
-function toggleUploadMode() {
-    const mode = document.querySelector('input[name="upload_mode"]:checked').value;
-    const filesUploadGroup = document.getElementById('files-upload-group');
-    const filesDocumentsGroup = document.getElementById('files-documents-group');
-    const folderUploadGroup = document.getElementById('folder-upload-group');
-
-    if (mode === 'files') {
-        filesUploadGroup.style.display = 'block';
-        filesDocumentsGroup.style.display = 'block';
-        folderUploadGroup.style.display = 'none';
-        // Clear folder input
-        const folderInput = document.getElementById('folder_files');
-        if (folderInput) folderInput.value = '';
-    } else {
-        filesUploadGroup.style.display = 'none';
-        filesDocumentsGroup.style.display = 'none';
-        folderUploadGroup.style.display = 'block';
-        // Clear file inputs
-        const mediaInput = document.getElementById('media_files');
-        const docInput = document.getElementById('document_files');
-        if (mediaInput) mediaInput.value = '';
-        if (docInput) docInput.value = '';
-    }
-}
-
 // Detect browser support for folder uploads
 function checkFolderUploadSupport() {
+    const folderGroup = document.getElementById('folder-upload-group');
     const folderInput = document.getElementById('folder_files');
     const warning = document.getElementById('folder-not-supported-warning');
-    const folderRadio = document.querySelector('input[name="upload_mode"][value="folder"]');
 
-    if (!folderInput || !folderRadio) return;
+    if (!folderInput || !folderGroup) return;
 
     // Check if browser supports directory upload
     const supportsDirectoryUpload = 'webkitdirectory' in folderInput || 'directory' in folderInput;
@@ -1388,33 +1351,23 @@ function checkFolderUploadSupport() {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     if (!supportsDirectoryUpload || (isMobile && /iPhone|iPad|iPod/.test(navigator.userAgent))) {
-        // Hide folder upload option and show warning
-        folderRadio.closest('label').style.display = 'none';
-        if (warning) warning.style.display = 'block';
-
-        // Auto-select files mode
-        const filesRadio = document.querySelector('input[name="upload_mode"][value="files"]');
-        if (filesRadio) filesRadio.checked = true;
-        toggleUploadMode();
+        // Hide folder upload section entirely and show warning
+        folderGroup.style.display = 'none';
     }
 }
 
 // Validate files before submission
 function validateFiles() {
-    const mode = document.querySelector('input[name="upload_mode"]:checked').value;
-    let files = [];
+    // Collect files from all inputs
+    const mediaFiles = document.getElementById('media_files').files;
+    const docFiles = document.getElementById('document_files').files;
+    const folderFiles = document.getElementById('folder_files').files;
 
-    if (mode === 'files') {
-        const mediaFiles = document.getElementById('media_files').files;
-        const docFiles = document.getElementById('document_files').files;
-        files = [...mediaFiles, ...docFiles];
-    } else {
-        files = [...document.getElementById('folder_files').files];
-    }
+    const allFiles = [...mediaFiles, ...docFiles, ...folderFiles];
 
     // Check if any files selected
-    if (files.length === 0) {
-        alert('Please select at least one file to import.');
+    if (allFiles.length === 0) {
+        alert('Please select at least one file or folder to import.');
         return false;
     }
 
@@ -1426,7 +1379,7 @@ function validateFiles() {
     ];
 
     const invalidFiles = [];
-    for (const file of files) {
+    for (const file of allFiles) {
         const ext = '.' + file.name.split('.').pop().toLowerCase();
         if (!validExtensions.includes(ext)) {
             invalidFiles.push(file.name);
