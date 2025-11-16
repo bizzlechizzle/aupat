@@ -111,6 +111,118 @@ def load_config(config_path: str = 'user/user.json') -> dict:
         return {}
 
 
+def get_disk_space(path: str) -> dict:
+    """Get disk space information for a given path."""
+    import shutil
+    try:
+        stat = shutil.disk_usage(path)
+        return {
+            'total': stat.total,
+            'used': stat.used,
+            'free': stat.free,
+            'percent': (stat.used / stat.total * 100) if stat.total > 0 else 0
+        }
+    except Exception as e:
+        logger.error(f"Failed to get disk space for {path}: {e}")
+        return {'total': 0, 'used': 0, 'free': 0, 'percent': 0}
+
+
+def check_disk_space(path: str, required_gb: float = 1.0) -> tuple[bool, str]:
+    """Check if enough disk space is available."""
+    stats = get_disk_space(path)
+    free_gb = stats['free'] / (1024**3)
+
+    if free_gb < required_gb:
+        return False, f"Insufficient disk space: {free_gb:.2f}GB free, {required_gb}GB required"
+
+    return True, f"Disk space OK: {free_gb:.2f}GB free"
+
+
+def check_path_writable(path: str) -> tuple[bool, str]:
+    """Check if a path is writable by attempting to create a test file."""
+    test_path = Path(path)
+
+    # If it's a file path, check parent directory
+    if not test_path.exists() or test_path.is_file():
+        test_dir = test_path.parent
+    else:
+        test_dir = test_path
+
+    # Try to create directory if it doesn't exist
+    try:
+        test_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        return False, f"Cannot create directory {test_dir}: {e}"
+
+    # Try to write a test file
+    test_file = test_dir / f'.aupat_write_test_{os.getpid()}'
+    try:
+        test_file.write_text('test')
+        test_file.unlink()
+        return True, f"Path is writable: {test_dir}"
+    except Exception as e:
+        return False, f"Path not writable {test_dir}: {e}"
+
+
+def cleanup_orphaned_temp_dirs(max_age_hours: int = 24) -> int:
+    """Clean up orphaned AUPAT temp directories older than max_age_hours."""
+    import tempfile
+    import shutil
+
+    cleaned = 0
+    temp_root = Path(tempfile.gettempdir())
+    current_time = time.time()
+    max_age_seconds = max_age_hours * 3600
+
+    try:
+        # Find all aupat_import_* directories
+        for temp_dir in temp_root.glob('aupat_import_*'):
+            if not temp_dir.is_dir():
+                continue
+
+            # Check age
+            try:
+                dir_age = current_time - temp_dir.stat().st_mtime
+                if dir_age > max_age_seconds:
+                    logger.info(f"Cleaning up orphaned temp dir: {temp_dir} (age: {dir_age/3600:.1f}h)")
+                    shutil.rmtree(temp_dir)
+                    cleaned += 1
+            except Exception as e:
+                logger.warning(f"Failed to clean up {temp_dir}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup orphaned temp dirs: {e}")
+
+    return cleaned
+
+
+def check_database_schema(db_path: str) -> tuple[bool, list[str]]:
+    """Verify that required database tables exist."""
+    required_tables = ['locations', 'images', 'videos', 'documents', 'versions']
+
+    if not Path(db_path).exists():
+        return False, required_tables  # All tables missing
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Get list of existing tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        existing_tables = {row[0] for row in cursor.fetchall()}
+
+        conn.close()
+
+        # Check which tables are missing
+        missing = [t for t in required_tables if t not in existing_tables]
+
+        return len(missing) == 0, missing
+
+    except Exception as e:
+        logger.error(f"Failed to check database schema: {e}")
+        return False, required_tables
+
+
 def validate_config(config: dict) -> tuple[bool, list[str]]:
     """
     Validate configuration is complete and ready for use.
@@ -2109,18 +2221,68 @@ def api_check_collision():
 
 def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
     """
-    Run import task in background thread.
+    Run import task in background thread with health checks and timeout.
 
     This function monitors the import subprocess and updates task status.
     """
     import shutil
+    import signal
+
+    # Set maximum execution time (2 hours)
+    MAX_EXECUTION_TIME = 7200
+
+    start_time = time.time()
 
     try:
+        # P0 HEALTH CHECK: Disk space validation
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Checking system health'
+            WORKFLOW_STATUS[task_id]['progress'] = 5
+
+        logger.info(f"[Task {task_id}] Running pre-import health checks...")
+
+        # Check disk space (require 5GB free)
+        disk_ok, disk_msg = check_disk_space(config.get('db_ingest', '/tmp'), required_gb=5.0)
+        if not disk_ok:
+            error_msg = f"Health check failed: {disk_msg}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] {disk_msg}")
+
+        # Check path writability
+        for path_key in ['db_ingest', 'db_backup', 'arch_loc']:
+            if path_key in config:
+                writable, write_msg = check_path_writable(config[path_key])
+                if not writable:
+                    error_msg = f"Health check failed: {write_msg}"
+                    logger.error(f"[Task {task_id}] {error_msg}")
+                    with WORKFLOW_LOCK:
+                        WORKFLOW_STATUS[task_id]['error'] = error_msg
+                        WORKFLOW_STATUS[task_id]['running'] = False
+                    return
+                logger.info(f"[Task {task_id}] {write_msg}")
+
+        # Check database schema
+        schema_ok, missing_tables = check_database_schema(config['db_loc'])
+        if not schema_ok and Path(config['db_loc']).exists():
+            logger.warning(f"[Task {task_id}] Database exists but missing tables: {missing_tables}")
+            logger.info(f"[Task {task_id}] Migration will create missing tables")
+
+        # Cleanup orphaned temp directories
+        cleaned = cleanup_orphaned_temp_dirs(max_age_hours=24)
+        if cleaned > 0:
+            logger.info(f"[Task {task_id}] Cleaned up {cleaned} orphaned temp directories")
+
         # Update status: Starting migration
         with WORKFLOW_LOCK:
             WORKFLOW_STATUS[task_id]['current_step'] = 'Initializing database schema'
             WORKFLOW_STATUS[task_id]['progress'] = 10
 
+        logger.info(f"[Task {task_id}] Health checks passed - starting import")
         logger.info(f"[Task {task_id}] Running database migration...")
 
         # Run db_migrate.py
@@ -2169,9 +2331,19 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
             bufsize=1
         )
 
-        # Monitor output for progress
+        # Monitor output for progress with timeout
         import_logs = []
         while True:
+            # P1 HEALTH CHECK: Timeout monitoring
+            elapsed = time.time() - start_time
+            if elapsed > MAX_EXECUTION_TIME:
+                logger.error(f"[Task {task_id}] Import timeout after {elapsed/3600:.1f} hours")
+                process.kill()
+                with WORKFLOW_LOCK:
+                    WORKFLOW_STATUS[task_id]['error'] = f'Import timed out after {elapsed/3600:.1f} hours'
+                    WORKFLOW_STATUS[task_id]['running'] = False
+                return
+
             output = process.stdout.readline()
             if output == '' and process.poll() is not None:
                 break
@@ -2183,6 +2355,7 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
                 # Update progress based on output
                 with WORKFLOW_LOCK:
                     WORKFLOW_STATUS[task_id]['logs'] = import_logs[-10:]  # Keep last 10 lines
+                    WORKFLOW_STATUS[task_id]['elapsed_time'] = int(elapsed)
 
                     # Parse progress from output if available
                     if 'Processing file' in line or 'Importing' in line:
@@ -2399,6 +2572,68 @@ def api_task_status_single(task_id):
             return jsonify(WORKFLOW_STATUS[task_id])
         else:
             return jsonify({'error': 'Task not found'}), 404
+
+
+@app.route('/api/health')
+def api_health():
+    """Get system health status."""
+    try:
+        config = load_config()
+        health = {
+            'status': 'healthy',
+            'checks': {},
+            'timestamp': datetime.now().isoformat()
+        }
+
+        # Disk space check
+        if 'db_ingest' in config:
+            disk_ok, disk_msg = check_disk_space(config['db_ingest'], required_gb=5.0)
+            health['checks']['disk_space'] = {
+                'status': 'pass' if disk_ok else 'fail',
+                'message': disk_msg
+            }
+            if not disk_ok:
+                health['status'] = 'degraded'
+
+        # Database schema check
+        if 'db_loc' in config:
+            schema_ok, missing = check_database_schema(config['db_loc'])
+            health['checks']['database_schema'] = {
+                'status': 'pass' if schema_ok else 'fail',
+                'missing_tables': missing if not schema_ok else []
+            }
+            if not schema_ok and Path(config['db_loc']).exists():
+                health['status'] = 'degraded'
+
+        # Path writability checks
+        health['checks']['paths'] = {}
+        for path_key in ['db_ingest', 'db_backup', 'arch_loc']:
+            if path_key in config:
+                writable, msg = check_path_writable(config[path_key])
+                health['checks']['paths'][path_key] = {
+                    'status': 'pass' if writable else 'fail',
+                    'message': msg
+                }
+                if not writable:
+                    health['status'] = 'unhealthy'
+
+        # Active tasks count
+        with WORKFLOW_LOCK:
+            running_tasks = sum(1 for t in WORKFLOW_STATUS.values() if t.get('running'))
+            health['checks']['active_tasks'] = {
+                'count': running_tasks,
+                'status': 'pass'
+            }
+
+        return jsonify(health)
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 
 @app.route('/settings')
