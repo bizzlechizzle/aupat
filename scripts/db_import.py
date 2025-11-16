@@ -422,9 +422,9 @@ def import_media_files(
                         (
                             sha256,
                             new_filename,
-                            str(staging_file),
+                            None,  # img_loc stays NULL until ingest moves to archive
                             loc_uuid,
-                            orig_location,
+                            str(staging_file),  # img_loco now points to staging location
                             orig_name,
                             timestamp,
                             timestamp,
@@ -445,9 +445,9 @@ def import_media_files(
                         (
                             sha256,
                             new_filename,
-                            str(staging_file),
+                            None,  # vid_loc stays NULL until ingest moves to archive
                             loc_uuid,
-                            orig_location,
+                            str(staging_file),  # vid_loco now points to staging location
                             orig_name,
                             timestamp,
                             timestamp,
@@ -468,10 +468,10 @@ def import_media_files(
                         (
                             sha256,
                             new_filename,
-                            str(staging_file),
+                            None,  # doc_loc stays NULL until ingest moves to archive
                             ext,
                             loc_uuid,
-                            orig_location,
+                            str(staging_file),  # doc_loco now points to staging location
                             orig_name,
                             timestamp,
                             timestamp,

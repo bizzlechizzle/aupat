@@ -149,13 +149,14 @@ def get_destination_folder(
         raise ValueError(f"Unknown media type: {media_type}")
 
 
-def ingest_images(db_path: str, arch_loc: str) -> int:
+def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     """
     Ingest images from staging to archive.
 
     Args:
         db_path: Path to database
         arch_loc: Archive root directory
+        ingest_dir: Staging/ingest directory path (optional, loaded from config if not provided)
 
     Returns:
         int: Number of images ingested
@@ -168,17 +169,17 @@ def ingest_images(db_path: str, arch_loc: str) -> int:
     ingested_count = 0
 
     try:
-        # Get images that need ingesting (have loco but no permanent loc)
+        # Get images that need ingesting (img_loc is NULL, meaning not yet in archive)
         cursor.execute(
             """
             SELECT
-                i.img_sha256, i.img_loco, i.img_nameo,
+                i.img_sha256, i.img_name, i.img_loco,
                 i.camera, i.phone, i.drone, i.go_pro, i.film, i.other,
                 i.loc_uuid, i.sub_uuid,
                 l.loc_name, l.state, l.type
             FROM images i
             JOIN locations l ON i.loc_uuid = l.loc_uuid
-            WHERE i.img_loco IS NOT NULL AND (i.img_loc IS NULL OR i.img_loc = '')
+            WHERE i.img_loc IS NULL OR i.img_loc = ''
             """
         )
         images = cursor.fetchall()
@@ -186,7 +187,7 @@ def ingest_images(db_path: str, arch_loc: str) -> int:
         logger.info(f"Found {len(images)} images to ingest")
 
         for row in images:
-            (img_sha256, img_loco, img_nameo,
+            (img_sha256, img_name, img_loco,
              camera, phone, drone, go_pro, film, other,
              loc_uuid, sub_uuid,
              loc_name, state, loc_type) = row
@@ -205,10 +206,26 @@ def ingest_images(db_path: str, arch_loc: str) -> int:
             else:
                 category = 'other'
 
-            # Get file extension
-            ext = normalize_extension(Path(img_nameo).suffix)
+            # Source file is in staging at img_loco (which now points to staging path)
+            # If img_loco is NULL or doesn't exist, try to construct staging path from img_name
+            source_file = None
+            if img_loco and Path(img_loco).exists():
+                source_file = Path(img_loco)
+            elif ingest_dir and img_name:
+                # Fallback: construct staging path from ingest_dir/loc_uuid8/img_name
+                loc_uuid8 = loc_uuid[:8]
+                staging_path = Path(ingest_dir) / loc_uuid8 / img_name
+                if staging_path.exists():
+                    source_file = staging_path
 
-            # Generate standardized filename
+            if not source_file:
+                logger.warning(f"Source file not found for {img_name} (img_loco: {img_loco})")
+                continue
+
+            # Get file extension
+            ext = normalize_extension(source_file.suffix)
+
+            # Generate standardized filename (should match img_name, but regenerate for consistency)
             filename = generate_filename('img', loc_uuid, img_sha256, ext, sub_uuid)
 
             # Determine destination
@@ -218,13 +235,8 @@ def ingest_images(db_path: str, arch_loc: str) -> int:
             )
             dest_file = dest_folder / filename
 
-            # Move/link file
-            if not Path(img_loco).exists():
-                logger.warning(f"Source file not found: {img_loco}")
-                continue
-
             try:
-                method = move_or_link_file(img_loco, str(dest_file))
+                method = move_or_link_file(str(source_file), str(dest_file))
 
                 # Update database
                 cursor.execute(
@@ -251,13 +263,14 @@ def ingest_images(db_path: str, arch_loc: str) -> int:
     return ingested_count
 
 
-def ingest_videos(db_path: str, arch_loc: str) -> int:
+def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     """
     Ingest videos from staging to archive.
 
     Args:
         db_path: Path to database
         arch_loc: Archive root directory
+        ingest_dir: Staging/ingest directory path (optional, loaded from config if not provided)
 
     Returns:
         int: Number of videos ingested
@@ -270,17 +283,17 @@ def ingest_videos(db_path: str, arch_loc: str) -> int:
     ingested_count = 0
 
     try:
-        # Get videos that need ingesting
+        # Get videos that need ingesting (vid_loc is NULL, meaning not yet in archive)
         cursor.execute(
             """
             SELECT
-                v.vid_sha256, v.vid_loco, v.vid_nameo,
+                v.vid_sha256, v.vid_name, v.vid_loco,
                 v.camera, v.phone, v.drone, v.go_pro, v.dash_cam, v.other,
                 v.loc_uuid, v.sub_uuid,
                 l.loc_name, l.state, l.type
             FROM videos v
             JOIN locations l ON v.loc_uuid = l.loc_uuid
-            WHERE v.vid_loco IS NOT NULL AND (v.vid_loc IS NULL OR v.vid_loc = '')
+            WHERE v.vid_loc IS NULL OR v.vid_loc = ''
             """
         )
         videos = cursor.fetchall()
@@ -288,7 +301,7 @@ def ingest_videos(db_path: str, arch_loc: str) -> int:
         logger.info(f"Found {len(videos)} videos to ingest")
 
         for row in videos:
-            (vid_sha256, vid_loco, vid_nameo,
+            (vid_sha256, vid_name, vid_loco,
              camera, phone, drone, go_pro, dash_cam, other,
              loc_uuid, sub_uuid,
              loc_name, state, loc_type) = row
@@ -307,10 +320,26 @@ def ingest_videos(db_path: str, arch_loc: str) -> int:
             else:
                 category = 'other'
 
-            # Get file extension
-            ext = normalize_extension(Path(vid_nameo).suffix)
+            # Source file is in staging at vid_loco (which now points to staging path)
+            # If vid_loco is NULL or doesn't exist, try to construct staging path from vid_name
+            source_file = None
+            if vid_loco and Path(vid_loco).exists():
+                source_file = Path(vid_loco)
+            elif ingest_dir and vid_name:
+                # Fallback: construct staging path from ingest_dir/loc_uuid8/vid_name
+                loc_uuid8 = loc_uuid[:8]
+                staging_path = Path(ingest_dir) / loc_uuid8 / vid_name
+                if staging_path.exists():
+                    source_file = staging_path
 
-            # Generate standardized filename
+            if not source_file:
+                logger.warning(f"Source file not found for {vid_name} (vid_loco: {vid_loco})")
+                continue
+
+            # Get file extension
+            ext = normalize_extension(source_file.suffix)
+
+            # Generate standardized filename (should match vid_name, but regenerate for consistency)
             filename = generate_filename('vid', loc_uuid, vid_sha256, ext, sub_uuid)
 
             # Determine destination
@@ -320,13 +349,8 @@ def ingest_videos(db_path: str, arch_loc: str) -> int:
             )
             dest_file = dest_folder / filename
 
-            # Move/link file
-            if not Path(vid_loco).exists():
-                logger.warning(f"Source file not found: {vid_loco}")
-                continue
-
             try:
-                method = move_or_link_file(vid_loco, str(dest_file))
+                method = move_or_link_file(str(source_file), str(dest_file))
 
                 # Update database
                 cursor.execute(
@@ -384,10 +408,18 @@ def main():
         logger.info("=" * 60)
 
         # Ingest images
-        images_count = ingest_images(config['db_loc'], config['arch_loc'])
+        images_count = ingest_images(
+            config['db_loc'],
+            config['arch_loc'],
+            config.get('db_ingest')
+        )
 
         # Ingest videos
-        videos_count = ingest_videos(config['db_loc'], config['arch_loc'])
+        videos_count = ingest_videos(
+            config['db_loc'],
+            config['arch_loc'],
+            config.get('db_ingest')
+        )
 
         # Summary
         logger.info("=" * 60)
