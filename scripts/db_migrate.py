@@ -231,6 +231,45 @@ def get_current_versions(cursor: sqlite3.Cursor) -> dict:
         return {}
 
 
+def get_table_columns(cursor: sqlite3.Cursor, table_name: str) -> list:
+    """Get list of column names for a table."""
+    try:
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        return [row[1] for row in cursor.fetchall()]
+    except sqlite3.OperationalError:
+        return []
+
+
+def add_missing_columns(cursor: sqlite3.Cursor) -> None:
+    """Add missing columns to existing tables for schema migrations."""
+    migrations = [
+        # Add film photography columns to locations table
+        {
+            'table': 'locations',
+            'columns': [
+                ('is_film', 'INTEGER DEFAULT 0'),
+                ('film_stock', 'TEXT'),
+                ('film_format', 'TEXT')
+            ]
+        }
+    ]
+
+    for migration in migrations:
+        table = migration['table']
+        existing_columns = get_table_columns(cursor, table)
+
+        if not existing_columns:
+            # Table doesn't exist yet, will be created with full schema
+            continue
+
+        for column_name, column_def in migration['columns']:
+            if column_name not in existing_columns:
+                logger.info(f"  Adding column {column_name} to {table}")
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_def}")
+            else:
+                logger.debug(f"  Column {column_name} already exists in {table}")
+
+
 def create_database(db_path: str, backup_first: bool = True) -> None:
     """
     Create or update database schema.
@@ -307,6 +346,10 @@ def create_database(db_path: str, backup_first: bool = True) -> None:
         for table_name, sql in SCHEMA_SQL.items():
             logger.info(f"  Creating table: {table_name}")
             cursor.execute(sql)
+
+        # Add missing columns to existing tables (migrations)
+        logger.info("Checking for missing columns...")
+        add_missing_columns(cursor)
 
         # Create indexes
         logger.info("Creating indexes...")
