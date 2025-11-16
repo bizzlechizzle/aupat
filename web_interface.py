@@ -797,7 +797,7 @@ BASE_TEMPLATE = """
             let startPath = defaultPath;
             if (input.value && input.value.length > 0 && !input.value.includes('/absolute')) {
                 // Check if it's a valid-looking path (Unix or Windows)
-                if (input.value.startsWith('/') || /^[A-Za-z]:[\\\/]/.test(input.value)) {
+                if (input.value.startsWith('/') || /^[A-Za-z]:[\\\\\/]/.test(input.value)) {
                     startPath = input.value;
                 }
             }
@@ -1150,6 +1150,19 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
             <a href="/" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+
+    <!-- Upload Progress Bar -->
+    <div id="upload-progress" style="display: none; margin-top: 2rem;">
+        <h3>Upload Progress</h3>
+        <div style="background: var(--muted); border-radius: 8px; overflow: hidden; height: 40px; position: relative; margin-bottom: 1rem;">
+            <div id="progress-bar" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center;">
+                <span id="progress-text" style="color: var(--background); font-family: 'Roboto Mono', monospace; font-weight: 700; position: absolute; width: 100%; text-align: center;">0%</span>
+            </div>
+        </div>
+        <div id="progress-status" style="font-family: 'Roboto Mono', monospace; font-size: 0.9rem; opacity: 0.8;">
+            Preparing upload...
+        </div>
+    </div>
 </div>
 
 <style>
@@ -1420,6 +1433,76 @@ function validateFiles() {
     return true;
 }
 
+// Upload with progress tracking
+function uploadWithProgress(formData) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Show progress bar
+        const progressContainer = document.getElementById('upload-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressStatus = document.getElementById('progress-status');
+
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+
+        // Upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressText.textContent = percentComplete + '%';
+
+                const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                progressStatus.textContent = `Uploading files: ${loadedMB} MB / ${totalMB} MB`;
+            }
+        });
+
+        // Upload complete (server is now processing)
+        xhr.upload.addEventListener('load', () => {
+            progressBar.style.width = '100%';
+            progressText.textContent = '100%';
+            progressStatus.textContent = 'Upload complete - Processing files on server...';
+        });
+
+        // Request complete
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200 || xhr.status === 302) {
+                progressStatus.textContent = 'Import complete! Redirecting...';
+                // Follow redirect
+                if (xhr.responseURL) {
+                    window.location.href = xhr.responseURL;
+                } else {
+                    // Parse redirect from response
+                    window.location.href = '/locations';
+                }
+                resolve(xhr);
+            } else {
+                progressStatus.textContent = 'Import failed - See error below';
+                reject(new Error('Upload failed with status: ' + xhr.status));
+            }
+        });
+
+        // Error handling
+        xhr.addEventListener('error', () => {
+            progressStatus.textContent = 'Upload failed - Network error';
+            reject(new Error('Network error'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            progressStatus.textContent = 'Upload cancelled';
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Send request
+        xhr.open('POST', '/import/submit');
+        xhr.send(formData);
+    });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     checkFolderUploadSupport();
@@ -1428,8 +1511,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const importForm = document.getElementById('importForm');
     if (importForm) {
         importForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // Always prevent default, we'll handle upload manually
+
             if (!validateFiles()) {
-                e.preventDefault();
                 return false;
             }
 
@@ -1437,8 +1521,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitBtn = document.getElementById('submit-btn');
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Importing...';
+                submitBtn.textContent = 'Uploading...';
             }
+
+            // Create FormData from form
+            const formData = new FormData(importForm);
+
+            // Upload with progress tracking
+            uploadWithProgress(formData)
+                .then(() => {
+                    // Success - redirect handled in uploadWithProgress
+                })
+                .catch((error) => {
+                    console.error('Upload error:', error);
+                    // Re-enable submit button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Import Location';
+                    }
+                    alert('Upload failed: ' + error.message + '\n\nPlease try again or check the server logs.');
+                });
         });
     }
 });
@@ -1896,7 +1998,28 @@ def import_submit():
                     file.save(str(file_path))
                     logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
 
+            # First, run db_migrate.py to ensure database is properly initialized
+            logger.info("Running database migration to ensure schema is up-to-date...")
+            migrate_result = subprocess.run(
+                [
+                    sys.executable,
+                    'scripts/db_migrate.py',
+                    '--config', 'user/user.json'
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if migrate_result.returncode != 0:
+                logger.error(f"Database migration failed: {migrate_result.stderr}")
+                flash(f'Database initialization failed: {migrate_result.stderr}', 'error')
+                return redirect(url_for('import_form'))
+
+            logger.info("Database migration completed successfully")
+
             # Run import script with temp directory as source
+            logger.info("Starting import process...")
             result = subprocess.run(
                 [
                     sys.executable,
