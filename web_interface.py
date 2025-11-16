@@ -23,6 +23,7 @@ Last Updated: 2025-11-16
 import json
 import logging
 import os
+import platform
 import sqlite3
 import subprocess
 import sys
@@ -695,15 +696,30 @@ BASE_TEMPLATE = """
         // File explorer functionality
         let currentPath = '/';
         let currentInputField = null;
+        let defaultPath = null;
 
-        function openFileExplorer(inputId) {
+        async function openFileExplorer(inputId) {
             currentInputField = inputId;
             const input = document.getElementById(inputId);
 
-            // Use current value if it looks like a valid path, otherwise use user's home
-            let startPath = '/home/user';
-            if (input.value && input.value.startsWith('/') && !input.value.includes('/absolute')) {
-                startPath = input.value;
+            // Get default path from server if not already loaded
+            if (!defaultPath) {
+                try {
+                    const response = await fetch('/api/default-path');
+                    const data = await response.json();
+                    defaultPath = data.path;
+                } catch (error) {
+                    defaultPath = '/home';
+                }
+            }
+
+            // Use current value if it looks like a valid path, otherwise use default
+            let startPath = defaultPath;
+            if (input.value && input.value.length > 0 && !input.value.includes('/absolute')) {
+                // Check if it's a valid-looking path (Unix or Windows)
+                if (input.value.startsWith('/') || /^[A-Za-z]:[\\\/]/.test(input.value)) {
+                    startPath = input.value;
+                }
             }
             currentPath = startPath;
 
@@ -733,9 +749,9 @@ BASE_TEMPLATE = """
                 const data = await response.json();
 
                 if (data.error) {
-                    // If access denied, try to fall back to a safe directory
-                    if (response.status === 403 && path !== '/home/user') {
-                        loadDirectory('/home/user');
+                    // If access denied, try to fall back to default directory
+                    if (response.status === 403 && defaultPath && path !== defaultPath) {
+                        loadDirectory(defaultPath);
                         return;
                     }
 
@@ -1244,19 +1260,66 @@ def settings_save():
         return redirect(url_for('settings'))
 
 
+def get_allowed_prefixes():
+    """Get allowed directory prefixes based on the operating system."""
+    system = platform.system()
+
+    if system == 'Windows':
+        # Windows: Allow all drive letters and common network paths
+        allowed = []
+        for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            allowed.append(f'{letter}:\\')
+            allowed.append(f'{letter}:/')
+        allowed.extend(['\\\\', '//'])  # Network paths
+        return allowed
+    elif system == 'Darwin':  # macOS
+        return ['/Users', '/Volumes', '/Applications', '/Library', '/opt', '/var', '/srv', '/data', '/storage', '/backup']
+    else:  # Linux and other Unix-like
+        return ['/home', '/mnt', '/media', '/opt', '/var', '/srv', '/data', '/storage', '/backup']
+
+
+def get_default_home_path():
+    """Get the default home directory for the current OS."""
+    return str(Path.home())
+
+
+@app.route('/api/default-path')
+def api_default_path():
+    """Get the default starting path for file explorer."""
+    return jsonify({'path': get_default_home_path()})
+
+
 @app.route('/api/browse')
 def api_browse():
     """Browse filesystem directories for file explorer."""
     try:
-        path = request.args.get('path', '/home')
+        path = request.args.get('path', get_default_home_path())
         path_obj = Path(path).resolve()
 
         # Security: Prevent directory traversal attacks
         # Only allow browsing within reasonable directories
-        allowed_prefixes = ['/home', '/mnt', '/media', '/opt', '/var', '/srv', '/data', '/storage', '/backup']
+        allowed_prefixes = get_allowed_prefixes()
         path_str = str(path_obj)
-        if not any(path_str.startswith(prefix) for prefix in allowed_prefixes):
-            return jsonify({'error': 'Access denied to this directory. Allowed locations: /home, /mnt, /media, /opt, /var, /srv, /data, /storage, /backup'}), 403
+
+        # Normalize path for comparison (handle both / and \ on Windows)
+        normalized_path = path_str.replace('\\', '/')
+
+        is_allowed = False
+        for prefix in allowed_prefixes:
+            normalized_prefix = prefix.replace('\\', '/')
+            if normalized_path.startswith(normalized_prefix):
+                is_allowed = True
+                break
+
+        if not is_allowed:
+            system = platform.system()
+            if system == 'Windows':
+                error_msg = 'Access denied. Please browse from a local drive (C:, D:, etc.) or network path'
+            elif system == 'Darwin':
+                error_msg = 'Access denied. Allowed locations: /Users, /Volumes, /Applications, common system directories'
+            else:
+                error_msg = 'Access denied. Allowed locations: /home, /mnt, /media, /opt, /var, /srv, /data, /storage, /backup'
+            return jsonify({'error': error_msg}), 403
 
         if not path_obj.exists() or not path_obj.is_dir():
             return jsonify({'error': 'Directory does not exist'}), 404
@@ -1275,7 +1338,8 @@ def api_browse():
 
         # Get parent directory
         parent_path = None
-        if path_obj != Path('/'):
+        # Check if we're at a root (works for both Unix / and Windows C:\)
+        if path_obj.parent != path_obj:
             parent_path = str(path_obj.parent)
 
         return jsonify({
