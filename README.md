@@ -1,323 +1,176 @@
-# AUPAT
+# AUPAT - Abandoned Upstate Project Archive Tool
 
-Abandoned Upstate Project Archive Tool - A bulletproof digital asset management system for organizing location-based media collections with long-term data integrity.
+Location-based media archive system. Organizes photos/videos by location and camera hardware.
 
 ## What It Does
 
-Organizes photos, videos, documents, and URLs by geographic location with hardware-based categorization, metadata extraction, SHA256 deduplication, and comprehensive relationship tracking.
-
-**Input:** Unorganized media files in folders
-**Output:** Organized archive with SQLite database tracking everything
+1. Import media by location (name, type, state)
+2. Extract camera make/model from EXIF/metadata
+3. Categorize by hardware (DSLR, phone, drone, GoPro, dash cam)
+4. Store in organized archive with deduplication
+5. Generate location exports as JSON
 
 ## Quick Start
 
-### 1. Initial Setup
-
 ```bash
+# Setup
 bash setup.sh
-```
 
-This creates folder structure, virtual environment, installs dependencies, and configures user.json.
+# Run web interface
+python web_interface.py
 
-### 2. Edit Configuration
-
-```bash
-nano user/user.json
-```
-
-Set your database and archive paths. The setup script creates working defaults in `data/` but you can point to external drives.
-
-### 3. Choose Your Workflow
-
-#### Option A: Automated CLI (Recommended)
-
-```bash
-source venv/bin/activate
-./run_workflow.py --source /path/to/media --backup
-```
-
-Runs all steps automatically with progress tracking.
-
-#### Option B: Web Interface
-
-```bash
-source venv/bin/activate
-./web_interface.py
-```
-
-Open browser to http://localhost:5001
-
-#### Option C: Manual Step-by-Step
-
-```bash
-source venv/bin/activate
-python3 scripts/db_migrate.py      # Create database schema
-python3 scripts/db_import.py       # Import location and media
-python3 scripts/db_organize.py     # Extract metadata, categorize hardware
-python3 scripts/db_folder.py       # Create archive folder structure
-python3 scripts/db_ingest.py       # Move files to archive
-python3 scripts/db_verify.py       # Verify integrity, cleanup staging
-python3 scripts/db_identify.py     # Generate JSON exports
+# Navigate to http://localhost:5000
+# Import media, system handles the rest
 ```
 
 ## Requirements
 
-### System Requirements
-
-- Python 3.9+
-- SQLite 3 with JSON1 extension
-- exiftool (image metadata extraction)
-- ffprobe (video metadata extraction)
-
-### Install External Tools
-
-macOS:
-```bash
-brew install exiftool ffmpeg
-```
-
-Ubuntu/Debian:
-```bash
-apt-get install libimage-exiftool-perl ffmpeg
-```
-
-### Optional: Advanced Address Normalization
-
-```bash
-# macOS
-brew install libpostal
-pip install postal
-
-# Ubuntu
-apt-get install libpostal-dev
-pip install postal
-```
-
-## How It Works
-
-### Import Pipeline
-
-1. **db_migrate.py** - Creates/updates database schema with foreign key constraints and indexes
-2. **db_import.py** - Generates UUID4 for location, calculates SHA256 for files, stores in staging
-3. **db_organize.py** - Extracts EXIF (images) and ffprobe (videos) metadata, categorizes by hardware
-4. **db_folder.py** - Creates organized folder structure: `{state-type}/{location_name}_{uuid8}/photos|videos|documents`
-5. **db_ingest.py** - Moves files with standardized naming: `{uuid8}-img_{sha8}.ext`
-6. **db_verify.py** - Verifies SHA256 integrity, deletes staging only after verification passes
-7. **db_identify.py** - Exports master JSON file per location with all metadata
-
-### Hardware Categorization
-
-**Photos:**
-- original_camera (DSLR: Canon, Nikon, Sony, Fujifilm, etc.)
-- original_phone (iPhone, Samsung, Google Pixel, etc.)
-- original_drone (DJI, Autel, Parrot, etc.)
-- original_go-pro (GoPro action cameras)
-- original_film (scanned film)
-- original_other (uncategorized)
-
-**Videos:**
-- original_camera (DSLR video)
-- original_phone (smartphone video)
-- original_drone (aerial footage)
-- original_go-pro (action video)
-- original_dash-cam (dash cam footage)
-- original_other (uncategorized, including live videos)
-
-### Data Integrity
-
-- **SHA256 hashing:** Deduplication and integrity verification
-- **UUID4 identifiers:** Unique location IDs with collision detection
-- **Foreign keys:** Enforced relationships with CASCADE/SET NULL
-- **Transaction safety:** All database modifications wrapped in BEGIN/COMMIT/ROLLBACK
-- **Automated backups:** Before schema changes and bulk operations
-- **Verification before cleanup:** Never delete staging files until archive verified
-
-## CLI Orchestration
-
-The `run_workflow.py` script automates the complete pipeline:
-
-```bash
-# Basic usage
-./run_workflow.py --source /path/to/media --backup
-
-# Dry run (show what would execute)
-./run_workflow.py --source /path/to/media --dry-run
-
-# Interactive mode (prompt before each step)
-./run_workflow.py --source /path/to/media --interactive
-
-# Skip specific steps
-./run_workflow.py --skip "Import Media" --skip "Export JSON"
-
-# Process existing database without new imports
-./run_workflow.py --skip "Import Media"
-```
-
-**Options:**
-- `--source PATH` - Source directory with media files
-- `--backup` - Create database backup after completion
-- `--dry-run` - Show execution plan without running
-- `--interactive` - Prompt before each step
-- `--skip STEP` - Skip specific workflow steps (repeatable)
-- `--config PATH` - Custom user.json path
-- `--verbose` - Enable verbose logging
-
-## Web Interface
-
-Flask-based web UI with dashboard, location browser, and import form.
-
-```bash
-source venv/bin/activate
-./web_interface.py
-```
-
-**Features:**
-- Dashboard with statistics and recent imports
-- Location browser with pagination
-- Import form with preview mode
-- Theme toggle (light/dark)
-- Responsive mobile design
-- Matches abandonedupstate.com aesthetic
+- Python 3
+- exiftool (for image metadata)
+- ffmpeg/ffprobe (for video metadata)
+- SQLite with JSON1
 
 ## Project Structure
 
 ```
 aupat/
-├── scripts/                    # Core Python scripts
-│   ├── db_migrate.py          # Database schema management
-│   ├── db_import.py           # Import media to staging
-│   ├── db_organize.py         # Metadata extraction and categorization
-│   ├── db_folder.py           # Create archive folder structure
-│   ├── db_ingest.py           # Move files to archive
-│   ├── db_verify.py           # Integrity verification
-│   ├── db_identify.py         # JSON export generation
-│   ├── database_cleanup.py    # Maintenance and integrity checks
-│   ├── backup.py              # Database backups
-│   ├── normalize.py           # Text normalization utilities
-│   └── utils.py               # Shared utilities
-├── data/                       # JSON configuration files
-│   ├── locations.json         # Locations table schema
-│   ├── images.json            # Images table schema
-│   ├── videos.json            # Videos table schema
-│   ├── documents.json         # Documents table schema
-│   ├── urls.json              # URLs table schema
-│   ├── sub-locations.json     # Sub-locations table schema
-│   ├── versions.json          # Version tracking schema
-│   ├── camera_hardware.json   # Hardware classification rules
-│   ├── approved_ext.json      # Special file extension handling
-│   ├── ignored_ext.json       # Excluded file extensions
-│   ├── live_videos.json       # Live photo matching rules
-│   ├── folder.json            # Folder structure template
-│   └── name.json              # File naming conventions
-├── user/                       # User configuration
-│   └── user.json              # Database paths and settings
-├── logseq/                     # Original documentation (32+ .md files)
-├── claude.md                   # AI collaboration guide
-├── claudecode.md               # Development methodology
-├── project-overview.md         # Complete technical reference
-├── web_interface.py            # Flask web application
-├── run_workflow.py             # CLI orchestration script
-├── check_import_status.py      # Status checking utility
-├── setup.sh                    # Initial setup script
-└── requirements.txt            # Python dependencies
+├── scripts/           # Python pipeline scripts
+├── data/              # JSON configs + database
+├── user/              # User config (gitignored)
+├── logseq/pages/      # Complete documentation
+├── claude.md          # AI collaboration guide
+└── web_interface.py   # Web UI
 ```
 
-**Gitignored folders:**
-- `venv/` - Python virtual environment
-- `backups/` - Database backups
-- `logs/` - Application logs
-- `data/aupat.db` - SQLite database
+## Import Pipeline
+
+1. `db_migrate.py` - Create database schema
+2. `db_import.py` - Import location and media
+3. `db_organize.py` - Extract metadata and categorize
+4. `db_folder.py` - Create folder structure
+5. `db_ingest.py` - Move files to archive
+6. `db_verify.py` - Verify integrity
+7. `db_identify.py` - Generate JSON exports
+
+Web interface runs this automatically.
+
+## Camera Categories
+
+- **DSLR**: Canon, Nikon, Sony, Fujifilm, Panasonic, Olympus, Leica, etc.
+- **Phone**: iPhone, Samsung, Google Pixel, etc.
+- **Drone**: DJI, Autel, Parrot
+- **GoPro**: GoPro action cameras
+- **Dash Cam**: Vantrue, BlackVue, Garmin, etc.
+- **Other**: Unknown or uncategorized
+
+Categories defined in `data/camera_hardware.json`.
+
+## Configuration
+
+Edit `user/user.json` (created by setup.sh):
+
+```json
+{
+  "db_name": "aupat.db",
+  "db_loc": "/path/to/database/aupat.db",
+  "db_backup": "/path/to/backups/",
+  "db_ingest": "/path/to/ingest/",
+  "arch_loc": "/path/to/archive/"
+}
+```
 
 ## Database Schema
 
-**Tables:**
-- **locations** - Main locations (name, state, type, UUID, timestamps)
-- **sub_locations** - Sub-locations within main locations (optional)
-- **images** - Images with SHA256, hardware flags, metadata JSON
-- **videos** - Videos with SHA256, hardware flags, metadata JSON
-- **documents** - Documents (.srt, .xml, .pdf, .zip, etc.)
-- **urls** - URL references (websites, galleries, articles)
-- **versions** - Version tracking for schema and scripts
+- **locations** - Location info (name, type, state, GPS)
+- **images** - Image files with EXIF and categorization
+- **videos** - Video files with metadata and categorization
+- **documents** - Documents and other files
+- **urls** - Web URLs related to locations
 
-**Key Features:**
-- UUID4 primary keys for locations
-- SHA256 unique constraints for deduplication
-- Foreign keys with CASCADE/SET NULL
-- JSON1 fields for hardware metadata and relationships
-- Transaction safety for all modifications
+Full schema in `logseq/pages/`.
 
-## Engineering Principles
+## File Naming
 
-1. **BPA (Best Practices Always):** Industry standards, no compromises
-2. **BPL (Bulletproof Longterm):** Code survives years without modification
-3. **KISS (Keep It Simple):** Simplicity over cleverness
-4. **FAANG PE (FAANG Personal Edition):** Production-grade without enterprise bloat
-5. **NEE (No Emojis Ever):** Professional documentation only
-6. **Data Integrity Above All:** Fail safely, verify before deleting, backup before destructive operations
+Archives use content-addressable naming:
+
+- Images: `loc_uuid8-img_sha8.ext`
+- Videos: `loc_uuid8-vid_sha8.ext`
+- Documents: `loc_uuid8-doc_sha8.ext`
+
+With sub-locations: `loc_uuid8-sub_uuid8-{img|vid|doc}_sha8.ext`
+
+- `uuid8` = first 8 chars of location UUID
+- `sha8` = first 8 chars of file SHA256
 
 ## Documentation
 
-- **claude.md** - AI collaboration guide with project context
-- **claudecode.md** - Development methodology and 9-step workflow
-- **project-overview.md** - Complete technical reference (2000+ lines)
-- **logseq/pages/** - Detailed specification files (32+ documents)
+Complete specifications in `logseq/pages/`:
 
-## Testing
+- **claude.md** - AI collaboration guide
+- **claudecode.md** - Development methodology
+- **db_*.md** - Script specifications
+- **{table}_table.md** - Database schemas
+- **camera_hardware.md** - Hardware categorization rules
 
-Test data included in `tempdata/`:
-- Middletown State Hospital (NEF photos)
-- Water Slide World (DNG photos, MOV videos)
+## Development
 
-```bash
-# Run test import
-source venv/bin/activate
-./run_workflow.py --source tempdata/testphotos --backup
-```
+Follows KISS and bulletproof longterm principles:
+
+- Transaction-safe database operations
+- SHA256 deduplication
+- Staging before final ingest
+- Verification before cleanup
+- No destructive operations without backup
+
+See `claude.md` for complete development guidelines.
 
 ## Troubleshooting
 
-### Database errors
-Run migration to create/update schema:
+**Import fails with "user.json not found"**:
 ```bash
-python3 scripts/db_migrate.py
+bash setup.sh
 ```
 
-### Missing user.json
-Copy and edit template:
+**Camera categorization not working**:
+Check exiftool is installed:
 ```bash
-cp user/user.json.template user/user.json
-nano user/user.json
+brew install exiftool  # macOS
+apt install libimage-exiftool-perl  # Linux
 ```
 
-### Import verification failures
-Check logs in `logs/` directory. Staging files preserved for recovery.
-
-### Virtual environment not activated
-Always activate before running:
+**Video metadata extraction fails**:
+Check ffmpeg is installed:
 ```bash
-source venv/bin/activate
+brew install ffmpeg  # macOS
+apt install ffmpeg  # Linux
 ```
 
-## Development Status
+**Database errors**:
+```bash
+# Check database exists
+ls -la data/aupat.db
 
-**Stage 1 (CLI Import Tool):** Complete
-**Stage 2 (Web Application):** In Progress
-**Stage 3 (Dockerization):** Not Started
-**Stage 4 (Mobile App):** Not Started
+# Recreate schema
+python scripts/db_migrate.py
+```
 
-## Technology Stack
+## Testing
 
-- **Language:** Python 3.9+
-- **Database:** SQLite 3 with JSON1 extension
-- **Metadata:** exiftool (images), ffprobe (videos)
-- **Normalization:** unidecode, libpostal (optional), dateutil
-- **Web Framework:** Flask
-- **Frontend:** HTML, CSS, vanilla JavaScript
+Test data in `tempdata/testphotos/`:
+- Middletown State Hospital (8 Nikon NEF files)
+- Water Slide World (DNG files + videos)
 
-## Version
-
-Version 1.0 - Stage 1 Complete
+Use for pipeline testing.
 
 ## License
 
-MIT
+See LICENSE file.
+
+## Status
+
+Stage 1 (CLI/Web Import Tool) - Active development
+
+Future stages:
+- Stage 2: Enhanced web interface
+- Stage 3: Docker deployment
+- Stage 4: Mobile app with Docker backend

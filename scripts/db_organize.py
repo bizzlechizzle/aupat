@@ -151,7 +151,7 @@ def categorize_hardware(make: str, model: str, hardware_rules: dict) -> str:
     make_lower = make.lower()
 
     # Check each category
-    for category, rules in hardware_rules.items():
+    for category, rules in hardware_rules.get('categories', {}).items():
         if 'makes' in rules:
             for rule_make in rules['makes']:
                 if rule_make.lower() in make_lower:
@@ -220,8 +220,8 @@ def organize_images(db_path: str) -> int:
                 WHERE img_sha256 = ?
                 """,
                 (
-                    json.dumps(exif),
-                    json.dumps({'make': make, 'model': model, 'category': category}),
+                    1 if exif else 0,
+                    json.dumps({'make': make, 'model': model}),
                     1 if category == 'camera' else 0,
                     1 if category == 'phone' else 0,
                     1 if category == 'drone' else 0,
@@ -308,8 +308,8 @@ def organize_videos(db_path: str) -> int:
                 WHERE vid_sha256 = ?
                 """,
                 (
-                    json.dumps(metadata),
-                    json.dumps({'make': make, 'model': model, 'category': category}),
+                    1 if metadata else 0,
+                    json.dumps({'make': make, 'model': model}),
                     1 if category == 'camera' else 0,
                     1 if category == 'phone' else 0,
                     1 if category == 'drone' else 0,
