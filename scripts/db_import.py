@@ -28,6 +28,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
+from urllib.parse import urlparse
 import sys
 from pathlib import Path
 
@@ -175,7 +176,10 @@ def import_location_from_metadata(db_path: str, metadata_path: str) -> dict:
         'state': normalize_state_code(metadata['state']),
         'type': normalize_location_type(metadata['type']),
         'sub_type': normalize_sub_type(metadata['sub_type']) if metadata.get('sub_type') else None,
-        'imp_author': normalize_author(metadata['imp_author']) if metadata.get('imp_author') else None
+        'imp_author': normalize_author(metadata['imp_author']) if metadata.get('imp_author') else None,
+        'is_film': 1 if metadata.get('is_film') else 0,
+        'film_stock': metadata.get('film_stock'),
+        'film_format': metadata.get('film_format')
     }
 
     logger.info("Location data loaded from metadata:")
@@ -530,8 +534,8 @@ def create_location_record(db_path: str, location_data: dict) -> None:
             """
             INSERT INTO locations (
                 loc_uuid, loc_name, aka_name, state, type, sub_type,
-                loc_add, loc_update, imp_author
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                loc_add, loc_update, imp_author, is_film, film_stock, film_format
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 location_data['loc_uuid'],
@@ -542,7 +546,10 @@ def create_location_record(db_path: str, location_data: dict) -> None:
                 location_data.get('sub_type'),
                 timestamp,
                 timestamp,
-                location_data.get('imp_author')
+                location_data.get('imp_author'),
+                location_data.get('is_film', 0),
+                location_data.get('film_stock'),
+                location_data.get('film_format')
             )
         )
 
@@ -551,6 +558,86 @@ def create_location_record(db_path: str, location_data: dict) -> None:
 
     finally:
         conn.close()
+
+
+def import_web_urls(db_path: str, metadata_path: str, loc_uuid: str, imp_author: str) -> int:
+    """
+    Import web URLs from metadata.json into the urls table.
+
+    Args:
+        db_path: Path to database
+        metadata_path: Path to metadata.json file
+        loc_uuid: Location UUID to associate URLs with
+        imp_author: Author name for tracking
+
+    Returns:
+        int: Number of URLs imported
+
+    Raises:
+        ValueError: If metadata file not found
+    """
+    # Load metadata
+    if not Path(metadata_path).exists():
+        raise ValueError(f"Metadata file not found: {metadata_path}")
+
+    with open(metadata_path, 'r') as f:
+        metadata = json.load(f)
+
+    web_urls = metadata.get('web_urls', [])
+    if not web_urls:
+        logger.info("No web URLs to import")
+        return 0
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        timestamp = normalize_datetime(None)
+        imported_count = 0
+
+        for url in web_urls:
+            url = url.strip()
+            if not url:
+                continue
+
+            # Parse domain from URL
+            try:
+                parsed = urlparse(url)
+                domain = parsed.netloc or parsed.path.split('/')[0]
+            except Exception as e:
+                logger.warning(f"Failed to parse URL {url}: {e}")
+                domain = "unknown"
+
+            # Generate UUID for URL
+            url_uuid = generate_uuid(cursor, 'urls', 'url_uuid')
+
+            # Insert URL record
+            cursor.execute(
+                """
+                INSERT INTO urls (
+                    url_uuid, url, domain, loc_uuid, url_add, url_update, imp_author
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    url_uuid,
+                    url,
+                    domain,
+                    loc_uuid,
+                    timestamp,
+                    timestamp,
+                    imp_author
+                )
+            )
+            imported_count += 1
+            logger.info(f"Imported URL: {url} (domain: {domain})")
+
+        conn.commit()
+        logger.info(f"✓ Imported {imported_count} web URL(s)")
+
+    finally:
+        conn.close()
+
+    return imported_count
 
 
 def main():
@@ -640,6 +727,17 @@ Features (P0/P1):
         # Create location record
         create_location_record(config['db_loc'], location_data)
 
+        # Import web URLs if metadata file provided (web interface mode)
+        url_count = 0
+        if args.metadata:
+            logger.info("\nImporting web URLs...")
+            url_count = import_web_urls(
+                config['db_loc'],
+                args.metadata,
+                location_data['loc_uuid'],
+                location_data.get('imp_author', 'unknown')
+            )
+
         # P0: Import media files with full database integration
         logger.info("\nImporting media files...")
         stats = import_media_files(
@@ -662,6 +760,8 @@ Features (P0/P1):
         logger.info(f"  - Images: {stats['images']}")
         logger.info(f"  - Videos: {stats['videos']}")
         logger.info(f"  - Documents: {stats['documents']}")
+        if url_count > 0:
+            logger.info(f"  - Web URLs: {url_count}")
         logger.info(f"")
         logger.info(f"Duplicates skipped: {stats['duplicates']}")
         logger.info(f"Unknown types skipped: {stats['skipped']}")

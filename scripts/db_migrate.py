@@ -51,7 +51,10 @@ SCHEMA_SQL = {
             loc_add TEXT,
             loc_update TEXT,
             imp_author TEXT,
-            json_update TEXT
+            json_update TEXT,
+            is_film INTEGER DEFAULT 0,
+            film_stock TEXT,
+            film_format TEXT
         )
     """,
 

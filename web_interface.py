@@ -223,6 +223,32 @@ def check_database_schema(db_path: str) -> tuple[bool, list[str]]:
         return False, required_tables
 
 
+def check_external_tools() -> tuple[bool, list[str]]:
+    """
+    Check if required external tools are available.
+    Returns (all_available, list_of_missing_tools).
+    """
+    missing = []
+
+    # Check for exiftool (required for EXIF metadata extraction)
+    try:
+        result = subprocess.run(['which', 'exiftool'], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            missing.append('exiftool')
+    except Exception:
+        missing.append('exiftool')
+
+    # Check for ffprobe (required for video metadata extraction)
+    try:
+        result = subprocess.run(['which', 'ffprobe'], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            missing.append('ffprobe')
+    except Exception:
+        missing.append('ffprobe')
+
+    return len(missing) == 0, missing
+
+
 def validate_config(config: dict) -> tuple[bool, list[str]]:
     """
     Validate configuration is complete and ready for use.
@@ -2818,6 +2844,21 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
             return
 
         logger.info(f"[Task {task_id}] Stage 1/5: Import to staging completed")
+
+        # Pre-check: Verify external tools are available before Stage 2
+        tools_available, missing_tools = check_external_tools()
+        if not tools_available:
+            error_msg = f"Missing required tools for metadata extraction: {', '.join(missing_tools)}\n"
+            error_msg += "Install missing tools:\n"
+            if 'exiftool' in missing_tools:
+                error_msg += "  - exiftool: apt-get install libimage-exiftool-perl (Ubuntu) or brew install exiftool (macOS)\n"
+            if 'ffprobe' in missing_tools:
+                error_msg += "  - ffprobe: apt-get install ffmpeg (Ubuntu) or brew install ffmpeg (macOS)\n"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
 
         # STAGE 2: Extract metadata (db_organize.py)
         with WORKFLOW_LOCK:
