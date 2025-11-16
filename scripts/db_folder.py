@@ -122,7 +122,8 @@ def create_folder_structure(
     """, (loc_uuid,))
 
     img_result = cursor.fetchone()
-    img_counts = img_result if img_result else (0, 0, 0, 0, 0, 0)
+    # Handle None values from SUM() when no rows match
+    img_counts = tuple(c if c is not None else 0 for c in img_result) if img_result else (0, 0, 0, 0, 0, 0)
     has_images = sum(img_counts) > 0
 
     # Check which video hardware categories have files
@@ -139,7 +140,8 @@ def create_folder_structure(
     """, (loc_uuid,))
 
     vid_result = cursor.fetchone()
-    vid_counts = vid_result if vid_result else (0, 0, 0, 0, 0, 0)
+    # Handle None values from SUM() when no rows match
+    vid_counts = tuple(c if c is not None else 0 for c in vid_result) if vid_result else (0, 0, 0, 0, 0, 0)
     has_videos = sum(vid_counts) > 0
 
     # Check if we have documents
