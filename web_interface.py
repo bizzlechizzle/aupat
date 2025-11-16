@@ -1769,14 +1769,6 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
 {% block content %}
 <h2>Import Media</h2>
 <p style="margin-bottom: 1rem; opacity: 0.8;">Import a new location and associated media files</p>
-<div style="background: rgba(185, 151, 92, 0.1); border-left: 3px solid var(--accent); padding: 1rem; margin-bottom: 2rem; font-size: 0.9rem;">
-    <strong>Import Pipeline:</strong> This will run a 5-stage automated process:<br>
-    1. Import files to staging<br>
-    2. Extract metadata (EXIF, hardware detection)<br>
-    3. Create organized folder structure<br>
-    4. Move files to archive<br>
-    5. Verify integrity and cleanup
-</div>
 
 <div class="card">
     <form method="POST" action="/import/submit" enctype="multipart/form-data" id="importForm">
