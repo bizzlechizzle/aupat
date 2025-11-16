@@ -115,6 +115,79 @@ def run_backup(config_path: str) -> bool:
         return False
 
 
+def import_location_from_metadata(db_path: str, metadata_path: str) -> dict:
+    """
+    Load location information from metadata.json file (for web interface imports).
+
+    Args:
+        db_path: Path to database
+        metadata_path: Path to metadata.json file
+
+    Returns:
+        dict: Location data
+
+    Raises:
+        FileNotFoundError: If metadata file not found
+        ValueError: If metadata is invalid
+    """
+    metadata_file = Path(metadata_path)
+    if not metadata_file.exists():
+        raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+
+    logger.info(f"Loading location data from metadata: {metadata_path}")
+
+    with open(metadata_file, 'r') as f:
+        metadata = json.load(f)
+
+    # Validate required fields
+    required_fields = ['loc_name', 'state', 'type']
+    missing_fields = [f for f in required_fields if not metadata.get(f)]
+    if missing_fields:
+        raise ValueError(f"Metadata missing required fields: {missing_fields}")
+
+    # Extract and normalize data
+    loc_name = normalize_location_name(metadata['loc_name'])
+
+    # Check for location name collision
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    existing_uuid = check_location_name_collision(cursor, loc_name)
+    if existing_uuid:
+        logger.warning(f"⚠ Location name already exists: {loc_name}")
+        logger.warning(f"  Existing UUID: {existing_uuid}")
+        logger.warning("⚠ Creating duplicate location (web interface import)")
+
+    # Generate UUID
+    loc_uuid = generate_uuid(cursor, 'locations', 'loc_uuid')
+    conn.close()
+
+    loc_uuid8 = loc_uuid[:8]
+    logger.info(f"Generated Location UUID: {loc_uuid}")
+    logger.info(f"Location UUID8: {loc_uuid8}")
+
+    # Build location data dict
+    location_data = {
+        'loc_uuid': loc_uuid,
+        'loc_uuid8': loc_uuid8,
+        'loc_name': loc_name,
+        'aka_name': normalize_location_name(metadata['aka_name']) if metadata.get('aka_name') else None,
+        'state': normalize_state_code(metadata['state']),
+        'type': normalize_location_type(metadata['type']),
+        'sub_type': normalize_sub_type(metadata['sub_type']) if metadata.get('sub_type') else None,
+        'imp_author': normalize_author(metadata['imp_author']) if metadata.get('imp_author') else None
+    }
+
+    logger.info("Location data loaded from metadata:")
+    logger.info(f"  Name: {location_data['loc_name']}")
+    logger.info(f"  State: {location_data['state']}")
+    logger.info(f"  Type: {location_data['type']}")
+    if location_data['imp_author']:
+        logger.info(f"  Author: {location_data['imp_author']}")
+
+    return location_data
+
+
 def import_location_interactive(db_path: str) -> dict:
     """
     Interactively collect location information from user.
@@ -516,6 +589,11 @@ Features (P0/P1):
         help='Source directory containing media files to import'
     )
     parser.add_argument(
+        '--metadata',
+        type=str,
+        help='Path to metadata.json file with location data (for non-interactive/web imports)'
+    )
+    parser.add_argument(
         '--skip-backup',
         action='store_true',
         help='Skip database backup (not recommended)'
@@ -551,7 +629,13 @@ Features (P0/P1):
             logger.warning("⚠ Skipping backup (--skip-backup flag set)")
 
         # P1: Collect location information (includes name collision check)
-        location_data = import_location_interactive(config['db_loc'])
+        # Use metadata file if provided (web interface), otherwise prompt interactively
+        if args.metadata:
+            logger.info(f"Using metadata file: {args.metadata}")
+            location_data = import_location_from_metadata(config['db_loc'], args.metadata)
+        else:
+            logger.info("Interactive mode - prompting for location details")
+            location_data = import_location_interactive(config['db_loc'])
 
         # Create location record
         create_location_record(config['db_loc'], location_data)

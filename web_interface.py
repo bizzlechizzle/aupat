@@ -2153,12 +2153,15 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
         logger.info(f"[Task {task_id}] Starting import process...")
 
         # Run import with Popen to monitor output
+        # Pass --metadata to tell script to read metadata.json instead of prompting
         process = subprocess.Popen(
             [
                 sys.executable,
                 'scripts/db_import.py',
                 '--source', str(temp_dir),
-                '--config', 'user/user.json'
+                '--config', 'user/user.json',
+                '--metadata', str(temp_dir / 'metadata.json'),
+                '--skip-backup'  # Already ran migration above
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -2247,7 +2250,7 @@ def import_submit():
             logger.error(f"Configuration validation failed: {issues}")
             return redirect(url_for('import_form'))
 
-        # Get and normalize form data
+        # Get and normalize form data - collect ALL fields
         data = {
             'loc_uuid': request.form.get('loc_uuid'),
             'loc_name': normalize_location_name(request.form.get('loc_name')),
@@ -2255,7 +2258,13 @@ def import_submit():
             'state': normalize_state_code(request.form.get('state')),
             'type': normalize_location_type(request.form.get('type')),
             'sub_type': normalize_sub_type(request.form.get('sub_type')) if request.form.get('sub_type') else None,
-            'imp_author': normalize_author(request.form.get('imp_author')) if request.form.get('imp_author') else None
+            'imp_author': normalize_author(request.form.get('imp_author')) if request.form.get('imp_author') else None,
+            # Film photography data
+            'is_film': request.form.get('is_film') == 'on',
+            'film_stock': request.form.get('film_stock', '').strip() or None,
+            'film_format': request.form.get('film_format', '').strip() or None,
+            # Web URLs
+            'web_urls': [url.strip() for url in request.form.get('web_urls', '').split('\n') if url.strip()]
         }
 
         # Handle uploaded files (both individual files and folder uploads)
@@ -2301,6 +2310,27 @@ def import_submit():
 
                 file.save(str(file_path))
                 logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
+
+        # Write metadata.json to temp directory for db_import.py to read
+        metadata_file = temp_dir / 'metadata.json'
+        metadata = {
+            'loc_name': data['loc_name'],
+            'aka_name': data['aka_name'],
+            'state': data['state'],
+            'type': data['type'],
+            'sub_type': data['sub_type'],
+            'imp_author': data['imp_author'],
+            'is_film': data['is_film'],
+            'film_stock': data['film_stock'],
+            'film_format': data['film_format'],
+            'web_urls': data['web_urls']
+        }
+
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+
+        logger.info(f"Created metadata file: {metadata_file}")
+        logger.info(f"Metadata: {metadata}")
 
         # Create background task
         task_id = str(uuid.uuid4())
