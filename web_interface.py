@@ -30,6 +30,7 @@ import sys
 import threading
 import uuid
 import time
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -3609,15 +3610,30 @@ def main():
     parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
     parser.add_argument('--port', type=int, default=5000, help='Port to bind to')
     parser.add_argument('--debug', action='store_true', help='Run in debug mode')
+    parser.add_argument('--no-browser', action='store_true', help='Do not open browser automatically')
 
     args = parser.parse_args()
+
+    url = f"http://{args.host}:{args.port}"
 
     logger.info("=" * 60)
     logger.info("AUPAT Web Interface v3.0 - Abandoned Upstate Design")
     logger.info("=" * 60)
-    logger.info(f"URL: http://{args.host}:{args.port}")
+    logger.info(f"URL: {url}")
     logger.info("Press Ctrl+C to stop")
     logger.info("=" * 60)
+
+    # Open browser automatically after a short delay (unless disabled)
+    if not args.no_browser:
+        def open_browser():
+            time.sleep(1.5)  # Wait for server to start
+            try:
+                logger.info(f"Opening browser to {url}")
+                webbrowser.open(url)
+            except Exception as e:
+                logger.warning(f"Could not open browser: {e}")
+
+        threading.Thread(target=open_browser, daemon=True).start()
 
     app.run(host=args.host, port=args.port, debug=args.debug)
 
