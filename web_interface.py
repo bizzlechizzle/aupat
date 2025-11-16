@@ -2420,51 +2420,224 @@ function uploadWithProgress(formData) {
 
         // Send request
         xhr.open('POST', '/import/submit');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        console.log('XHR headers set, sending request...');
         xhr.send(formData);
     });
 }
 
 // Initialize on page load
+console.log('=== IMPORT FORM SCRIPT LOADED ===');
+console.log('Timestamp:', new Date().toISOString());
+console.log('User Agent:', navigator.userAgent);
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== DOMContentLoaded FIRED ===');
+    console.log('Timestamp:', new Date().toISOString());
+
     checkFolderUploadSupport();
 
     // Add form validation
     const importForm = document.getElementById('importForm');
-    if (importForm) {
-        importForm.addEventListener('submit', function(e) {
-            e.preventDefault(); // Always prevent default, we'll handle upload manually
+    console.log('Import form element:', importForm);
 
-            if (!validateFiles()) {
-                return false;
-            }
-
-            // Disable submit button to prevent double submission
-            const submitBtn = document.getElementById('submit-btn');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Uploading...';
-            }
-
-            // Create FormData from form
-            const formData = new FormData(importForm);
-
-            // Upload with progress tracking
-            uploadWithProgress(formData)
-                .then(() => {
-                    // Success - redirect handled in uploadWithProgress
-                })
-                .catch((error) => {
-                    console.error('Upload error:', error);
-                    // Re-enable submit button
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Import Location';
-                    }
-                    alert('Upload failed: ' + error.message + '\n\nPlease try again or check the server logs.');
-                });
-        });
+    if (!importForm) {
+        console.error('CRITICAL: importForm element NOT FOUND!');
+        console.error('Available form elements:', document.querySelectorAll('form'));
+        alert('ERROR: Import form not initialized. Please refresh the page.');
+        return;
     }
+
+    console.log('Attaching submit handler to form...');
+
+    importForm.addEventListener('submit', function(e) {
+        console.log('=== FORM SUBMIT EVENT FIRED ===');
+        console.log('Event object:', e);
+        console.log('Calling preventDefault()...');
+
+        e.preventDefault(); // Always prevent default, we'll handle upload manually
+
+        console.log('preventDefault() called successfully');
+        console.log('Starting file validation...');
+
+        if (!validateFiles()) {
+            console.log('Validation FAILED - aborting');
+            return false;
+        }
+
+        console.log('Validation PASSED - starting upload');
+
+        // Disable submit button to prevent double submission
+        const submitBtn = document.getElementById('submit-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+            console.log('Submit button disabled');
+        }
+
+        // Create FormData from form
+        const formData = new FormData(importForm);
+        console.log('FormData created, file count:', [...formData.entries()].filter(([k,v]) => v instanceof File).length);
+
+        // Upload with progress tracking
+        console.log('Calling uploadWithProgress()...');
+        uploadWithProgress(formData)
+            .then(() => {
+                console.log('Upload completed successfully!');
+                // Success - redirect handled in uploadWithProgress
+            })
+            .catch((error) => {
+                console.error('Upload FAILED:', error);
+                // Re-enable submit button
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Import Location';
+                }
+                alert('Upload failed: ' + error.message + '\n\nPlease try again or check the server logs.');
+            });
+    });
+
+    console.log('Submit handler attached successfully');
+
+    // Verify attachment
+    setTimeout(() => {
+        console.log('=== VERIFYING HANDLER ATTACHMENT ===');
+        console.log('Form:', importForm);
+        console.log('Form submit attribute:', importForm.onsubmit);
+    }, 100);
 });
+
+console.log('=== DOMContentLoaded HANDLER REGISTERED ===');
+</script>
+""")
+
+# Import progress fallback page (for non-XHR requests)
+IMPORT_PROGRESS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
+<h2>Import Progress</h2>
+<p style="margin-bottom: 2rem; opacity: 0.8;">Tracking import task</p>
+
+<div class="card">
+    <p><strong>Task ID:</strong> <code>{{ task_id }}</code></p>
+
+    <div style="margin: 2rem 0;">
+        <div class="progress-bar-container" style="width: 100%; height: 30px; background: #eee; border-radius: 5px; overflow: hidden; margin-bottom: 0.5rem;">
+            <div id="progress-fill" class="progress-bar-fill" style="height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); width: 0%; transition: width 0.3s ease;"></div>
+        </div>
+        <p style="text-align: center; margin-bottom: 1rem;">Progress: <strong id="progress-text">0%</strong></p>
+    </div>
+
+    <p id="current-step" style="padding: 1rem; background: #f5f5f5; border-radius: 5px; min-height: 50px;">
+        <span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #333; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+        Starting import...
+    </p>
+
+    <div id="status-message" style="margin-top: 1rem;"></div>
+
+    <div style="margin-top: 2rem; padding: 1rem; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 3px;">
+        <p style="margin: 0; font-size: 0.9rem;">
+            <strong>ℹ️ Note:</strong> This page will automatically update. If JavaScript is disabled, it will refresh every 2 seconds.
+        </p>
+    </div>
+
+    <div style="margin-top: 2rem; text-align: center;">
+        <a href="/" class="btn btn-secondary">Return to Dashboard</a>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ccc;
+    border-top-color: #333;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+}
+</style>
+
+<script>
+const taskId = '{{ task_id }}';
+const useMetaRefresh = typeof fetch === 'undefined';
+
+if (useMetaRefresh) {
+    // Fallback: use meta refresh if JavaScript fetch not available
+    const meta = document.createElement('meta');
+    meta.httpEquiv = 'refresh';
+    meta.content = '2'; // Refresh every 2 seconds
+    document.head.appendChild(meta);
+    console.log('Using meta refresh fallback');
+} else {
+    // Use JavaScript polling for better UX
+    console.log('Using JavaScript polling for task:', taskId);
+
+    function pollProgress() {
+        fetch('/api/task-status/' + taskId)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(task => {
+                console.log('Task status:', task);
+
+                // Check for task not found
+                if (task.error === 'Task not found') {
+                    document.getElementById('status-message').innerHTML =
+                        '<div style="padding: 1rem; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px;">' +
+                        '<strong>⚠️ Task Not Found</strong><br>' +
+                        'The import task may have completed or been cleaned up. ' +
+                        '<a href="/">Check the dashboard</a> for results.' +
+                        '</div>';
+                    return;
+                }
+
+                // Update progress bar
+                document.getElementById('progress-fill').style.width = task.progress + '%';
+                document.getElementById('progress-text').textContent = task.progress + '%';
+
+                // Update current step
+                if (task.error) {
+                    document.getElementById('current-step').innerHTML =
+                        '<span style="color: #dc3545;">❌ Error: ' + task.error + '</span>';
+                    document.getElementById('status-message').innerHTML =
+                        '<div style="padding: 1rem; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 3px;">' +
+                        '<strong>Import Failed</strong><br>' +
+                        task.error +
+                        '</div>';
+                } else if (!task.running && task.completed) {
+                    document.getElementById('current-step').innerHTML =
+                        '<span style="color: #28a745;">✅ Import Complete!</span>';
+                    document.getElementById('status-message').innerHTML =
+                        '<div style="padding: 1rem; background: #d4edda; border-left: 4px solid #28a745; border-radius: 3px;">' +
+                        '<strong>Success!</strong> Redirecting to dashboard in 2 seconds...' +
+                        '</div>';
+                    setTimeout(() => window.location.href = '/', 2000);
+                } else {
+                    document.getElementById('current-step').innerHTML =
+                        '<span class="spinner"></span>' + task.current_step;
+                    // Continue polling
+                    setTimeout(pollProgress, 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Polling error:', error);
+                document.getElementById('current-step').innerHTML =
+                    '<span style="color: #ffc107;">⚠️ Connection error - retrying...</span>';
+                // Retry after delay
+                setTimeout(pollProgress, 2000);
+            });
+    }
+
+    // Start polling
+    pollProgress();
+}
 </script>
 """)
 
@@ -3381,13 +3554,46 @@ def import_submit():
         # Store task_id in session for dashboard to pick up
         session['last_import_task'] = task_id
 
-        # Return task_id to client for progress tracking
-        return jsonify({'task_id': task_id, 'status': 'started'})
+        # Detect if request is XHR or traditional form submission
+        is_xhr = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.is_json or
+            'application/json' in request.headers.get('Accept', '')
+        )
+
+        logger.info(f"[Task {task_id}] Request type - XHR: {is_xhr}")
+        logger.info(f"[Task {task_id}] Headers: {dict(request.headers)}")
+
+        if is_xhr:
+            # XHR request - return JSON for client-side polling
+            logger.info(f"[Task {task_id}] Returning JSON response for XHR")
+            return jsonify({'task_id': task_id, 'status': 'started'})
+        else:
+            # Traditional form submission - redirect to progress page
+            logger.warning(f"[Task {task_id}] Traditional form POST detected - using fallback redirect")
+            flash(f'Import started for {data["loc_name"]}. Tracking task: {task_id}', 'info')
+            return redirect(url_for('import_progress_page', task_id=task_id))
 
     except Exception as e:
         flash(f'Import error: {str(e)}', 'error')
         logger.error(f"Import error: {e}", exc_info=True)
         return redirect(url_for('import_form'))
+
+
+@app.route('/import/progress/<task_id>')
+def import_progress_page(task_id):
+    """Fallback progress page for non-XHR form submissions."""
+    logger.info(f"[Task {task_id}] Progress page accessed")
+
+    with WORKFLOW_LOCK:
+        task_status = WORKFLOW_STATUS.get(task_id)
+
+    if not task_status:
+        logger.warning(f"[Task {task_id}] Task not found when accessing progress page")
+        flash('Import task not found. It may have completed or been cleaned up. Check the dashboard.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    return render_template_string(IMPORT_PROGRESS_TEMPLATE, task_id=task_id)
 
 
 @app.route('/api/task-status')
