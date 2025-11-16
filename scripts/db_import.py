@@ -176,10 +176,7 @@ def import_location_from_metadata(db_path: str, metadata_path: str) -> dict:
         'state': normalize_state_code(metadata['state']),
         'type': normalize_location_type(metadata['type']),
         'sub_type': normalize_sub_type(metadata['sub_type']) if metadata.get('sub_type') else None,
-        'imp_author': normalize_author(metadata['imp_author']) if metadata.get('imp_author') else None,
-        'is_film': 1 if metadata.get('is_film') else 0,
-        'film_stock': metadata.get('film_stock'),
-        'film_format': metadata.get('film_format')
+        'imp_author': normalize_author(metadata['imp_author']) if metadata.get('imp_author') else None
     }
 
     logger.info("Location data loaded from metadata:")
@@ -534,8 +531,8 @@ def create_location_record(db_path: str, location_data: dict) -> None:
             """
             INSERT INTO locations (
                 loc_uuid, loc_name, aka_name, state, type, sub_type,
-                loc_add, loc_update, imp_author, is_film, film_stock, film_format
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                loc_add, loc_update, imp_author
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 location_data['loc_uuid'],
@@ -546,10 +543,7 @@ def create_location_record(db_path: str, location_data: dict) -> None:
                 location_data.get('sub_type'),
                 timestamp,
                 timestamp,
-                location_data.get('imp_author'),
-                location_data.get('is_film', 0),
-                location_data.get('film_stock'),
-                location_data.get('film_format')
+                location_data.get('imp_author')
             )
         )
 

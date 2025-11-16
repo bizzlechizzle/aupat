@@ -51,9 +51,6 @@ SCHEMA_SQL = {
             loc_add TEXT,
             loc_update TEXT,
             imp_author TEXT,
-            is_film INTEGER DEFAULT 0,
-            film_stock TEXT,
-            film_format TEXT,
             json_update TEXT
         )
     """,
@@ -82,8 +79,8 @@ SCHEMA_SQL = {
             phone INTEGER,
             drone INTEGER,
             go_pro INTEGER,
-            film INTEGER,
             other INTEGER,
+            film INTEGER,
             exiftool_hardware TEXT,
             img_hardware TEXT,
             loc_uuid TEXT NOT NULL,
@@ -244,11 +241,9 @@ def add_missing_columns(cursor: sqlite3.Cursor) -> None:
     """Add missing columns to existing tables for schema migrations."""
     migrations = [
         {
-            'table': 'locations',
+            'table': 'images',
             'columns': [
-                ('is_film', 'INTEGER DEFAULT 0'),
-                ('film_stock', 'TEXT'),
-                ('film_format', 'TEXT')
+                ('film', 'INTEGER')
             ]
         }
     ]
