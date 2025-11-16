@@ -28,6 +28,8 @@ import sqlite3
 import subprocess
 import sys
 import threading
+import uuid
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -58,7 +60,7 @@ from normalize import (
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -66,14 +68,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Global state
-WORKFLOW_STATUS = {
-    'running': False,
-    'current_step': None,
-    'progress': 0,
-    'logs': [],
-    'error': None
-}
+# Global state for background tasks (thread-safe)
+WORKFLOW_STATUS = {}
+WORKFLOW_LOCK = threading.Lock()
 
 
 def load_config(config_path: str = 'user/user.json') -> dict:
@@ -89,6 +86,7 @@ def load_config(config_path: str = 'user/user.json') -> dict:
             config = json.load(f)
 
         # Check if db_loc is a directory (common misconfiguration)
+        config_modified = False
         if 'db_loc' in config:
             db_path = Path(config['db_loc'])
             if db_path.exists() and db_path.is_dir():
@@ -96,11 +94,133 @@ def load_config(config_path: str = 'user/user.json') -> dict:
                 logger.error(f"Change db_loc to: {config['db_loc']}/aupat.db")
                 config['db_loc'] = str(db_path / 'aupat.db')  # Auto-fix
                 logger.info(f"Auto-corrected db_loc to: {config['db_loc']}")
+                config_modified = True
+
+        # Save corrected config back to file so scripts use correct path
+        if config_modified:
+            try:
+                with open(config_path, 'w') as f:
+                    json.dump(config, f, indent=2)
+                logger.info(f"Saved auto-corrected configuration to {config_path}")
+            except Exception as save_error:
+                logger.warning(f"Failed to save corrected config: {save_error}")
 
         return config
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         return {}
+
+
+def get_disk_space(path: str) -> dict:
+    """Get disk space information for a given path."""
+    import shutil
+    try:
+        stat = shutil.disk_usage(path)
+        return {
+            'total': stat.total,
+            'used': stat.used,
+            'free': stat.free,
+            'percent': (stat.used / stat.total * 100) if stat.total > 0 else 0
+        }
+    except Exception as e:
+        logger.error(f"Failed to get disk space for {path}: {e}")
+        return {'total': 0, 'used': 0, 'free': 0, 'percent': 0}
+
+
+def check_disk_space(path: str, required_gb: float = 1.0) -> tuple[bool, str]:
+    """Check if enough disk space is available."""
+    stats = get_disk_space(path)
+    free_gb = stats['free'] / (1024**3)
+
+    if free_gb < required_gb:
+        return False, f"Insufficient disk space: {free_gb:.2f}GB free, {required_gb}GB required"
+
+    return True, f"Disk space OK: {free_gb:.2f}GB free"
+
+
+def check_path_writable(path: str) -> tuple[bool, str]:
+    """Check if a path is writable by attempting to create a test file."""
+    test_path = Path(path)
+
+    # If it's a file path, check parent directory
+    if not test_path.exists() or test_path.is_file():
+        test_dir = test_path.parent
+    else:
+        test_dir = test_path
+
+    # Try to create directory if it doesn't exist
+    try:
+        test_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        return False, f"Cannot create directory {test_dir}: {e}"
+
+    # Try to write a test file
+    test_file = test_dir / f'.aupat_write_test_{os.getpid()}'
+    try:
+        test_file.write_text('test')
+        test_file.unlink()
+        return True, f"Path is writable: {test_dir}"
+    except Exception as e:
+        return False, f"Path not writable {test_dir}: {e}"
+
+
+def cleanup_orphaned_temp_dirs(max_age_hours: int = 24) -> int:
+    """Clean up orphaned AUPAT temp directories older than max_age_hours."""
+    import tempfile
+    import shutil
+
+    cleaned = 0
+    temp_root = Path(tempfile.gettempdir())
+    current_time = time.time()
+    max_age_seconds = max_age_hours * 3600
+
+    try:
+        # Find all aupat_import_* directories
+        for temp_dir in temp_root.glob('aupat_import_*'):
+            if not temp_dir.is_dir():
+                continue
+
+            # Check age
+            try:
+                dir_age = current_time - temp_dir.stat().st_mtime
+                if dir_age > max_age_seconds:
+                    logger.info(f"Cleaning up orphaned temp dir: {temp_dir} (age: {dir_age/3600:.1f}h)")
+                    shutil.rmtree(temp_dir)
+                    cleaned += 1
+            except Exception as e:
+                logger.warning(f"Failed to clean up {temp_dir}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup orphaned temp dirs: {e}")
+
+    return cleaned
+
+
+def check_database_schema(db_path: str) -> tuple[bool, list[str]]:
+    """Verify that required database tables exist."""
+    required_tables = ['locations', 'images', 'videos', 'documents', 'versions']
+
+    if not Path(db_path).exists():
+        return False, required_tables  # All tables missing
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Get list of existing tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        existing_tables = {row[0] for row in cursor.fetchall()}
+
+        conn.close()
+
+        # Check which tables are missing
+        missing = [t for t in required_tables if t not in existing_tables]
+
+        return len(missing) == 0, missing
+
+    except Exception as e:
+        logger.error(f"Failed to check database schema: {e}")
+        return False, required_tables
 
 
 def validate_config(config: dict) -> tuple[bool, list[str]]:
@@ -938,6 +1058,14 @@ DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
 <h2>Archive Dashboard</h2>
 <p style="margin-bottom: 2rem; opacity: 0.8;">Overview of your media archive and recent activity</p>
 
+<!-- Active Imports Section -->
+<div id="active-imports-section" style="display: none; margin-bottom: 2rem;">
+    <div class="card" style="border-color: var(--accent); background: rgba(185, 151, 92, 0.05);">
+        <h3 style="margin-bottom: 1.5rem;">Active Imports</h3>
+        <div id="active-imports-container"></div>
+    </div>
+</div>
+
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-number">{{ stats.locations }}</div>
@@ -993,6 +1121,168 @@ DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
         </p>
     </div>
 </div>
+
+<script>
+// Poll for active imports
+let pollInterval = null;
+let lastTaskCount = 0;
+
+function updateActiveImports() {
+    fetch('/api/task-status')
+        .then(response => response.json())
+        .then(tasks => {
+            const container = document.getElementById('active-imports-container');
+            const section = document.getElementById('active-imports-section');
+
+            const taskIds = Object.keys(tasks);
+
+            if (taskIds.length === 0) {
+                section.style.display = 'none';
+
+                // If we had tasks before and now we don't, refresh the page to show new data
+                if (lastTaskCount > 0) {
+                    console.log('Import completed - refreshing page...');
+                    setTimeout(() => window.location.reload(), 1000);
+                }
+                lastTaskCount = 0;
+                return;
+            }
+
+            lastTaskCount = taskIds.length;
+            section.style.display = 'block';
+            container.innerHTML = '';
+
+            taskIds.forEach(taskId => {
+                const task = tasks[taskId];
+                const taskDiv = document.createElement('div');
+                taskDiv.style.marginBottom = '1.5rem';
+                taskDiv.style.paddingBottom = '1.5rem';
+                taskDiv.style.borderBottom = '1px solid var(--muted)';
+
+                // Task header
+                const header = document.createElement('div');
+                header.style.marginBottom = '0.75rem';
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'center';
+
+                const locationName = document.createElement('div');
+                locationName.style.fontWeight = '600';
+                locationName.style.fontSize = '1.1rem';
+                locationName.textContent = task.location_name;
+
+                const status = document.createElement('div');
+                status.style.fontSize = '0.9rem';
+                status.style.fontFamily = "'Roboto Mono', monospace";
+                status.style.opacity = '0.8';
+
+                if (task.error) {
+                    status.textContent = 'Failed';
+                    status.style.color = '#dc3545';
+                } else if (task.completed) {
+                    status.textContent = 'Completed';
+                    status.style.color = 'var(--accent)';
+                } else if (task.running) {
+                    status.textContent = 'Running...';
+                    status.style.color = 'var(--accent)';
+                } else {
+                    status.textContent = 'Stopped';
+                }
+
+                header.appendChild(locationName);
+                header.appendChild(status);
+                taskDiv.appendChild(header);
+
+                // Current step
+                const stepDiv = document.createElement('div');
+                stepDiv.style.fontSize = '0.9rem';
+                stepDiv.style.marginBottom = '0.75rem';
+                stepDiv.style.opacity = '0.8';
+                stepDiv.textContent = task.current_step;
+                taskDiv.appendChild(stepDiv);
+
+                // Progress bar
+                const progressContainer = document.createElement('div');
+                progressContainer.style.background = 'var(--muted)';
+                progressContainer.style.borderRadius = '8px';
+                progressContainer.style.overflow = 'hidden';
+                progressContainer.style.height = '32px';
+                progressContainer.style.position = 'relative';
+                progressContainer.style.marginBottom = '0.5rem';
+
+                const progressBar = document.createElement('div');
+                progressBar.style.background = task.error ? '#dc3545' : 'var(--accent)';
+                progressBar.style.height = '100%';
+                progressBar.style.width = task.progress + '%';
+                progressBar.style.transition = 'width 0.3s ease';
+                progressBar.style.display = 'flex';
+                progressBar.style.alignItems = 'center';
+                progressBar.style.justifyContent = 'center';
+
+                const progressText = document.createElement('span');
+                progressText.style.color = 'var(--background)';
+                progressText.style.fontFamily = "'Roboto Mono', monospace";
+                progressText.style.fontWeight = '700';
+                progressText.style.fontSize = '0.9rem';
+                progressText.style.position = 'absolute';
+                progressText.style.width = '100%';
+                progressText.style.textAlign = 'center';
+                progressText.textContent = task.progress + '%';
+
+                progressContainer.appendChild(progressBar);
+                progressContainer.appendChild(progressText);
+                taskDiv.appendChild(progressContainer);
+
+                // Error message
+                if (task.error) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = '#dc3545';
+                    errorDiv.style.fontSize = '0.85rem';
+                    errorDiv.style.marginTop = '0.5rem';
+                    errorDiv.style.padding = '0.5rem';
+                    errorDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+                    errorDiv.style.borderRadius = '4px';
+                    errorDiv.textContent = task.error;
+                    taskDiv.appendChild(errorDiv);
+                }
+
+                // Recent logs
+                if (task.logs && task.logs.length > 0) {
+                    const logsDiv = document.createElement('div');
+                    logsDiv.style.marginTop = '0.75rem';
+                    logsDiv.style.fontSize = '0.75rem';
+                    logsDiv.style.fontFamily = "'Roboto Mono', monospace";
+                    logsDiv.style.opacity = '0.6';
+                    logsDiv.style.maxHeight = '100px';
+                    logsDiv.style.overflow = 'auto';
+                    logsDiv.textContent = task.logs.slice(-3).join('\\n');
+                    taskDiv.appendChild(logsDiv);
+                }
+
+                container.appendChild(taskDiv);
+            });
+        })
+        .catch(error => {
+            console.error('Failed to fetch task status:', error);
+        });
+}
+
+// Start polling when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Check immediately
+    updateActiveImports();
+
+    // Then poll every 2 seconds
+    pollInterval = setInterval(updateActiveImports, 2000);
+});
+
+// Stop polling when page unloads
+window.addEventListener('beforeunload', () => {
+    if (pollInterval) {
+        clearInterval(pollInterval);
+    }
+});
+</script>
 {% endblock %}
 """)
 
@@ -1555,7 +1845,10 @@ SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', "
 <p style="margin-bottom: 2rem; opacity: 0.8;">Configure AUPAT system paths and options</p>
 
 <div class="settings-info">
-    <p><strong>Note:</strong> These settings are stored in <code>user/user.json</code>. All paths should be absolute paths.</p>
+    <p><strong>Note:</strong> These settings are stored in <code>user/user.json</code>. The system will auto-correct paths if needed.</p>
+    <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+        <strong>Important:</strong> Database Location must be a FILE path (ending in .db), all others must be DIRECTORY paths (ending in /).
+    </p>
 </div>
 
 <div class="card">
@@ -1567,12 +1860,12 @@ SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', "
         </div>
 
         <div class="form-group">
-            <label>Database Location</label>
+            <label>Database Location <span style="color: var(--accent); font-weight: normal;">(must be a FILE path)</span></label>
             <div class="input-with-browse">
                 <input type="text" name="db_loc" id="db_loc" value="{{ config.get('db_loc', '') }}" required placeholder="/absolute/path/to/database/aupat.db">
                 <button type="button" class="btn btn-browse" onclick="openFileExplorer('db_loc')">Browse</button>
             </div>
-            <div class="help-text">Absolute path to database file</div>
+            <div class="help-text">Must end with .db - Example: /path/to/tempdata/database/aupat.db</div>
         </div>
 
         <div class="form-group">
@@ -1926,9 +2219,197 @@ def api_check_collision():
         return jsonify({'exists': False})
 
 
+def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
+    """
+    Run import task in background thread with health checks and timeout.
+
+    This function monitors the import subprocess and updates task status.
+    """
+    import shutil
+    import signal
+
+    # Set maximum execution time (2 hours)
+    MAX_EXECUTION_TIME = 7200
+
+    start_time = time.time()
+
+    try:
+        # P0 HEALTH CHECK: Disk space validation
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Checking system health'
+            WORKFLOW_STATUS[task_id]['progress'] = 5
+
+        logger.info(f"[Task {task_id}] Running pre-import health checks...")
+
+        # Check disk space (require 5GB free)
+        disk_ok, disk_msg = check_disk_space(config.get('db_ingest', '/tmp'), required_gb=5.0)
+        if not disk_ok:
+            error_msg = f"Health check failed: {disk_msg}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] {disk_msg}")
+
+        # Check path writability
+        for path_key in ['db_ingest', 'db_backup', 'arch_loc']:
+            if path_key in config:
+                writable, write_msg = check_path_writable(config[path_key])
+                if not writable:
+                    error_msg = f"Health check failed: {write_msg}"
+                    logger.error(f"[Task {task_id}] {error_msg}")
+                    with WORKFLOW_LOCK:
+                        WORKFLOW_STATUS[task_id]['error'] = error_msg
+                        WORKFLOW_STATUS[task_id]['running'] = False
+                    return
+                logger.info(f"[Task {task_id}] {write_msg}")
+
+        # Check database schema
+        schema_ok, missing_tables = check_database_schema(config['db_loc'])
+        if not schema_ok and Path(config['db_loc']).exists():
+            logger.warning(f"[Task {task_id}] Database exists but missing tables: {missing_tables}")
+            logger.info(f"[Task {task_id}] Migration will create missing tables")
+
+        # Cleanup orphaned temp directories
+        cleaned = cleanup_orphaned_temp_dirs(max_age_hours=24)
+        if cleaned > 0:
+            logger.info(f"[Task {task_id}] Cleaned up {cleaned} orphaned temp directories")
+
+        # Update status: Starting migration
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = 'Initializing database schema'
+            WORKFLOW_STATUS[task_id]['progress'] = 10
+
+        logger.info(f"[Task {task_id}] Health checks passed - starting import")
+        logger.info(f"[Task {task_id}] Running database migration...")
+
+        # Run db_migrate.py
+        migrate_result = subprocess.run(
+            [
+                sys.executable,
+                'scripts/db_migrate.py',
+                '--config', 'user/user.json'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if migrate_result.returncode != 0:
+            error_msg = f"Database migration failed: {migrate_result.stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+            return
+
+        logger.info(f"[Task {task_id}] Database migration completed")
+
+        # Update status: Starting import
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['current_step'] = f'Importing files for {data["loc_name"]}'
+            WORKFLOW_STATUS[task_id]['progress'] = 30
+
+        logger.info(f"[Task {task_id}] Starting import process...")
+
+        # Run import with Popen to monitor output
+        # Pass --metadata to tell script to read metadata.json instead of prompting
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                'scripts/db_import.py',
+                '--source', str(temp_dir),
+                '--config', 'user/user.json',
+                '--metadata', str(temp_dir / 'metadata.json'),
+                '--skip-backup'  # Already ran migration above
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+        # Monitor output for progress with timeout
+        import_logs = []
+        while True:
+            # P1 HEALTH CHECK: Timeout monitoring
+            elapsed = time.time() - start_time
+            if elapsed > MAX_EXECUTION_TIME:
+                logger.error(f"[Task {task_id}] Import timeout after {elapsed/3600:.1f} hours")
+                process.kill()
+                with WORKFLOW_LOCK:
+                    WORKFLOW_STATUS[task_id]['error'] = f'Import timed out after {elapsed/3600:.1f} hours'
+                    WORKFLOW_STATUS[task_id]['running'] = False
+                return
+
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                line = output.strip()
+                import_logs.append(line)
+                logger.info(f"[Task {task_id}] {line}")
+
+                # Update progress based on output
+                with WORKFLOW_LOCK:
+                    WORKFLOW_STATUS[task_id]['logs'] = import_logs[-10:]  # Keep last 10 lines
+                    WORKFLOW_STATUS[task_id]['elapsed_time'] = int(elapsed)
+
+                    # Parse progress from output if available
+                    if 'Processing file' in line or 'Importing' in line:
+                        WORKFLOW_STATUS[task_id]['progress'] = min(90, WORKFLOW_STATUS[task_id]['progress'] + 5)
+
+        # Get final status
+        stderr = process.stderr.read()
+        returncode = process.poll()
+
+        if returncode == 0:
+            logger.info(f"[Task {task_id}] Import completed successfully")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['current_step'] = 'Import completed'
+                WORKFLOW_STATUS[task_id]['progress'] = 100
+                WORKFLOW_STATUS[task_id]['running'] = False
+                WORKFLOW_STATUS[task_id]['completed'] = True
+        else:
+            error_msg = f"Import failed: {stderr}"
+            logger.error(f"[Task {task_id}] {error_msg}")
+            with WORKFLOW_LOCK:
+                WORKFLOW_STATUS[task_id]['error'] = error_msg
+                WORKFLOW_STATUS[task_id]['running'] = False
+
+    except Exception as e:
+        error_msg = f"Task error: {str(e)}"
+        logger.error(f"[Task {task_id}] {error_msg}", exc_info=True)
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id]['error'] = error_msg
+            WORKFLOW_STATUS[task_id]['running'] = False
+
+    finally:
+        # Clean up temporary directory
+        try:
+            import shutil
+            shutil.rmtree(temp_dir)
+            logger.info(f"[Task {task_id}] Cleaned up temporary directory: {temp_dir}")
+        except Exception as cleanup_error:
+            logger.warning(f"[Task {task_id}] Failed to clean up temp directory: {cleanup_error}")
+
+        # Schedule task cleanup after 1 hour
+        def cleanup_task():
+            time.sleep(3600)
+            with WORKFLOW_LOCK:
+                if task_id in WORKFLOW_STATUS:
+                    del WORKFLOW_STATUS[task_id]
+                    logger.info(f"[Task {task_id}] Cleaned up task status")
+
+        cleanup_thread = threading.Thread(target=cleanup_task, daemon=True)
+        cleanup_thread.start()
+
+
 @app.route('/import/submit', methods=['POST'])
 def import_submit():
-    """Handle import submission."""
+    """Handle import submission - starts background task and redirects to dashboard."""
     import tempfile
 
     try:
@@ -1942,7 +2423,7 @@ def import_submit():
             logger.error(f"Configuration validation failed: {issues}")
             return redirect(url_for('import_form'))
 
-        # Get and normalize form data
+        # Get and normalize form data - collect ALL fields
         data = {
             'loc_uuid': request.form.get('loc_uuid'),
             'loc_name': normalize_location_name(request.form.get('loc_name')),
@@ -1950,7 +2431,13 @@ def import_submit():
             'state': normalize_state_code(request.form.get('state')),
             'type': normalize_location_type(request.form.get('type')),
             'sub_type': normalize_sub_type(request.form.get('sub_type')) if request.form.get('sub_type') else None,
-            'imp_author': normalize_author(request.form.get('imp_author')) if request.form.get('imp_author') else None
+            'imp_author': normalize_author(request.form.get('imp_author')) if request.form.get('imp_author') else None,
+            # Film photography data
+            'is_film': request.form.get('is_film') == 'on',
+            'film_stock': request.form.get('film_stock', '').strip() or None,
+            'film_format': request.form.get('film_format', '').strip() or None,
+            # Web URLs
+            'web_urls': [url.strip() for url in request.form.get('web_urls', '').split('\n') if url.strip()]
         }
 
         # Handle uploaded files (both individual files and folder uploads)
@@ -1972,86 +2459,181 @@ def import_submit():
         temp_dir = Path(tempfile.mkdtemp(prefix='aupat_import_'))
         logger.info(f"Created temporary directory: {temp_dir}")
 
-        try:
-            # Save uploaded files to temp directory
-            for file in uploaded_files:
-                if file.filename:
-                    # For folder uploads, preserve directory structure
-                    # The filename includes the relative path for folder uploads
-                    from werkzeug.utils import secure_filename
+        # Save uploaded files to temp directory
+        for file in uploaded_files:
+            if file.filename:
+                # For folder uploads, preserve directory structure
+                # The filename includes the relative path for folder uploads
+                from werkzeug.utils import secure_filename
 
-                    # Normalize path separators
-                    rel_path = file.filename.replace('\\', '/')
+                # Normalize path separators
+                rel_path = file.filename.replace('\\', '/')
 
-                    # Secure each part of the path
-                    path_parts = rel_path.split('/')
-                    secured_parts = [secure_filename(part) for part in path_parts if part]
+                # Secure each part of the path
+                path_parts = rel_path.split('/')
+                secured_parts = [secure_filename(part) for part in path_parts if part]
 
-                    # Create subdirectories if needed
-                    if len(secured_parts) > 1:
-                        subdir = temp_dir / Path(*secured_parts[:-1])
-                        subdir.mkdir(parents=True, exist_ok=True)
-                        file_path = temp_dir / Path(*secured_parts)
-                    else:
-                        file_path = temp_dir / secured_parts[0]
+                # Create subdirectories if needed
+                if len(secured_parts) > 1:
+                    subdir = temp_dir / Path(*secured_parts[:-1])
+                    subdir.mkdir(parents=True, exist_ok=True)
+                    file_path = temp_dir / Path(*secured_parts)
+                else:
+                    file_path = temp_dir / secured_parts[0]
 
-                    file.save(str(file_path))
-                    logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
+                file.save(str(file_path))
+                logger.info(f"Saved uploaded file: {'/'.join(secured_parts)}")
 
-            # First, run db_migrate.py to ensure database is properly initialized
-            logger.info("Running database migration to ensure schema is up-to-date...")
-            migrate_result = subprocess.run(
-                [
-                    sys.executable,
-                    'scripts/db_migrate.py',
-                    '--config', 'user/user.json'
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+        # Write metadata.json to temp directory for db_import.py to read
+        metadata_file = temp_dir / 'metadata.json'
+        metadata = {
+            'loc_name': data['loc_name'],
+            'aka_name': data['aka_name'],
+            'state': data['state'],
+            'type': data['type'],
+            'sub_type': data['sub_type'],
+            'imp_author': data['imp_author'],
+            'is_film': data['is_film'],
+            'film_stock': data['film_stock'],
+            'film_format': data['film_format'],
+            'web_urls': data['web_urls']
+        }
 
-            if migrate_result.returncode != 0:
-                logger.error(f"Database migration failed: {migrate_result.stderr}")
-                flash(f'Database initialization failed: {migrate_result.stderr}', 'error')
-                return redirect(url_for('import_form'))
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
 
-            logger.info("Database migration completed successfully")
+        logger.info(f"Created metadata file: {metadata_file}")
+        logger.info(f"Metadata: {metadata}")
 
-            # Run import script with temp directory as source
-            logger.info("Starting import process...")
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    'scripts/db_import.py',
-                    '--source', str(temp_dir),
-                    '--config', 'user/user.json'
-                ],
-                capture_output=True,
-                text=True,
-                timeout=3600
-            )
+        # Create background task
+        task_id = str(uuid.uuid4())
 
-            if result.returncode == 0:
-                flash(f'Successfully imported {data["loc_name"]}', 'success')
-                return redirect(url_for('locations'))
-            else:
-                flash(f'Import failed: {result.stderr}', 'error')
-                return redirect(url_for('import_form'))
+        with WORKFLOW_LOCK:
+            WORKFLOW_STATUS[task_id] = {
+                'running': True,
+                'current_step': 'Preparing import',
+                'progress': 5,
+                'logs': [],
+                'error': None,
+                'location_name': data['loc_name'],
+                'started_at': datetime.now().isoformat(),
+                'completed': False
+            }
 
-        finally:
-            # Clean up temporary directory
-            try:
-                import shutil
-                shutil.rmtree(temp_dir)
-                logger.info(f"Cleaned up temporary directory: {temp_dir}")
-            except Exception as cleanup_error:
-                logger.warning(f"Failed to clean up temp directory: {cleanup_error}")
+        # Start background thread
+        thread = threading.Thread(
+            target=run_import_task,
+            args=(task_id, temp_dir, data, config),
+            daemon=True
+        )
+        thread.start()
+
+        logger.info(f"Started background import task {task_id} for {data['loc_name']}")
+
+        # Store task_id in session for dashboard to pick up
+        session['last_import_task'] = task_id
+
+        # Redirect to dashboard immediately
+        flash(f'Import started for {data["loc_name"]}. Processing in background...', 'success')
+        return redirect(url_for('dashboard'))
 
     except Exception as e:
         flash(f'Import error: {str(e)}', 'error')
         logger.error(f"Import error: {e}", exc_info=True)
         return redirect(url_for('import_form'))
+
+
+@app.route('/api/task-status')
+def api_task_status():
+    """Get status of all active tasks."""
+    with WORKFLOW_LOCK:
+        # Return all active tasks
+        active_tasks = {
+            task_id: {
+                'running': status['running'],
+                'current_step': status['current_step'],
+                'progress': status['progress'],
+                'logs': status.get('logs', []),
+                'error': status.get('error'),
+                'location_name': status.get('location_name', 'Unknown'),
+                'started_at': status.get('started_at'),
+                'completed': status.get('completed', False)
+            }
+            for task_id, status in WORKFLOW_STATUS.items()
+        }
+    return jsonify(active_tasks)
+
+
+@app.route('/api/task-status/<task_id>')
+def api_task_status_single(task_id):
+    """Get status of a specific task."""
+    with WORKFLOW_LOCK:
+        if task_id in WORKFLOW_STATUS:
+            return jsonify(WORKFLOW_STATUS[task_id])
+        else:
+            return jsonify({'error': 'Task not found'}), 404
+
+
+@app.route('/api/health')
+def api_health():
+    """Get system health status."""
+    try:
+        config = load_config()
+        health = {
+            'status': 'healthy',
+            'checks': {},
+            'timestamp': datetime.now().isoformat()
+        }
+
+        # Disk space check
+        if 'db_ingest' in config:
+            disk_ok, disk_msg = check_disk_space(config['db_ingest'], required_gb=5.0)
+            health['checks']['disk_space'] = {
+                'status': 'pass' if disk_ok else 'fail',
+                'message': disk_msg
+            }
+            if not disk_ok:
+                health['status'] = 'degraded'
+
+        # Database schema check
+        if 'db_loc' in config:
+            schema_ok, missing = check_database_schema(config['db_loc'])
+            health['checks']['database_schema'] = {
+                'status': 'pass' if schema_ok else 'fail',
+                'missing_tables': missing if not schema_ok else []
+            }
+            if not schema_ok and Path(config['db_loc']).exists():
+                health['status'] = 'degraded'
+
+        # Path writability checks
+        health['checks']['paths'] = {}
+        for path_key in ['db_ingest', 'db_backup', 'arch_loc']:
+            if path_key in config:
+                writable, msg = check_path_writable(config[path_key])
+                health['checks']['paths'][path_key] = {
+                    'status': 'pass' if writable else 'fail',
+                    'message': msg
+                }
+                if not writable:
+                    health['status'] = 'unhealthy'
+
+        # Active tasks count
+        with WORKFLOW_LOCK:
+            running_tasks = sum(1 for t in WORKFLOW_STATUS.values() if t.get('running'))
+            health['checks']['active_tasks'] = {
+                'count': running_tasks,
+                'status': 'pass'
+            }
+
+        return jsonify(health)
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 
 @app.route('/settings')
@@ -2074,19 +2656,46 @@ def settings_save():
             'arch_loc': request.form.get('arch_loc')
         }
 
+        # Auto-correct db_loc if it's a directory path
+        db_loc = new_config.get('db_loc', '')
+        if db_loc:
+            # Remove trailing slashes
+            db_loc = db_loc.rstrip('/')
+
+            # If it doesn't end with .db, assume it's a directory and add the filename
+            if not db_loc.endswith('.db'):
+                db_name = new_config.get('db_name', 'aupat.db')
+                new_config['db_loc'] = f"{db_loc}/{db_name}"
+                flash(f'Auto-corrected database path to: {new_config["db_loc"]}', 'success')
+                logger.info(f"Auto-corrected db_loc from '{db_loc}' to '{new_config['db_loc']}'")
+
+        # Validate and create parent directory for database
+        if 'db_loc' in new_config and new_config['db_loc']:
+            db_path = Path(new_config['db_loc'])
+            if not db_path.parent.exists():
+                try:
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created database directory: {db_path.parent}")
+                except Exception as e:
+                    flash(f'Warning: Could not create database directory {db_path.parent}: {str(e)}', 'error')
+
         # Validate paths exist or can be created
         paths_to_check = ['db_backup', 'db_ingest', 'arch_loc']
         for path_key in paths_to_check:
             path = new_config.get(path_key)
             if path:
-                path_obj = Path(path)
+                # Ensure directory paths end with /
+                if not path.endswith('/'):
+                    new_config[path_key] = path + '/'
+
+                path_obj = Path(new_config[path_key])
                 # If it's a directory that doesn't exist, try to create it
                 if not path_obj.exists():
                     try:
                         path_obj.mkdir(parents=True, exist_ok=True)
-                        logger.info(f"Created directory: {path}")
+                        logger.info(f"Created directory: {path_obj}")
                     except Exception as e:
-                        flash(f'Warning: Could not create directory {path}: {str(e)}', 'error')
+                        flash(f'Warning: Could not create directory {path_obj}: {str(e)}', 'error')
 
         # Save to user/user.json
         config_path = 'user/user.json'
