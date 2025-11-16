@@ -14,11 +14,16 @@ That's it.
 # First time setup
 bash setup.sh
 
-# Run web interface
+# Run web interface (with automatic health checks)
+bash start_web.sh
+
+# Or run directly
 python web_interface.py
 
 # Open http://localhost:5000 and import
 ```
+
+**Recommended**: Use `start_web.sh` instead of running `web_interface.py` directly. The startup script runs pre-flight checks to verify all dependencies are installed, preventing blank website errors.
 
 Or run CLI pipeline manually (see Import Pipeline below).
 
@@ -213,6 +218,23 @@ Or use web interface which runs everything.
 
 ## Testing
 
+### Web Interface Health Check
+
+Test web interface dependencies and functionality:
+```bash
+python scripts/test_web_interface.py
+```
+
+This checks:
+- Flask and all Python dependencies are installed
+- web_interface.py has valid syntax
+- Server can start and serve HTML correctly
+- Website returns actual content (not blank pages)
+
+Run this after any changes to catch issues before deployment.
+
+### Data Import Testing
+
 Test data in `tempdata/testphotos/`:
 - Middletown State Hospital - 8 Nikon .NEF files
 - Water Slide World - 29 .DNG photos + 2 .MOV videos + 1 .JPG edit
@@ -257,7 +279,10 @@ Full technical specs in `logseq/pages/`:
 
 ## Known Issues
 
-NONE. Pipeline fixed. Files move to archive correctly.
+NONE currently. All critical issues resolved:
+- ✓ Pipeline fixed - files move to archive correctly
+- ✓ Blank website issue - fixed with automated dependency checking
+- ✓ Added health checks to prevent deployment failures
 
 ## License
 
