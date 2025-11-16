@@ -1446,7 +1446,6 @@ BASE_TEMPLATE = """
 
 # Dashboard page
 DASHBOARD_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block content %}
 <h2>Archive Dashboard</h2>
 <p style="margin-bottom: 2rem; opacity: 0.8;">Overview of your media archive and recent activity</p>
 
@@ -1677,12 +1676,10 @@ window.addEventListener('beforeunload', () => {
     }
 });
 </script>
-{% endblock %}
 """)
 
 # Locations page
 LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
         <h2>Locations</h2>
@@ -1726,12 +1723,10 @@ LOCATIONS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', 
         </p>
     </div>
 {% endif %}
-{% endblock %}
 """)
 
 # Location detail page
 LOCATION_DETAIL_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block content %}
 <div style="margin-bottom: 2rem;">
     <a href="/locations" style="color: var(--accent); text-decoration: none; font-family: 'Roboto Mono', monospace; font-size: 0.9rem;">
         ← Back to Locations
@@ -1952,13 +1947,10 @@ LOCATION_DETAIL_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock
     <p style="opacity: 0.6; font-size: 1.1rem;">No files found for this location.</p>
 </div>
 {% endif %}
-
-{% endblock %}
 """)
 
 # Import page
 IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block content %}
 <h2>Import Media</h2>
 <p style="margin-bottom: 1rem; opacity: 0.8;">Import a new location and associated media files</p>
 
@@ -2458,12 +2450,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endblock %}
 """)
 
 # Settings page
 SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block content %}
 <h2>Settings</h2>
 <p style="margin-bottom: 2rem; opacity: 0.8;">Configure AUPAT system paths and options</p>
 
@@ -2546,7 +2536,6 @@ SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', "
         </div>
     </div>
 </div>
-{% endblock %}
 """)
 
 
@@ -2595,10 +2584,8 @@ def location_detail(uuid):
 def archives():
     """Archives page (placeholder)."""
     return render_template_string(BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
-{% block content %}
 <h2>Archives</h2>
 <p>Archive management coming soon...</p>
-{% endblock %}
 """))
 
 
