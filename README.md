@@ -100,15 +100,17 @@ Rules in `data/camera_hardware.json`.
 Content-addressable naming for deduplication:
 
 ```
-{loc_uuid8}-img_{sha8}.ext          # Images
-{loc_uuid8}-vid_{sha8}.ext          # Videos
-{loc_uuid8}-doc_{sha8}.ext          # Documents
-
-{loc_uuid8}-{sub_uuid8}-img_{sha8}.ext   # With sub-location
+{loc_uuid8}-{sha8}.ext                    # Images/Videos/Documents
+{loc_uuid8}-{sub_uuid8}-{sha8}.ext        # With sub-location
 ```
 
 - `uuid8` = first 8 chars of location UUID
 - `sha8` = first 8 chars of file SHA256
+
+Examples:
+- `49184cd2-1a43ad82.dng` (image)
+- `49184cd2-ba28beb7.mov` (video)
+- `49184cd2-a8f2b3c4-1a43ad82.jpg` (image with sub-location)
 
 Prevents duplicates. Enables integrity verification. No filename collisions.
 

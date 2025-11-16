@@ -102,7 +102,7 @@ def extract_video_metadata(file_path: str) -> dict:
         file_path: Path to video file
 
     Returns:
-        dict: Video metadata as JSON
+        dict: Video metadata as JSON with format tags (make, Make, model, Model)
     """
     try:
         result = subprocess.run(
@@ -110,8 +110,8 @@ def extract_video_metadata(file_path: str) -> dict:
                 'ffprobe',
                 '-v', 'quiet',
                 '-print_format', 'json',
+                '-show_entries', 'format_tags=make,Make,model,Model',
                 '-show_format',
-                '-show_streams',
                 file_path
             ],
             capture_output=True,
@@ -267,14 +267,14 @@ def organize_videos(db_path: str) -> int:
     try:
         # Get all videos without hardware categorization
         cursor.execute(
-            "SELECT vid_sha256, vid_loc FROM videos WHERE camera IS NULL"
+            "SELECT vid_sha256, vid_loc, vid_nameo FROM videos WHERE camera IS NULL"
         )
         videos = cursor.fetchall()
 
         logger.info(f"Found {len(videos)} videos to process")
         print(f"PROGRESS: 0/{len(videos)} videos", flush=True)
 
-        for vid_sha256, vid_loc in videos:
+        for vid_sha256, vid_loc, vid_nameo in videos:
             if not vid_loc or not Path(vid_loc).exists():
                 logger.warning(f"Video file not found: {vid_loc}")
                 continue
@@ -286,6 +286,11 @@ def organize_videos(db_path: str) -> int:
             tags = metadata.get('format', {}).get('tags', {})
             make = tags.get('make', tags.get('Make', ''))
             model = tags.get('model', tags.get('Model', ''))
+
+            # Fallback: Check original filename for DJI if no make/model in metadata
+            if not make and vid_nameo and 'DJI' in vid_nameo.upper():
+                make = 'DJI'
+                logger.debug(f"Detected DJI from filename: {vid_nameo}")
 
             # Categorize hardware
             category = categorize_hardware(make, model, hardware_rules)

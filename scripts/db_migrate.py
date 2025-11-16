@@ -51,10 +51,7 @@ SCHEMA_SQL = {
             loc_add TEXT,
             loc_update TEXT,
             imp_author TEXT,
-            json_update TEXT,
-            is_film INTEGER DEFAULT 0,
-            film_stock TEXT,
-            film_format TEXT
+            json_update TEXT
         )
     """,
 
@@ -243,15 +240,8 @@ def get_table_columns(cursor: sqlite3.Cursor, table_name: str) -> list:
 def add_missing_columns(cursor: sqlite3.Cursor) -> None:
     """Add missing columns to existing tables for schema migrations."""
     migrations = [
-        # Add film photography columns to locations table
-        {
-            'table': 'locations',
-            'columns': [
-                ('is_film', 'INTEGER DEFAULT 0'),
-                ('film_stock', 'TEXT'),
-                ('film_format', 'TEXT')
-            ]
-        }
+        # Schema migrations will be added here as needed
+        # Film photography fields should be in images table only, not locations table
     ]
 
     for migration in migrations:
