@@ -48,12 +48,13 @@ def load_user_config(config_path: str = None) -> dict:
         return json.load(f)
 
 
-def verify_files(db_path: str) -> tuple:
+def verify_files(db_path: str, location_uuid: str = None) -> tuple:
     """
     Verify all files in database match their SHA256 hashes.
 
     Args:
         db_path: Path to database
+        location_uuid: Optional location UUID to verify only files from that location
 
     Returns:
         tuple: (verified_count, failed_files)
@@ -67,7 +68,13 @@ def verify_files(db_path: str) -> tuple:
     try:
         # Verify images
         logger.info("Verifying images...")
-        cursor.execute("SELECT img_sha256, img_loc, img_name FROM images")
+        if location_uuid:
+            cursor.execute(
+                "SELECT img_sha256, img_loc, img_name FROM images WHERE loc_uuid = ?",
+                (location_uuid,)
+            )
+        else:
+            cursor.execute("SELECT img_sha256, img_loc, img_name FROM images")
         for sha256_db, img_loc, img_name in cursor.fetchall():
             if not img_loc or not Path(img_loc).exists():
                 logger.warning(f"Image file not found: {img_name}")
@@ -87,7 +94,13 @@ def verify_files(db_path: str) -> tuple:
 
         # Verify videos
         logger.info("Verifying videos...")
-        cursor.execute("SELECT vid_sha256, vid_loc, vid_name FROM videos")
+        if location_uuid:
+            cursor.execute(
+                "SELECT vid_sha256, vid_loc, vid_name FROM videos WHERE loc_uuid = ?",
+                (location_uuid,)
+            )
+        else:
+            cursor.execute("SELECT vid_sha256, vid_loc, vid_name FROM videos")
         for sha256_db, vid_loc, vid_name in cursor.fetchall():
             if not vid_loc or not Path(vid_loc).exists():
                 logger.warning(f"Video file not found: {vid_name}")
@@ -107,7 +120,13 @@ def verify_files(db_path: str) -> tuple:
 
         # Verify documents
         logger.info("Verifying documents...")
-        cursor.execute("SELECT doc_sha256, doc_loc, doc_name FROM documents")
+        if location_uuid:
+            cursor.execute(
+                "SELECT doc_sha256, doc_loc, doc_name FROM documents WHERE loc_uuid = ?",
+                (location_uuid,)
+            )
+        else:
+            cursor.execute("SELECT doc_sha256, doc_loc, doc_name FROM documents")
         for sha256_db, doc_loc, doc_name in cursor.fetchall():
             if not doc_loc or not Path(doc_loc).exists():
                 logger.warning(f"Document file not found: {doc_name}")
@@ -189,6 +208,11 @@ def main():
         help='Path to user.json config file'
     )
     parser.add_argument(
+        '--location',
+        type=str,
+        help='Verify only files from this location UUID (optional)'
+    )
+    parser.add_argument(
         '--no-cleanup',
         action='store_true',
         help='Skip staging cleanup even if verification passes'
@@ -218,9 +242,12 @@ def main():
         logger.info("AUPAT File Verification")
         logger.info("=" * 60)
 
-        # Verify all files
-        logger.info("Verifying file integrity...")
-        verified_count, failed_files = verify_files(config['db_loc'])
+        # Verify all files (or just files from specified location)
+        if args.location:
+            logger.info(f"Verifying file integrity for location {args.location}...")
+        else:
+            logger.info("Verifying file integrity...")
+        verified_count, failed_files = verify_files(config['db_loc'], args.location)
 
         # Report results
         logger.info("=" * 60)

@@ -2803,6 +2803,7 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
 
         # Monitor output for progress with timeout
         import_logs = []
+        location_uuid = None  # Track the location UUID from import output
         while True:
             # P1 HEALTH CHECK: Timeout monitoring
             elapsed = time.time() - start_time
@@ -2821,6 +2822,14 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
                 line = output.strip()
                 import_logs.append(line)
                 logger.info(f"[Task {task_id}] {line}")
+
+                # Extract location UUID from import output
+                if 'Generated Location UUID:' in line:
+                    try:
+                        location_uuid = line.split('Generated Location UUID:')[1].strip()
+                        logger.info(f"[Task {task_id}] Captured location UUID: {location_uuid}")
+                    except IndexError:
+                        logger.warning(f"[Task {task_id}] Could not parse location UUID from: {line}")
 
                 # Update progress based on output
                 with WORKFLOW_LOCK:
@@ -2993,12 +3002,22 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
 
         logger.info(f"[Task {task_id}] Stage 5/5: Running db_verify.py...")
 
+        # Build verify command - include location UUID if we captured it
+        verify_cmd = [
+            sys.executable,
+            'scripts/db_verify.py',
+            '--config', 'user/user.json'
+        ]
+
+        # Add location filter to only verify files from this import
+        if location_uuid:
+            verify_cmd.extend(['--location', location_uuid])
+            logger.info(f"[Task {task_id}] Verifying only files for location: {location_uuid}")
+        else:
+            logger.warning(f"[Task {task_id}] No location UUID found - verifying all files")
+
         verify_result = subprocess.run(
-            [
-                sys.executable,
-                'scripts/db_verify.py',
-                '--config', 'user/user.json'
-            ],
+            verify_cmd,
             capture_output=True,
             text=True,
             timeout=600  # 10 minute timeout for verification
