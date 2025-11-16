@@ -618,8 +618,8 @@ BASE_TEMPLATE = """
             --accent: #b9975c;
             --muted: #e6e6e6;
             --border: #b9975c;
-            --header-bg: #fffbf7;
-            --header-fg: #454545;
+            --header-bg: #474747;
+            --header-fg: #fffbf7;
 
             /* Fluid Typography Scale - Exact match from Abandoned Upstate */
             --font-heading: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -2031,25 +2031,6 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
             <div class="help-text">Enter web URLs, one per line</div>
         </div>
 
-        <div class="form-group">
-            <label>
-                <input type="checkbox" id="is_film" name="is_film" style="width: auto; margin-right: 0.5rem;">
-                Film Photography
-            </label>
-        </div>
-
-        <div class="form-group" id="film_stock_group" style="display: none;">
-            <label>Film Stock</label>
-            <input type="text" name="film_stock" id="film_stock" placeholder="e.g., Kodak Portra 400">
-            <div class="help-text">Film stock used for photography</div>
-        </div>
-
-        <div class="form-group" id="film_format_group" style="display: none;">
-            <label>Film Format</label>
-            <input type="text" name="film_format" id="film_format" placeholder="e.g., 35mm, 120, 4x5">
-            <div class="help-text">Film format/size</div>
-        </div>
-
         <div style="display: flex; gap: 1rem; margin-top: 2rem;">
             <button type="submit" class="btn" id="submit-btn">Import Location</button>
             <a href="/" class="btn btn-secondary">Cancel</a>
@@ -2252,23 +2233,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupAutocomplete('sub_type', '/api/autocomplete/sub-types');
     setupAutocomplete('state', '/api/autocomplete/states');
     setupAutocomplete('imp_author', '/api/autocomplete/authors');
-
-    // Film checkbox toggle
-    const isFilmCheckbox = document.getElementById('is_film');
-    const filmStockGroup = document.getElementById('film_stock_group');
-    const filmFormatGroup = document.getElementById('film_format_group');
-
-    if (isFilmCheckbox) {
-        isFilmCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                filmStockGroup.style.display = 'block';
-                filmFormatGroup.style.display = 'block';
-            } else {
-                filmStockGroup.style.display = 'none';
-                filmFormatGroup.style.display = 'none';
-            }
-        });
-    }
 });
 
 // Detect browser support for folder uploads
@@ -3260,7 +3224,7 @@ def import_submit():
             logger.error(f"Configuration validation failed: {issues}")
             return redirect(url_for('import_form'))
 
-        # Get and normalize form data - collect ALL fields
+        # Get and normalize form data
         data = {
             'loc_uuid': request.form.get('loc_uuid'),
             'loc_name': normalize_location_name(request.form.get('loc_name')),
@@ -3269,10 +3233,6 @@ def import_submit():
             'type': normalize_location_type(request.form.get('type')),
             'sub_type': normalize_sub_type(request.form.get('sub_type')) if request.form.get('sub_type') else None,
             'imp_author': normalize_author(request.form.get('imp_author')) if request.form.get('imp_author') else None,
-            # Film photography data
-            'is_film': request.form.get('is_film') == 'on',
-            'film_stock': request.form.get('film_stock', '').strip() or None,
-            'film_format': request.form.get('film_format', '').strip() or None,
             # Web URLs
             'web_urls': [url.strip() for url in request.form.get('web_urls', '').split('\n') if url.strip()]
         }
@@ -3330,9 +3290,6 @@ def import_submit():
             'type': data['type'],
             'sub_type': data['sub_type'],
             'imp_author': data['imp_author'],
-            'is_film': data['is_film'],
-            'film_stock': data['film_stock'],
-            'film_format': data['film_format'],
             'web_urls': data['web_urls']
         }
 

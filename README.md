@@ -156,11 +156,13 @@ aupat/
 ## Database Schema
 
 - **locations** - Location info (name, state, type, UUID)
-- **images** - Images with EXIF + hardware categorization
+- **images** - Images with EXIF + hardware categorization + film flag
 - **videos** - Videos with metadata + hardware categorization
 - **documents** - Documents and sidecar files
 - **urls** - Web URLs for locations
 - **versions** - Schema version tracking
+
+**Film photography**: `film` field is in images table (per-image property), NOT locations table.
 
 Full specs in `logseq/pages/`.
 
@@ -195,7 +197,7 @@ ffprobe -version
 ```
 
 ### Pipeline creates empty folders
-This was the bug. Fixed in db_ingest.py. Files now properly move from staging to categorized archive folders.
+Fixed. Folders only created when media of that type exists. No more empty `photos/original_camera/` if no DSLR images, no `videos/` if no videos, etc.
 
 ### Blank archive folders after import
 Run the FULL pipeline:
