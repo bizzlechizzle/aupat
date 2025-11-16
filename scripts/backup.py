@@ -119,6 +119,18 @@ def create_backup(source_db: str, backup_dir: str, db_name: str) -> str:
     source_path = Path(source_db)
     backup_path = Path(backup_dir)
 
+    # CRITICAL: Check if db_loc is a directory instead of a file path
+    if source_path.exists() and source_path.is_dir():
+        raise FileNotFoundError(
+            f"ERROR: Database path is a directory, not a file!\n\n"
+            f"Current db_loc: {source_db}\n"
+            f"This should be a FILE path like: {source_db}/aupat.db\n\n"
+            f"To fix this:\n"
+            f"1. Edit user/user.json\n"
+            f"2. Change db_loc from '{source_db}' to '{source_db}/aupat.db'\n"
+            f"3. Or run setup.sh to regenerate user.json with correct paths"
+        )
+
     # Validate source exists
     if not source_path.exists():
         # Check if parent directory exists
@@ -128,7 +140,8 @@ def create_backup(source_db: str, backup_dir: str, db_name: str) -> str:
                 f"Please ensure:\n"
                 f"1. The directory '{source_path.parent}' exists\n"
                 f"2. user.json has valid database path (not placeholder)\n"
-                f"3. Create directory with: mkdir -p {source_path.parent}"
+                f"3. Create directory with: mkdir -p {source_path.parent}\n\n"
+                f"You can run setup.sh to automatically create the correct structure."
             )
         else:
             # Directory exists but database doesn't - this is OK for first run

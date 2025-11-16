@@ -79,8 +79,25 @@ WORKFLOW_STATUS = {
 def load_config(config_path: str = 'user/user.json') -> dict:
     """Load user configuration."""
     try:
+        # Check if config file exists
+        if not Path(config_path).exists():
+            logger.error(f"Configuration file not found: {config_path}")
+            logger.error("Please run setup.sh to create user.json with correct paths")
+            return {}
+
         with open(config_path, 'r') as f:
-            return json.load(f)
+            config = json.load(f)
+
+        # Check if db_loc is a directory (common misconfiguration)
+        if 'db_loc' in config:
+            db_path = Path(config['db_loc'])
+            if db_path.exists() and db_path.is_dir():
+                logger.error(f"ERROR: db_loc is a directory, not a file: {config['db_loc']}")
+                logger.error(f"Change db_loc to: {config['db_loc']}/aupat.db")
+                config['db_loc'] = str(db_path / 'aupat.db')  # Auto-fix
+                logger.info(f"Auto-corrected db_loc to: {config['db_loc']}")
+
+        return config
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         return {}
@@ -1520,6 +1537,16 @@ SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', "
 def dashboard():
     """Dashboard page."""
     config = load_config()
+
+    # Check if config is valid
+    if not config:
+        flash('Configuration error: user.json not found. Please run setup.sh to initialize the project.', 'error')
+    else:
+        is_valid, issues = validate_config(config)
+        if not is_valid:
+            for issue in issues:
+                flash(f'Configuration issue: {issue}', 'error')
+
     stats = get_dashboard_stats(config)
     return render_template_string(DASHBOARD_TEMPLATE, stats=stats)
 
