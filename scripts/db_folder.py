@@ -67,7 +67,7 @@ def create_folder_structure(
     loc_type: str
 ) -> list:
     """
-    Create complete folder structure for a location.
+    Create folder structure for a location - only creates folders for existing media.
 
     Args:
         arch_loc: Archive root directory
@@ -103,29 +103,108 @@ def create_folder_structure(
     created_paths.append(str(base_path))
     logger.info(f"  Created: {base_path}")
 
-    # Create photos subdirectories
-    photos_folders = template['location_structure']['subdirectories']['photos']['folders']
-    for folder in photos_folders:
-        path = base_path / 'photos' / folder
-        path.mkdir(parents=True, exist_ok=True)
-        created_paths.append(str(path))
-        logger.debug(f"    Created: photos/{folder}")
+    # Query database to check what media exists for this location
+    config = load_user_config()
+    conn = sqlite3.connect(config['db_loc'])
+    cursor = conn.cursor()
 
-    # Create videos subdirectories
-    videos_folders = template['location_structure']['subdirectories']['videos']['folders']
-    for folder in videos_folders:
-        path = base_path / 'videos' / folder
-        path.mkdir(parents=True, exist_ok=True)
-        created_paths.append(str(path))
-        logger.debug(f"    Created: videos/{folder}")
+    # Check which image hardware categories have files
+    cursor.execute("""
+        SELECT
+            SUM(CASE WHEN camera = 1 THEN 1 ELSE 0 END) as camera_count,
+            SUM(CASE WHEN phone = 1 THEN 1 ELSE 0 END) as phone_count,
+            SUM(CASE WHEN drone = 1 THEN 1 ELSE 0 END) as drone_count,
+            SUM(CASE WHEN go_pro = 1 THEN 1 ELSE 0 END) as gopro_count,
+            SUM(CASE WHEN film = 1 THEN 1 ELSE 0 END) as film_count,
+            SUM(CASE WHEN other = 1 THEN 1 ELSE 0 END) as other_count
+        FROM images
+        WHERE loc_uuid = ?
+    """, (loc_uuid,))
 
-    # Create documents subdirectories
-    docs_folders = template['location_structure']['subdirectories']['documents']['folders']
-    for folder in docs_folders:
-        path = base_path / 'documents' / folder
-        path.mkdir(parents=True, exist_ok=True)
-        created_paths.append(str(path))
-        logger.debug(f"    Created: documents/{folder}")
+    img_result = cursor.fetchone()
+    # Handle None values from SUM() when no rows match
+    img_counts = tuple(c if c is not None else 0 for c in img_result) if img_result else (0, 0, 0, 0, 0, 0)
+    has_images = sum(img_counts) > 0
+
+    # Check which video hardware categories have files
+    cursor.execute("""
+        SELECT
+            SUM(CASE WHEN camera = 1 THEN 1 ELSE 0 END) as camera_count,
+            SUM(CASE WHEN phone = 1 THEN 1 ELSE 0 END) as phone_count,
+            SUM(CASE WHEN drone = 1 THEN 1 ELSE 0 END) as drone_count,
+            SUM(CASE WHEN go_pro = 1 THEN 1 ELSE 0 END) as gopro_count,
+            SUM(CASE WHEN dash_cam = 1 THEN 1 ELSE 0 END) as dashcam_count,
+            SUM(CASE WHEN other = 1 THEN 1 ELSE 0 END) as other_count
+        FROM videos
+        WHERE loc_uuid = ?
+    """, (loc_uuid,))
+
+    vid_result = cursor.fetchone()
+    # Handle None values from SUM() when no rows match
+    vid_counts = tuple(c if c is not None else 0 for c in vid_result) if vid_result else (0, 0, 0, 0, 0, 0)
+    has_videos = sum(vid_counts) > 0
+
+    # Check if we have documents
+    cursor.execute("SELECT COUNT(*) FROM documents WHERE loc_uuid = ?", (loc_uuid,))
+    doc_count = cursor.fetchone()[0]
+    has_documents = doc_count > 0
+
+    conn.close()
+
+    logger.info(f"  Media check: {sum(img_counts)} images, {sum(vid_counts)} videos, {doc_count} documents")
+
+    # Only create photos/ folder and subdirectories if we have images
+    if has_images:
+        photos_folders = template['location_structure']['subdirectories']['photos']['folders']
+
+        # Map folder names to database counts
+        folder_map = {
+            'original_camera': img_counts[0],
+            'original_phone': img_counts[1],
+            'original_drone': img_counts[2],
+            'original_go-pro': img_counts[3],
+            'original_film': img_counts[4],
+            'original_other': img_counts[5]
+        }
+
+        # Only create hardware-specific folders we need
+        for folder in photos_folders:
+            if folder_map.get(folder, 0) > 0:
+                path = base_path / 'photos' / folder
+                path.mkdir(parents=True, exist_ok=True)
+                created_paths.append(str(path))
+                logger.info(f"    Created: photos/{folder} ({folder_map[folder]} files)")
+
+    # Only create videos/ folder and subdirectories if we have videos
+    if has_videos:
+        videos_folders = template['location_structure']['subdirectories']['videos']['folders']
+
+        # Map folder names to database counts
+        folder_map = {
+            'original_camera': vid_counts[0],
+            'original_phone': vid_counts[1],
+            'original_drone': vid_counts[2],
+            'original_go-pro': vid_counts[3],
+            'original_dash-cam': vid_counts[4],
+            'original_other': vid_counts[5]
+        }
+
+        # Only create hardware-specific folders we need
+        for folder in videos_folders:
+            if folder_map.get(folder, 0) > 0:
+                path = base_path / 'videos' / folder
+                path.mkdir(parents=True, exist_ok=True)
+                created_paths.append(str(path))
+                logger.info(f"    Created: videos/{folder} ({folder_map[folder]} files)")
+
+    # Only create documents/ folder and subdirectories if we have documents
+    if has_documents:
+        docs_folders = template['location_structure']['subdirectories']['documents']['folders']
+        for folder in docs_folders:
+            path = base_path / 'documents' / folder
+            path.mkdir(parents=True, exist_ok=True)
+            created_paths.append(str(path))
+            logger.debug(f"    Created: documents/{folder}")
 
     logger.info(f"  Total directories created: {len(created_paths)}")
 
