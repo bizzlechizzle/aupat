@@ -294,7 +294,6 @@ BASE_TEMPLATE = """
         .site-title {
             font-size: 1.5rem;
             font-family: 'Roboto Mono', monospace;
-            text-transform: uppercase;
             letter-spacing: 0.1em;
             margin: 0;
         }
@@ -821,7 +820,7 @@ BASE_TEMPLATE = """
 <body>
     <header class="header">
         <div class="header-content">
-            <h1 class="site-title">AUPAT</h1>
+            <h1 class="site-title">Abandoned Upstate</h1>
             <nav class="nav">
                 <a href="/" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
                 <a href="/locations" class="{{ 'active' if request.path == '/locations' else '' }}">Locations</a>
@@ -846,7 +845,7 @@ BASE_TEMPLATE = """
     </main>
 
     <footer style="text-align: center; padding: 2rem; opacity: 0.6; font-size: 0.9rem;">
-        <p>&copy; 2025 Abandoned Upstate Project Archive Tool</p>
+        <p>&copy; 2025 Bryant Neal</p>
     </footer>
 </body>
 </html>
