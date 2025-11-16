@@ -321,6 +321,155 @@ BASE_TEMPLATE = """
             border-bottom-color: var(--accent);
         }
 
+        /* File explorer modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--background);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--foreground);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .file-explorer {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .current-path {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            padding: 0.75rem;
+            background: var(--muted);
+            border-radius: 4px;
+            word-break: break-all;
+        }
+
+        .directory-list {
+            list-style: none;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .directory-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .directory-item:last-child {
+            border-bottom: none;
+        }
+
+        .directory-item:hover {
+            background: rgba(185, 151, 92, 0.1);
+        }
+
+        .directory-item.parent {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .directory-icon {
+            font-size: 1.2rem;
+        }
+
+        .input-with-browse {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+        }
+
+        .input-with-browse input {
+            flex: 1;
+        }
+
+        .btn-browse {
+            padding: 0.75rem 1rem;
+            white-space: nowrap;
+        }
+
+        .settings-info {
+            background: rgba(185, 151, 92, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-info p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
         .theme-toggle {
             background: none;
             border: 2px solid var(--header-fg);
@@ -542,6 +691,100 @@ BASE_TEMPLATE = """
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcon(savedTheme);
         });
+
+        // File explorer functionality
+        let currentPath = '/';
+        let currentInputField = null;
+
+        function openFileExplorer(inputId) {
+            currentInputField = inputId;
+            const input = document.getElementById(inputId);
+            const startPath = input.value || '/home';
+            currentPath = startPath;
+
+            const modal = document.getElementById('fileExplorerModal');
+            modal.classList.add('active');
+
+            loadDirectory(currentPath);
+        }
+
+        function closeFileExplorer() {
+            const modal = document.getElementById('fileExplorerModal');
+            modal.classList.remove('active');
+            currentInputField = null;
+        }
+
+        function selectDirectory() {
+            if (currentInputField && currentPath) {
+                const input = document.getElementById(currentInputField);
+                input.value = currentPath;
+            }
+            closeFileExplorer();
+        }
+
+        async function loadDirectory(path) {
+            try {
+                const response = await fetch('/api/browse?path=' + encodeURIComponent(path));
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                currentPath = data.current_path;
+                displayDirectory(data);
+            } catch (error) {
+                alert('Failed to load directory: ' + error);
+            }
+        }
+
+        function displayDirectory(data) {
+            document.getElementById('currentPath').textContent = data.current_path;
+
+            const list = document.getElementById('directoryList');
+            list.innerHTML = '';
+
+            // Add parent directory link if not at root
+            if (data.parent_path) {
+                const li = document.createElement('li');
+                li.className = 'directory-item parent';
+                li.innerHTML = '<span class="directory-icon">⬆️</span> ..';
+                li.onclick = () => loadDirectory(data.parent_path);
+                list.appendChild(li);
+            }
+
+            // Add directories
+            data.directories.forEach(dir => {
+                const li = document.createElement('li');
+                li.className = 'directory-item';
+                li.innerHTML = '<span class="directory-icon">📁</span> ' + dir.name;
+                li.onclick = () => loadDirectory(dir.path);
+                list.appendChild(li);
+            });
+
+            // Show message if no directories
+            if (data.directories.length === 0 && !data.parent_path) {
+                const li = document.createElement('li');
+                li.className = 'directory-item';
+                li.style.opacity = '0.6';
+                li.style.cursor = 'default';
+                li.textContent = 'No subdirectories';
+                list.appendChild(li);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('fileExplorerModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeFileExplorer();
+                    }
+                });
+            }
+        });
     </script>
 </head>
 <body>
@@ -553,6 +796,7 @@ BASE_TEMPLATE = """
                 <a href="/locations" class="{{ 'active' if request.path == '/locations' else '' }}">Locations</a>
                 <a href="/archives" class="{{ 'active' if request.path == '/archives' else '' }}">Archives</a>
                 <a href="/import" class="{{ 'active' if request.path == '/import' else '' }}">Import</a>
+                <a href="/settings" class="{{ 'active' if request.path == '/settings' else '' }}">Settings</a>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☾</button>
             </nav>
         </div>
@@ -756,6 +1000,91 @@ IMPORT_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
 {% endblock %}
 """)
 
+# Settings page
+SETTINGS_TEMPLATE = BASE_TEMPLATE.replace('{% block content %}{% endblock %}', """
+{% block content %}
+<h2>Settings</h2>
+<p style="margin-bottom: 2rem; opacity: 0.8;">Configure AUPAT system paths and options</p>
+
+<div class="settings-info">
+    <p><strong>Note:</strong> These settings are stored in <code>user/user.json</code>. All paths should be absolute paths.</p>
+</div>
+
+<div class="card">
+    <form method="POST" action="/settings/save">
+        <div class="form-group">
+            <label>Database Name</label>
+            <input type="text" name="db_name" id="db_name" value="{{ config.get('db_name', 'aupat.db') }}" required>
+            <div class="help-text">Database filename (e.g., aupat.db)</div>
+        </div>
+
+        <div class="form-group">
+            <label>Database Location</label>
+            <div class="input-with-browse">
+                <input type="text" name="db_loc" id="db_loc" value="{{ config.get('db_loc', '') }}" required placeholder="/absolute/path/to/database/aupat.db">
+                <button type="button" class="btn btn-browse" onclick="openFileExplorer('db_loc')">Browse</button>
+            </div>
+            <div class="help-text">Absolute path to database file</div>
+        </div>
+
+        <div class="form-group">
+            <label>Backup Location</label>
+            <div class="input-with-browse">
+                <input type="text" name="db_backup" id="db_backup" value="{{ config.get('db_backup', '') }}" required placeholder="/absolute/path/to/backups/">
+                <button type="button" class="btn btn-browse" onclick="openFileExplorer('db_backup')">Browse</button>
+            </div>
+            <div class="help-text">Directory for database backups</div>
+        </div>
+
+        <div class="form-group">
+            <label>Ingest/Staging Location</label>
+            <div class="input-with-browse">
+                <input type="text" name="db_ingest" id="db_ingest" value="{{ config.get('db_ingest', '') }}" required placeholder="/absolute/path/to/ingest/staging/">
+                <button type="button" class="btn btn-browse" onclick="openFileExplorer('db_ingest')">Browse</button>
+            </div>
+            <div class="help-text">Staging area for incoming files before import</div>
+        </div>
+
+        <div class="form-group">
+            <label>Archive Location</label>
+            <div class="input-with-browse">
+                <input type="text" name="arch_loc" id="arch_loc" value="{{ config.get('arch_loc', '') }}" required placeholder="/absolute/path/to/archive/">
+                <button type="button" class="btn btn-browse" onclick="openFileExplorer('arch_loc')">Browse</button>
+            </div>
+            <div class="help-text">Archive root directory for organized media storage</div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <button type="submit" class="btn">Save Settings</button>
+            <a href="/" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<!-- File Explorer Modal -->
+<div id="fileExplorerModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Select Directory</h3>
+            <button class="modal-close" onclick="closeFileExplorer()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="file-explorer">
+                <div class="current-path" id="currentPath">/</div>
+                <ul class="directory-list" id="directoryList">
+                    <li class="directory-item" style="opacity: 0.6;">Loading...</li>
+                </ul>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFileExplorer()">Cancel</button>
+            <button class="btn" onclick="selectDirectory()">Select This Directory</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+""")
+
 
 # Routes
 @app.route('/')
@@ -846,6 +1175,103 @@ def import_submit():
     except Exception as e:
         flash(f'Import error: {str(e)}', 'error')
         return redirect(url_for('import_form'))
+
+
+@app.route('/settings')
+def settings():
+    """Settings page."""
+    config = load_config()
+    return render_template_string(SETTINGS_TEMPLATE, config=config)
+
+
+@app.route('/settings/save', methods=['POST'])
+def settings_save():
+    """Save settings to user.json."""
+    try:
+        # Get form data
+        new_config = {
+            'db_name': request.form.get('db_name'),
+            'db_loc': request.form.get('db_loc'),
+            'db_backup': request.form.get('db_backup'),
+            'db_ingest': request.form.get('db_ingest'),
+            'arch_loc': request.form.get('arch_loc')
+        }
+
+        # Validate paths exist or can be created
+        paths_to_check = ['db_backup', 'db_ingest', 'arch_loc']
+        for path_key in paths_to_check:
+            path = new_config.get(path_key)
+            if path:
+                path_obj = Path(path)
+                # If it's a directory that doesn't exist, try to create it
+                if not path_obj.exists():
+                    try:
+                        path_obj.mkdir(parents=True, exist_ok=True)
+                        logger.info(f"Created directory: {path}")
+                    except Exception as e:
+                        flash(f'Warning: Could not create directory {path}: {str(e)}', 'error')
+
+        # Save to user/user.json
+        config_path = 'user/user.json'
+        config_dir = Path('user')
+        config_dir.mkdir(exist_ok=True)
+
+        with open(config_path, 'w') as f:
+            json.dump(new_config, f, indent=2)
+
+        flash('Settings saved successfully!', 'success')
+        logger.info(f"Settings saved to {config_path}")
+        return redirect(url_for('settings'))
+
+    except Exception as e:
+        flash(f'Failed to save settings: {str(e)}', 'error')
+        logger.error(f"Failed to save settings: {e}")
+        return redirect(url_for('settings'))
+
+
+@app.route('/api/browse')
+def api_browse():
+    """Browse filesystem directories for file explorer."""
+    try:
+        path = request.args.get('path', '/home')
+        path_obj = Path(path).resolve()
+
+        # Security: Prevent directory traversal attacks
+        # Only allow browsing within reasonable directories
+        allowed_prefixes = ['/home', '/mnt', '/media', '/opt', '/var', '/srv']
+        path_str = str(path_obj)
+        if not any(path_str.startswith(prefix) for prefix in allowed_prefixes):
+            return jsonify({'error': 'Access denied to this directory'}), 403
+
+        if not path_obj.exists() or not path_obj.is_dir():
+            return jsonify({'error': 'Directory does not exist'}), 404
+
+        # Get directories
+        directories = []
+        try:
+            for item in sorted(path_obj.iterdir()):
+                if item.is_dir() and not item.name.startswith('.'):
+                    directories.append({
+                        'name': item.name,
+                        'path': str(item)
+                    })
+        except PermissionError:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get parent directory
+        parent_path = None
+        if path_obj != Path('/'):
+            parent_path = str(path_obj.parent)
+
+        return jsonify({
+            'current_path': str(path_obj),
+            'parent_path': parent_path,
+            'directories': directories
+        })
+
+    except Exception as e:
+        logger.error(f"Browse error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 def main():
