@@ -422,9 +422,9 @@ def import_media_files(
                         (
                             sha256,
                             new_filename,
-                            None,  # img_loc stays NULL until ingest moves to archive
+                            str(staging_file),  # img_loc points to staging until ingest moves to archive
                             loc_uuid,
-                            str(staging_file),  # img_loco now points to staging location
+                            orig_location,  # img_loco points to original location before import
                             orig_name,
                             timestamp,
                             timestamp,
@@ -445,9 +445,9 @@ def import_media_files(
                         (
                             sha256,
                             new_filename,
-                            None,  # vid_loc stays NULL until ingest moves to archive
+                            str(staging_file),  # vid_loc points to staging until ingest moves to archive
                             loc_uuid,
-                            str(staging_file),  # vid_loco now points to staging location
+                            orig_location,  # vid_loco points to original location before import
                             orig_name,
                             timestamp,
                             timestamp,
@@ -468,10 +468,10 @@ def import_media_files(
                         (
                             sha256,
                             new_filename,
-                            None,  # doc_loc stays NULL until ingest moves to archive
+                            str(staging_file),  # doc_loc points to staging until ingest moves to archive
                             ext,
                             loc_uuid,
-                            str(staging_file),  # doc_loco now points to staging location
+                            orig_location,  # doc_loco points to original location before import
                             orig_name,
                             timestamp,
                             timestamp,
