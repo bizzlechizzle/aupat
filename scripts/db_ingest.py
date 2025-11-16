@@ -191,6 +191,7 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
         images = cursor.fetchall()
 
         logger.info(f"Found {len(images)} images to ingest")
+        print(f"PROGRESS: 0/{len(images)} images", flush=True)
 
         for row in images:
             (img_sha256, img_name, img_loco, img_loc,
@@ -258,6 +259,7 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
                 )
 
                 ingested_count += 1
+                print(f"PROGRESS: {ingested_count}/{len(images)} images", flush=True)
                 logger.debug(f"Ingested ({method}): {filename}")
 
             except Exception as e:
@@ -314,6 +316,7 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
         videos = cursor.fetchall()
 
         logger.info(f"Found {len(videos)} videos to ingest")
+        print(f"PROGRESS: 0/{len(videos)} videos", flush=True)
 
         for row in videos:
             (vid_sha256, vid_name, vid_loco, vid_loc,
@@ -381,6 +384,7 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
                 )
 
                 ingested_count += 1
+                print(f"PROGRESS: {ingested_count}/{len(videos)} videos", flush=True)
                 logger.debug(f"Ingested ({method}): {filename}")
 
             except Exception as e:

@@ -282,7 +282,9 @@ def create_folders_for_all_locations(config: dict) -> dict:
         locations = cursor.fetchall()
 
         logger.info(f"Found {len(locations)} locations to process")
+        print(f"PROGRESS: 0/{len(locations)} locations", flush=True)
 
+        processed = 0
         for loc_uuid, loc_name, state, loc_type in locations:
             logger.info(f"Processing location: {loc_name} ({loc_uuid[:8]})")
 
@@ -291,6 +293,8 @@ def create_folders_for_all_locations(config: dict) -> dict:
                     arch_loc, loc_name, loc_uuid, state, loc_type
                 )
                 results[loc_uuid] = created_paths
+                processed += 1
+                print(f"PROGRESS: {processed}/{len(locations)} locations", flush=True)
 
             except Exception as e:
                 logger.error(f"Failed to create folders for {loc_name}: {e}")

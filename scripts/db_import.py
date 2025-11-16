@@ -102,7 +102,7 @@ def run_backup(config_path: str) -> bool:
         )
 
         if result.returncode == 0:
-            logger.info("✓ Backup completed successfully")
+            logger.info("Backup completed successfully")
             return True
         else:
             logger.error(f"Backup failed: {result.stderr}")
@@ -155,9 +155,9 @@ def import_location_from_metadata(db_path: str, metadata_path: str) -> dict:
 
     existing_uuid = check_location_name_collision(cursor, loc_name)
     if existing_uuid:
-        logger.warning(f"⚠ Location name already exists: {loc_name}")
+        logger.warning(f"WARNING: Location name already exists: {loc_name}")
         logger.warning(f"  Existing UUID: {existing_uuid}")
-        logger.warning("⚠ Creating duplicate location (web interface import)")
+        logger.warning("WARNING: Creating duplicate location (web interface import)")
 
     # Generate UUID
     loc_uuid = generate_uuid(cursor, 'locations', 'loc_uuid')
@@ -216,7 +216,7 @@ def import_location_interactive(db_path: str) -> dict:
 
     existing_uuid = check_location_name_collision(cursor, loc_name)
     if existing_uuid:
-        logger.warning(f"⚠ Location name already exists: {loc_name}")
+        logger.warning(f"WARNING: Location name already exists: {loc_name}")
         logger.warning(f"  Existing UUID: {existing_uuid}")
         response = input("\nContinue anyway? This will create a duplicate location. (yes/no): ").strip().lower()
         if response not in ['yes', 'y']:
@@ -324,6 +324,7 @@ def import_media_files(
     files = [f for f in files if f.is_file()]
 
     logger.info(f"Found {len(files)} files to process")
+    print(f"PROGRESS: 0/{len(files)} files", flush=True)
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -429,7 +430,7 @@ def import_media_files(
                         )
                     )
                     stats['images'] += 1
-                    logger.info(f"✓ Imported image: {orig_name} -> {new_filename} ({sha8})")
+                    logger.info(f"Imported image: {orig_name} -> {new_filename} ({sha8})")
 
                 elif file_type == 'video':
                     cursor.execute(
@@ -452,7 +453,7 @@ def import_media_files(
                         )
                     )
                     stats['videos'] += 1
-                    logger.info(f"✓ Imported video: {orig_name} -> {new_filename} ({sha8})")
+                    logger.info(f"Imported video: {orig_name} -> {new_filename} ({sha8})")
 
                 elif file_type == 'document':
                     cursor.execute(
@@ -476,9 +477,10 @@ def import_media_files(
                         )
                     )
                     stats['documents'] += 1
-                    logger.info(f"✓ Imported document: {orig_name} -> {new_filename} ({sha8})")
+                    logger.info(f"Imported document: {orig_name} -> {new_filename} ({sha8})")
 
                 stats['total'] += 1
+                print(f"PROGRESS: {stats['total']}/{len(files)} files", flush=True)
 
             except Exception as e:
                 logger.error(f"Failed to import {file_path.name}: {e}")
@@ -503,9 +505,9 @@ def import_media_files(
         logger.info("\nVerifying import match counts...")
         expected_total = stats['images'] + stats['videos'] + stats['documents']
         if expected_total == stats['total']:
-            logger.info(f"✓ Match count verified: {stats['total']} files imported")
+            logger.info(f"Match count verified: {stats['total']} files imported")
         else:
-            logger.warning(f"⚠ Match count mismatch: expected {expected_total}, got {stats['total']}")
+            logger.warning(f"WARNING: Match count mismatch: expected {expected_total}, got {stats['total']}")
 
     finally:
         conn.close()
@@ -548,7 +550,7 @@ def create_location_record(db_path: str, location_data: dict) -> None:
         )
 
         conn.commit()
-        logger.info(f"✓ Created location record: {location_data['loc_name']}")
+        logger.info(f"Created location record: {location_data['loc_name']}")
 
     finally:
         conn.close()
@@ -626,7 +628,7 @@ def import_web_urls(db_path: str, metadata_path: str, loc_uuid: str, imp_author:
             logger.info(f"Imported URL: {url} (domain: {domain})")
 
         conn.commit()
-        logger.info(f"✓ Imported {imported_count} web URL(s)")
+        logger.info(f"Imported {imported_count} web URL(s)")
 
     finally:
         conn.close()
@@ -707,7 +709,7 @@ Features (P0/P1):
                 logger.error("Use --skip-backup to import anyway (not recommended)")
                 return 1
         else:
-            logger.warning("⚠ Skipping backup (--skip-backup flag set)")
+            logger.warning("WARNING: Skipping backup (--skip-backup flag set)")
 
         # P1: Collect location information (includes name collision check)
         # Use metadata file if provided (web interface), otherwise prompt interactively
@@ -767,9 +769,9 @@ Features (P0/P1):
         logger.info("=" * 60)
 
         if stats['errors'] > 0:
-            logger.warning(f"⚠ Import completed with {stats['errors']} errors")
+            logger.warning(f"WARNING: Import completed with {stats['errors']} errors")
         else:
-            logger.info("✓ IMPORT SUCCESSFUL")
+            logger.info("IMPORT SUCCESSFUL")
 
         logger.info("\nNext steps:")
         logger.info("  1. Run db_organize.py to extract metadata")

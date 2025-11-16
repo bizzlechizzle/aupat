@@ -66,6 +66,28 @@ def verify_files(db_path: str, location_uuid: str = None) -> tuple:
     failed_files = []
 
     try:
+        # Get counts first for progress tracking
+        if location_uuid:
+            cursor.execute("SELECT COUNT(*) FROM images WHERE loc_uuid = ?", (location_uuid,))
+            img_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM videos WHERE loc_uuid = ?", (location_uuid,))
+            vid_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM documents WHERE loc_uuid = ?", (location_uuid,))
+            doc_count = cursor.fetchone()[0]
+        else:
+            cursor.execute("SELECT COUNT(*) FROM images")
+            img_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM videos")
+            vid_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM documents")
+            doc_count = cursor.fetchone()[0]
+
+        total_files = img_count + vid_count + doc_count
+        progress_count = 0
+
+        logger.info(f"Verifying {total_files} total files ({img_count} images, {vid_count} videos, {doc_count} documents)")
+        print(f"PROGRESS: 0/{total_files} files", flush=True)
+
         # Verify images
         logger.info("Verifying images...")
         if location_uuid:
@@ -85,9 +107,13 @@ def verify_files(db_path: str, location_uuid: str = None) -> tuple:
                 sha256_file = calculate_sha256(img_loc)
                 if sha256_file == sha256_db:
                     verified_count += 1
+                    progress_count += 1
+                    print(f"PROGRESS: {progress_count}/{total_files} files", flush=True)
                 else:
                     logger.error(f"SHA256 mismatch for {img_name}")
                     failed_files.append(('image', img_name, 'SHA256 mismatch'))
+                    progress_count += 1
+                    print(f"PROGRESS: {progress_count}/{total_files} files", flush=True)
             except Exception as e:
                 logger.error(f"Failed to verify {img_name}: {e}")
                 failed_files.append(('image', img_name, str(e)))
@@ -111,9 +137,13 @@ def verify_files(db_path: str, location_uuid: str = None) -> tuple:
                 sha256_file = calculate_sha256(vid_loc)
                 if sha256_file == sha256_db:
                     verified_count += 1
+                    progress_count += 1
+                    print(f"PROGRESS: {progress_count}/{total_files} files", flush=True)
                 else:
                     logger.error(f"SHA256 mismatch for {vid_name}")
                     failed_files.append(('video', vid_name, 'SHA256 mismatch'))
+                    progress_count += 1
+                    print(f"PROGRESS: {progress_count}/{total_files} files", flush=True)
             except Exception as e:
                 logger.error(f"Failed to verify {vid_name}: {e}")
                 failed_files.append(('video', vid_name, str(e)))
@@ -137,9 +167,13 @@ def verify_files(db_path: str, location_uuid: str = None) -> tuple:
                 sha256_file = calculate_sha256(doc_loc)
                 if sha256_file == sha256_db:
                     verified_count += 1
+                    progress_count += 1
+                    print(f"PROGRESS: {progress_count}/{total_files} files", flush=True)
                 else:
                     logger.error(f"SHA256 mismatch for {doc_name}")
                     failed_files.append(('document', doc_name, 'SHA256 mismatch'))
+                    progress_count += 1
+                    print(f"PROGRESS: {progress_count}/{total_files} files", flush=True)
             except Exception as e:
                 logger.error(f"Failed to verify {doc_name}: {e}")
                 failed_files.append(('document', doc_name, str(e)))
