@@ -35,6 +35,12 @@ tmp/
 temp/
 *.test.db
 
+# AUPAT - Generated archives and ingest staging
+data/archive/
+data/ingest/
+data/backups/
+data/*.db
+
 # Python
 __pycache__/
 *.py[cod]
