@@ -3060,9 +3060,9 @@ def run_import_task(task_id: str, temp_dir: Path, data: dict, config: dict):
         except Exception as cleanup_error:
             logger.warning(f"[Task {task_id}] Failed to clean up temp directory: {cleanup_error}")
 
-        # Schedule task cleanup after 1 hour
+        # Schedule task cleanup after 5 seconds to trigger page refresh
         def cleanup_task():
-            time.sleep(3600)
+            time.sleep(5)
             with WORKFLOW_LOCK:
                 if task_id in WORKFLOW_STATUS:
                     del WORKFLOW_STATUS[task_id]
