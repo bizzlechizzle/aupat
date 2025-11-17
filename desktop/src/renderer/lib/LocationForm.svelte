@@ -133,11 +133,11 @@
       };
 
       if (mode === 'create') {
-        await locations.create(data);
-        dispatch('created');
+        const newLocation = await locations.create(data);
+        dispatch('created', newLocation);
       } else {
-        await locations.update(location.loc_uuid, data);
-        dispatch('updated');
+        const updatedLocation = await locations.update(location.loc_uuid, data);
+        dispatch('updated', updatedLocation);
       }
 
       close();
