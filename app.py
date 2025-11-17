@@ -57,8 +57,16 @@ if __name__ == '__main__':
     db_path = Path(app.config['DB_PATH'])
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Initialize database if it doesn't exist
+    if not db_path.exists():
+        logger.warning(f"Database not found at {db_path}")
+        logger.info("Run 'python scripts/db_migrate_v012.py' to initialize the database")
+        logger.info("Alternatively, the database will be created automatically on first write operation")
+
     logger.info(f"Starting AUPAT Core API v0.1.2")
     logger.info(f"Database: {app.config['DB_PATH']}")
+    logger.info(f"Server will listen on http://0.0.0.0:5000")
+    logger.info(f"Desktop app should connect to http://localhost:5000")
 
     # Run Flask app
     # Use 0.0.0.0 to bind to all interfaces (required for Docker)

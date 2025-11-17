@@ -222,11 +222,11 @@ def normalize_state_code(state: str) -> str:
     # Fallback: treat as two-letter code
     state_code = state_input.lower()
 
-    # Validate
+    # Validate (warn only - allow custom states per LOGSEC spec)
     if state_code not in VALID_US_STATES:
-        raise ValueError(
-            f"Invalid state code: '{state}'. Must be valid USPS two-letter abbreviation. "
-            f"Examples: ny, ca, tx"
+        logger.info(
+            f"Custom state code: '{state}'. Not in standard USPS list. "
+            f"Standard examples: ny, ca, tx. Using '{state_code}' as-is."
         )
 
     return state_code
@@ -293,11 +293,11 @@ def normalize_location_type(location_type: str, auto_correct: bool = True) -> st
         )
         return corrected
 
-    # Unknown type - warn but allow
-    logger.warning(
-        f"Unknown location type: '{normalized}'. "
-        f"Valid types: {sorted(VALID_LOCATION_TYPES)}. "
-        f"Using '{normalized}' as-is."
+    # Custom type - log for visibility but allow (per LOGSEC spec: "based off folder name")
+    logger.info(
+        f"Custom location type: '{normalized}'. "
+        f"Common types: {sorted(VALID_LOCATION_TYPES)}. "
+        f"Using '{normalized}' as-is per specification."
     )
 
     return normalized
