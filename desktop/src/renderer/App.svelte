@@ -10,6 +10,7 @@
   import LocationsList from './lib/LocationsList.svelte';
   import Settings from './lib/Settings.svelte';
   import { locations } from './stores/locations.js';
+  import logo from './assets/logo.png';
 
   // Current active view
   let currentView = 'map'; // 'map', 'locations', 'import', 'settings'
@@ -48,9 +49,9 @@
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-white shadow-lg flex flex-col">
     <!-- Header -->
-    <div class="p-6 border-b border-gray-200">
-      <h1 class="text-2xl font-bold text-gray-800">AUPAT</h1>
-      <p class="text-sm text-gray-500 mt-1">Archive Management</p>
+    <div class="p-6 border-b border-gray-200 flex flex-col items-center">
+      <img src={logo} alt="Abandoned Upstate" class="w-24 h-24 object-contain mb-3" />
+      <p class="text-sm text-gray-600 font-medium">Archive Tool</p>
     </div>
 
     <!-- Navigation Menu -->
