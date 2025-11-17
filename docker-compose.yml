@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # AUPAT Core API - Flask application
   aupat-core:
@@ -9,9 +7,9 @@ services:
     container_name: aupat-core
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
-      - FLASK_APP=web_interface.py
+      - FLASK_APP=app.py
       - FLASK_ENV=production
       - IMMICH_URL=http://immich-server:3001
       - ARCHIVEBOX_URL=http://archivebox:8000

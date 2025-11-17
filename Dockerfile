@@ -23,12 +23,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir requests==2.31.0
 
 # Copy application code
-COPY web_interface.py .
+COPY app.py .
 COPY scripts/ ./scripts/
 COPY data/ ./data/
 
+# Copy user config template
+COPY user/user.json.template ./user/
+
 # Create necessary directories
-RUN mkdir -p /app/logs /app/user /data/backups /data/archive /data/ingest
+RUN mkdir -p /app/logs /app/user /app/data/backups /app/data/archive /app/data/ingest
 
 # Expose Flask port
 EXPOSE 5000
@@ -38,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5000/api/health || exit 1
 
 # Run Flask application
-CMD ["python", "web_interface.py"]
+CMD ["python", "app.py"]

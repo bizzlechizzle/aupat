@@ -140,6 +140,12 @@ data/ingest/
 data/*.db
 data/*.sqlite
 
+# Docker volume data (Immich, ArchiveBox)
+data/archivebox/
+data/immich/
+data/immich-postgres/
+data/ml-cache/
+
 # ===================================
 # AUPAT - Logs
 # ===================================
