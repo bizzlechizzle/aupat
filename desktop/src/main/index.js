@@ -24,13 +24,32 @@ log.info('AUPAT Desktop starting...');
 // Initialize settings store
 const store = new Store({
   defaults: {
-    apiUrl: 'http://localhost:5000',
+    apiUrl: 'http://localhost:5002',
     immichUrl: 'http://localhost:2283',
     archiveboxUrl: 'http://localhost:8001',
     mapCenter: { lat: 42.6526, lng: -73.7562 }, // Albany, NY
     mapZoom: 10
   }
 });
+
+// Migrate settings from old ports to current version (v0.1.2+)
+// Fixes: "Cannot read properties of undefined (reading 'locations')" error
+// when stored config has outdated port from previous versions
+const currentApiUrl = store.get('apiUrl');
+const CURRENT_API_PORT = '5002'; // v0.1.2+ uses port 5002
+const LEGACY_PORTS = ['5000', '5001']; // v0.1.0-v0.1.1 used these ports
+
+if (currentApiUrl && currentApiUrl.includes('localhost')) {
+  const urlMatch = currentApiUrl.match(/localhost:(\d+)/);
+  if (urlMatch) {
+    const storedPort = urlMatch[1];
+    if (LEGACY_PORTS.includes(storedPort)) {
+      const migratedUrl = `http://localhost:${CURRENT_API_PORT}`;
+      log.info(`Auto-migrating API URL: port ${storedPort} → ${CURRENT_API_PORT}`);
+      store.set('apiUrl', migratedUrl);
+    }
+  }
+}
 
 // Initialize API client
 const api = createAPIClient(store.get('apiUrl'));

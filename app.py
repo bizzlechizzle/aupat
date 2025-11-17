@@ -65,9 +65,9 @@ if __name__ == '__main__':
 
     logger.info(f"Starting AUPAT Core API v0.1.2")
     logger.info(f"Database: {app.config['DB_PATH']}")
-    logger.info(f"Server will listen on http://0.0.0.0:5000")
-    logger.info(f"Desktop app should connect to http://localhost:5000")
+    logger.info(f"Server will listen on http://0.0.0.0:5002")
+    logger.info(f"Desktop app should connect to http://localhost:5002")
 
     # Run Flask app
     # Use 0.0.0.0 to bind to all interfaces (required for Docker)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5002, debug=False)
