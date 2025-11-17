@@ -18,6 +18,7 @@ Last Updated: 2025-11-17
 
 import json
 import logging
+import pytest
 import sqlite3
 import sys
 from pathlib import Path
@@ -41,6 +42,13 @@ def load_user_config() -> dict:
 
     with open(config_path) as f:
         return json.load(f)
+
+
+@pytest.fixture
+def db_path():
+    """Pytest fixture to provide database path from user config."""
+    config = load_user_config()
+    return config['db_loc']
 
 
 def test_database_schema(db_path: str) -> bool:
