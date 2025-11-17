@@ -71,7 +71,7 @@ def test_aupat_core_service_configuration():
     assert aupat['build']['dockerfile'] == 'Dockerfile'
 
     # Check ports
-    assert '5000:5000' in aupat.get('ports', [])
+    assert '5001:5000' in aupat.get('ports', [])
 
     # Check restart policy
     assert aupat.get('restart') == 'unless-stopped'
@@ -90,7 +90,7 @@ def test_immich_services_configuration():
 
     # Immich Server
     immich_server = config['services']['immich-server']
-    assert '2283:3001' in immich_server.get('ports', [])
+    assert '2283:2283' in immich_server.get('ports', [])
     assert 'healthcheck' in immich_server
 
     # Immich PostgreSQL
