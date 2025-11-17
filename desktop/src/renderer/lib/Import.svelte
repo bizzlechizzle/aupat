@@ -8,6 +8,7 @@
 
   import { onMount } from 'svelte';
   import { locations } from '../stores/locations.js';
+  import LocationForm from './LocationForm.svelte';
 
   // Allowed file extensions
   const ALLOWED_EXTENSIONS = {
@@ -21,6 +22,7 @@
   let uploadQueue = [];
   let isDragging = false;
   let showFileInput = false;
+  let showLocationForm = false;
 
   // File input reference
   let fileInputElement;
@@ -29,6 +31,26 @@
     // Load locations for dropdown
     locations.fetchAll();
   });
+
+  /**
+   * Open location creation modal
+   */
+  function openCreateLocation() {
+    showLocationForm = true;
+  }
+
+  /**
+   * Handle location created
+   */
+  function handleLocationCreated(event) {
+    showLocationForm = false;
+    const newLocation = event.detail;
+    if (newLocation && newLocation.loc_uuid) {
+      selectedLocationId = newLocation.loc_uuid;
+    }
+    // Refresh locations list
+    locations.fetchAll();
+  }
 
   /**
    * Check if file extension is allowed
@@ -262,30 +284,49 @@
     <h2 class="text-2xl font-bold text-gray-800 mb-4">Import Files</h2>
 
     <!-- Location Selector -->
-    <div class="max-w-md">
+    <div class="max-w-2xl">
       <label for="location-select" class="block text-sm font-medium text-gray-700 mb-2">
         Select Location
       </label>
-      <select
-        id="location-select"
-        bind:value={selectedLocationId}
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option value="">-- Choose a location --</option>
-        {#if $locations.loading}
-          <option value="" disabled>Loading locations...</option>
-        {:else if $locations.error}
-          <option value="" disabled>Error: {$locations.error}</option>
-        {:else if $locations.items.length === 0}
-          <option value="" disabled>No locations found</option>
-        {:else}
-          {#each $locations.items as location}
-            <option value={location.loc_uuid}>
-              {location.loc_name} ({location.type})
-            </option>
-          {/each}
-        {/if}
-      </select>
+      <div class="flex gap-3">
+        <select
+          id="location-select"
+          bind:value={selectedLocationId}
+          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">-- Choose a location --</option>
+          {#if $locations.loading}
+            <option value="" disabled>Loading locations...</option>
+          {:else if $locations.error}
+            <option value="" disabled>Error: {$locations.error}</option>
+          {:else if $locations.items && $locations.items.length === 0}
+            <option value="" disabled>No locations found</option>
+          {:else if $locations.items}
+            {#each $locations.items as location}
+              <option value={location.loc_uuid}>
+                {location.loc_name || 'Unnamed'} ({location.type || 'Unknown'})
+              </option>
+            {/each}
+          {/if}
+        </select>
+        <button
+          on:click={openCreateLocation}
+          class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium whitespace-nowrap"
+          title="Create a new location"
+        >
+          + Add Location
+        </button>
+      </div>
+      {#if $locations.items && $locations.items.length === 0 && !$locations.loading && !$locations.error}
+        <p class="mt-2 text-sm text-gray-600">
+          No locations found. Click "Add Location" to create your first location.
+        </p>
+      {/if}
+      {#if $locations.error}
+        <p class="mt-2 text-sm text-red-600">
+          API Error: {$locations.error}. Make sure the backend services are running.
+        </p>
+      {/if}
     </div>
   </div>
 
@@ -425,3 +466,11 @@
     </div>
   </div>
 </div>
+
+<!-- Location Creation Modal -->
+<LocationForm
+  bind:isOpen={showLocationForm}
+  mode="create"
+  on:created={handleLocationCreated}
+  on:close={() => showLocationForm = false}
+/>
