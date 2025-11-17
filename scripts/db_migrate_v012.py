@@ -77,6 +77,138 @@ def table_exists(cursor: sqlite3.Cursor, table_name: str) -> bool:
     return cursor.fetchone() is not None
 
 
+def create_base_tables(cursor: sqlite3.Cursor) -> None:
+    """Create base v0.1.2 schema if tables don't exist."""
+    logger.info("Checking for base tables...")
+
+    # Create locations table if it doesn't exist
+    if not table_exists(cursor, 'locations'):
+        logger.info("Creating locations table with v0.1.2 schema...")
+        cursor.execute("""
+            CREATE TABLE locations (
+                loc_uuid TEXT PRIMARY KEY,
+                loc_name TEXT NOT NULL,
+                aka_name TEXT,
+                state TEXT NOT NULL,
+                type TEXT NOT NULL,
+                sub_type TEXT,
+                org_loc TEXT,
+                loc_loc TEXT,
+                loc_add TEXT,
+                loc_update TEXT,
+                imp_author TEXT,
+                json_update TEXT,
+                lat REAL,
+                lon REAL,
+                gps_source TEXT,
+                gps_confidence REAL,
+                street_address TEXT,
+                city TEXT,
+                state_abbrev TEXT,
+                zip_code TEXT,
+                country TEXT DEFAULT 'USA',
+                address_source TEXT
+            )
+        """)
+
+    # Create images table if it doesn't exist
+    if not table_exists(cursor, 'images'):
+        logger.info("Creating images table with v0.1.2 schema...")
+        cursor.execute("""
+            CREATE TABLE images (
+                img_uuid TEXT PRIMARY KEY,
+                loc_uuid TEXT NOT NULL,
+                sub_uuid TEXT,
+                img_sha TEXT NOT NULL,
+                img_name TEXT,
+                img_ext TEXT,
+                img_path TEXT,
+                img_taken TEXT,
+                img_add TEXT,
+                img_update TEXT,
+                camera_make TEXT,
+                camera_model TEXT,
+                camera_type TEXT,
+                immich_asset_id TEXT UNIQUE,
+                img_width INTEGER,
+                img_height INTEGER,
+                img_size_bytes INTEGER,
+                gps_lat REAL,
+                gps_lon REAL,
+                FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE
+            )
+        """)
+
+    # Create videos table if it doesn't exist
+    if not table_exists(cursor, 'videos'):
+        logger.info("Creating videos table with v0.1.2 schema...")
+        cursor.execute("""
+            CREATE TABLE videos (
+                vid_uuid TEXT PRIMARY KEY,
+                loc_uuid TEXT NOT NULL,
+                sub_uuid TEXT,
+                vid_sha TEXT NOT NULL,
+                vid_name TEXT,
+                vid_ext TEXT,
+                vid_path TEXT,
+                vid_taken TEXT,
+                vid_add TEXT,
+                vid_update TEXT,
+                camera_make TEXT,
+                camera_model TEXT,
+                camera_type TEXT,
+                immich_asset_id TEXT UNIQUE,
+                vid_width INTEGER,
+                vid_height INTEGER,
+                vid_duration_sec REAL,
+                vid_size_bytes INTEGER,
+                gps_lat REAL,
+                gps_lon REAL,
+                FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE
+            )
+        """)
+
+    # Create documents table if it doesn't exist
+    if not table_exists(cursor, 'documents'):
+        logger.info("Creating documents table with v0.1.2 schema...")
+        cursor.execute("""
+            CREATE TABLE documents (
+                doc_uuid TEXT PRIMARY KEY,
+                loc_uuid TEXT NOT NULL,
+                sub_uuid TEXT,
+                doc_sha TEXT NOT NULL,
+                doc_name TEXT,
+                doc_ext TEXT,
+                doc_path TEXT,
+                doc_add TEXT,
+                doc_update TEXT,
+                FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE
+            )
+        """)
+
+    # Create urls table if it doesn't exist
+    if not table_exists(cursor, 'urls'):
+        logger.info("Creating urls table with v0.1.2 schema...")
+        cursor.execute("""
+            CREATE TABLE urls (
+                url_uuid TEXT PRIMARY KEY,
+                loc_uuid TEXT NOT NULL,
+                sub_uuid TEXT,
+                url TEXT NOT NULL,
+                url_title TEXT,
+                url_desc TEXT,
+                url_add TEXT,
+                url_update TEXT,
+                archivebox_snapshot_id TEXT,
+                archive_status TEXT DEFAULT 'pending',
+                archive_date TEXT,
+                FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE
+            )
+        """)
+
+    logger.info("Base tables verified/created")
+
+
 def migrate_locations_table(cursor: sqlite3.Cursor) -> None:
     """Add v0.1.2 columns to locations table."""
     logger.info("Migrating locations table...")
@@ -298,7 +430,7 @@ def update_version(cursor: sqlite3.Cursor) -> None:
     """Update schema version in versions table."""
     logger.info("Updating schema version...")
 
-    timestamp = normalize_datetime(datetime.now())
+    timestamp = normalize_datetime(None)  # None = current time
 
     # Check if versions table exists
     if not table_exists(cursor, 'versions'):
@@ -324,16 +456,12 @@ def run_migration(db_path: str, backup: bool = True) -> None:
     """Run full v0.1.2 database migration."""
     logger.info(f"Starting v0.1.2 migration for database: {db_path}")
 
-    # Check if database exists
+    # Ensure database directory exists
     db_file = Path(db_path)
-    if not db_file.exists():
-        raise FileNotFoundError(
-            f"Database not found at {db_path}. "
-            "Run db_migrate.py first to create initial schema."
-        )
+    db_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Backup database if requested
-    if backup:
+    # Backup database if it exists and backup is requested
+    if backup and db_file.exists():
         try:
             from backup import backup_database
             backup_database(db_path)
@@ -350,7 +478,10 @@ def run_migration(db_path: str, backup: bool = True) -> None:
     cursor = conn.cursor()
 
     try:
-        # Run migrations
+        # Create base tables if they don't exist (for fresh databases)
+        create_base_tables(cursor)
+
+        # Run migrations (for existing v0.1.0 databases)
         migrate_locations_table(cursor)
         migrate_images_table(cursor)
         migrate_videos_table(cursor)
