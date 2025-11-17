@@ -174,7 +174,7 @@ def archive_url_cli(url: str) -> Optional[str]:
     """
     Archive URL using ArchiveBox CLI via subprocess.
 
-    Executes: docker compose exec -T archivebox archivebox add <url>
+    Executes: docker compose exec -T --user=archivebox archivebox archivebox add <url>
 
     Args:
         url: URL to archive
@@ -190,8 +190,9 @@ def archive_url_cli(url: str) -> Optional[str]:
 
         # Run docker compose exec command
         # -T flag disables pseudo-TTY allocation (required for subprocess)
+        # --user=archivebox runs as archivebox user, not root (security requirement)
         result = subprocess.run(
-            ['docker', 'compose', 'exec', '-T', 'archivebox', 'archivebox', 'add', url],
+            ['docker', 'compose', 'exec', '-T', '--user=archivebox', 'archivebox', 'archivebox', 'add', url],
             cwd=Path(__file__).parent.parent,  # Run from project root
             capture_output=True,
             text=True,

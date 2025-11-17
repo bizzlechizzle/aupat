@@ -119,6 +119,7 @@ services:
     container_name: archivebox
     image: archivebox/archivebox:latest
     restart: unless-stopped
+    user: "911:911"  # Run as archivebox user, not root (security requirement)
     ports:
       - "8001:8000"
     environment:
