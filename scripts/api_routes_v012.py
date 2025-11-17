@@ -16,11 +16,22 @@ import logging
 import sqlite3
 from flask import Blueprint, jsonify, request, current_app
 from pathlib import Path
+from scripts.adapters.archivebox_adapter import create_archivebox_adapter
 
 logger = logging.getLogger(__name__)
 
 # Create Blueprint for v0.1.2 API routes
 api_v012 = Blueprint('api_v012', __name__, url_prefix='/api')
+
+
+# Enable CORS for API routes (for desktop app)
+@api_v012.after_request
+def after_request(response):
+    """Add CORS headers to all API responses."""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
 
 
 def get_db_connection():
@@ -92,7 +103,6 @@ def health_check_services():
 
     # Check ArchiveBox
     try:
-        from scripts.adapters.archivebox_adapter import create_archivebox_adapter
         archivebox = create_archivebox_adapter()
         services['archivebox'] = 'healthy' if archivebox.health_check() else 'unhealthy'
     except Exception as e:
@@ -477,8 +487,6 @@ def archive_url(loc_uuid):
         # Phase B: Attempt to archive URL via ArchiveBox
         # Database connection closed before network call to prevent blocking
         try:
-            from scripts.adapters.archivebox_adapter import create_archivebox_adapter
-
             logger.info(f"Archiving URL via ArchiveBox: {url}")
             archivebox = create_archivebox_adapter()
             snapshot_id = archivebox.archive_url(url)
@@ -631,13 +639,5 @@ def register_api_routes(app):
     Args:
         app: Flask application instance
     """
-    # Enable CORS for API routes (for desktop app)
-    @api_v012.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        return response
-
     app.register_blueprint(api_v012)
     logger.info("Registered v0.1.2 API routes")

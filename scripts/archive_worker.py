@@ -146,14 +146,14 @@ def fetch_pending_urls(db_path: str, limit: int = 10) -> List[Dict]:
         limit: Maximum number of URLs to fetch (default: 10)
 
     Returns:
-        List of dictionaries with url_uuid, url, url_add fields
+        List of dictionaries with url_uuid, url, url_add, url_title, archive_status fields
     """
     try:
         conn = get_db_connection(db_path)
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT url_uuid, url, url_add, url_title
+            SELECT url_uuid, url, url_add, url_title, archive_status
             FROM urls
             WHERE archive_status = 'pending'
             ORDER BY url_add ASC

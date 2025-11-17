@@ -15,6 +15,7 @@ Last Updated: 2025-11-17
 import logging
 import os
 import requests
+from pathlib import Path
 from typing import Optional, Dict, List
 from tenacity import (
     retry,
@@ -298,8 +299,6 @@ class ArchiveBoxAdapter:
                 'size': 12345
             }]
         """
-        from pathlib import Path
-
         snapshot_dir = Path(archivebox_data_dir) / 'archive' / snapshot_id
 
         if not snapshot_dir.exists():
@@ -329,8 +328,6 @@ class ArchiveBoxAdapter:
         Returns:
             List of file metadata dictionaries
         """
-        from pathlib import Path
-
         image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.heic', '.heif'}
         video_extensions = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'}
 
@@ -382,7 +379,6 @@ class ArchiveBoxAdapter:
         media_files = []
 
         try:
-            from pathlib import Path
             directory_path = Path(directory)
 
             for file_path in directory_path.rglob('*'):
