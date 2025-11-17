@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-[[aupat]] (Abandoned Upstate Project Archive Tool) is a bulletproof digital asset management system designed to organize, catalog, and archive location-based media collections with a focus on long-term data integrity and professional engineering standards.
+AUPAT (Abandoned Upstate Project Archive Tool) is a bulletproof digital asset management system designed to organize, catalog, and archive location-based media collections with a focus on long-term data integrity and professional engineering standards.
 
 **Core Function**: Organize photos, videos, documents, and URLs by geographic location with hardware-based categorization, metadata extraction, deduplication, and comprehensive relationship tracking.
 
@@ -16,7 +16,7 @@
 
 **What Exists**:
 - Complete documentation for all components in logseq/pages/
-- Comprehensive methodology in [[claudecode]]
+- Comprehensive methodology in claudecode.md
 - Architecture design and specifications
 - Database schema definitions
 - Workflow designs
@@ -69,7 +69,7 @@ When performing any development task (bug fix, new feature, refactor, troublesho
 
 **Step 9**: Test the code end-to-end to confirm it works as intended.
 
-**See [[claudecode]] for detailed breakdown of each step.**
+**See claudecode.md for detailed breakdown of each step.**
 
 ---
 
@@ -157,14 +157,14 @@ When performing any development task (bug fix, new feature, refactor, troublesho
 
 ### Import Pipeline (Run in Order)
 
-1. [[db_migrate]]: Create/update database schema
-2. [[db_import]]: Import location and media to staging
-3. [[db_organize]]: Extract metadata, categorize by hardware
-4. [[db_folder]]: Create organized folder structure
-5. [[db_ingest]]: Move files from staging to archive
-6. [[db_verify]]: Verify SHA256, cleanup staging
-7. [[db_identify]]: Generate master JSON per location
-8. [[db_cleanup]]: Maintenance and integrity checks
+1. **db_migrate.py**: Create/update database schema
+2. **db_import.py**: Import location and media to staging
+3. **db_organize.py**: Extract metadata, categorize by hardware
+4. **db_folder.py**: Create organized folder structure
+5. **db_ingest.py**: Move files from staging to archive
+6. **db_verify.py**: Verify SHA256, cleanup staging
+7. **db_identify.py**: Generate master JSON per location
+8. **database_cleanup.py**: Maintenance and integrity checks
 
 ### Hardware Categorization
 
@@ -187,31 +187,31 @@ Where uuid8 = first 8 chars of UUID, sha8 = first 8 chars of SHA256
 ### When Working On...
 
 **Database Schema**:
-- Read: [[locations_table]], [[images_table]], [[videos]], [[documents_table]], [[urls_table]], [[sub-locations_table]], [[versions_table]]
-- Reference: [[project-overview]] (Database Design section)
+- Read: logseq/pages/locations.json.md, images.json.md, videos.json.md, documents.json.md, urls.json.md, sub-locations.json.md, versions.json.md
+- Reference: project-overview.md (Database Design section)
 
 **Import Pipeline**:
-- Read: [[db_import]], [[db_organize]], [[db_folder]], [[db_ingest]], [[db_verify]], [[db_identify]]
-- Reference: [[project-overview]] (Python Scripts section)
+- Read: logseq/pages/db_import.py.md, db_organize.py.md, db_folder.py.md, db_ingest.py.md, db_verify.py.md, db_identify.py.md
+- Reference: project-overview.md (Python Scripts section)
 
 **Metadata Extraction**:
-- Read: [[db_organize]], [[camera_hardware]], [[live_videos]]
-- Reference: [[project-overview]] (Data Integrity Features section)
+- Read: logseq/pages/db_organize.py.md, camera_hardware.json.md, live_videos.json.md
+- Reference: project-overview.md (Data Integrity Features section)
 
 **File Organization**:
-- Read: [[folder_json]], [[name_json]], [[db_folder]]
-- Reference: [[project-overview]] (Organizational Features section)
+- Read: logseq/pages/folder.json.md, name.json.md, db_folder.py.md
+- Reference: project-overview.md (Organizational Features section)
 
 **Database Migration**:
-- Read: [[db_migrate]], [[versions_table]]
+- Read: logseq/pages/db_migrate.py.md, versions.json.md
 - Reference: All schema .json.md files
 
 **Utilities**:
-- Read: [[gen_uuid]], [[gen_sha]], [[backup]], [[name_script]]
-- Reference: [[project-overview]] (Python Scripts - Utilities section)
+- Read: logseq/pages/gen_uuid.py.md, gen_sha.py.md, backup.py.md, name.py.md
+- Reference: project-overview.md (Python Scripts - Utilities section)
 
 **Development Methodology**:
-- Read: [[claudecode]] (always)
+- Read: claudecode.md (always)
 - Reference: This file for project context
 
 ---
@@ -251,7 +251,7 @@ Where uuid8 = first 8 chars of UUID, sha8 = first 8 chars of SHA256
 
 1. Read logseq/pages/[script_name].md for complete specifications
 2. Read all related .json.md files for schema/config dependencies
-3. Follow 9-step workflow in [[claudecode]]
+3. Follow 9-step workflow in claudecode.md
 4. Verify against project principles (BPA, BPL, KISS, FAANG PE)
 5. Test thoroughly before marking complete
 
@@ -286,24 +286,112 @@ Where uuid8 = first 8 chars of UUID, sha8 = first 8 chars of SHA256
 
 ---
 
+## CRITICAL SETUP REQUIREMENTS
+
+### First-Time Setup (MUST DO BEFORE ANYTHING ELSE)
+
+**STOP! Before running ANY scripts or the web interface:**
+
+1. **Run setup.sh first**: `bash setup.sh`
+   - This creates the required folder structure
+   - This creates user/user.json with valid paths
+   - This sets up the Python virtual environment
+
+2. **Verify user/user.json exists**: `cat user/user.json`
+   - File must exist (not just user.json.template)
+   - Paths must NOT contain "/absolute/path" placeholders
+   - db_loc must be a FILE path (e.g., `/path/to/aupat.db`), NOT a directory
+   - All directory paths must end with `/`
+
+3. **Common Setup Errors**:
+   - **ERROR**: "unable to open database file"
+     - **CAUSE**: user.json doesn't exist or has placeholder paths
+     - **FIX**: Run `bash setup.sh` or manually edit user/user.json
+   - **ERROR**: "Database path is a directory, not a file"
+     - **CAUSE**: db_loc points to directory instead of file
+     - **FIX**: Change `"db_loc": "/path/to/database"` to `"db_loc": "/path/to/database/aupat.db"`
+   - **ERROR**: "Database directory does not exist"
+     - **CAUSE**: Parent directories not created
+     - **FIX**: Run `bash setup.sh` or `mkdir -p /path/to/database`
+
+### Example Valid user.json
+
+```json
+{
+  "db_name": "aupat.db",
+  "db_loc": "/Users/bryant/Documents/tools/aupat/data/aupat.db",
+  "db_backup": "/Users/bryant/Documents/tools/aupat/data/backups/",
+  "db_ingest": "/Users/bryant/Documents/tools/aupat/data/ingest/",
+  "arch_loc": "/Users/bryant/Documents/tools/aupat/data/archive/"
+}
+```
+
+**Note the differences**:
+- `db_loc` ends with `/aupat.db` (FILE)
+- Other paths end with `/` (DIRECTORIES)
+
+---
+
+## Critical Reminders
+
+### Before Any Code Implementation
+
+- [ ] Have I read ALL relevant .md documentation files?
+- [ ] Have I followed the 9-step workflow?
+- [ ] Does this follow BPA, BPL, KISS, FAANG PE?
+- [ ] Have I implemented proper error handling?
+- [ ] Have I included transaction safety for database operations?
+- [ ] Have I written tests?
+- [ ] Is the code bulletproof for long-term use?
+- [ ] Have I verified user.json exists and is configured correctly?
+
+### Before Committing Code
+
+- [ ] No emojis anywhere
+- [ ] No tool attribution or self-credit
+- [ ] All functions have docstrings
+- [ ] Type hints on all function parameters
+- [ ] Input validation implemented
+- [ ] Error handling complete
+- [ ] Tests passing
+- [ ] Documentation updated
+- [ ] Code reviewed against checklist in claudecode.md
+
+---
+
+## Data Integrity Above All
+
+In this project, data integrity is paramount. When in doubt:
+
+1. Fail safely rather than risk corruption
+2. Verify before deleting source files
+3. Backup before destructive operations
+4. Test rollback procedures
+5. Log everything for audit trails
+6. Prioritize correctness over speed
+
+Data loss is unacceptable. Code must be bulletproof.
+
+---
+
 ## Logseq Documentation Guidelines
 
 ### Maintaining Graph View Integrity
 
 To keep the Logseq graph view functional:
 
-1. **Use [[wiki-links]]** for all cross-references between pages
+1. **Use [[wiki-links]] for all cross-references between pages**
    - Correct: `[[db_migrate]]`, `[[claudecode]]`, `[[project-overview]]`
-   - Incorrect: `db_migrate.md`, plain text references
+   - Incorrect: `db_migrate.md`, `#db_migrate`, plain text references
 
-2. **Use #tags** for categorization
+2. **Use #tags for categorization**
    - Single word: `#python`, `#database`, `#workflow`
    - Multi-word: `#[[import pipeline]]`, `#[[data integrity]]`
 
 3. **Keep all documentation in logseq/pages/**
    - All .md files should be in logseq/pages/ directory
    - This ensures they appear in the graph view
-   - Root-level files (claude.md, claudecode.md, project-overview.md) are mirrors
+   - Root-level files (claude.md, claudecode.md, project-overview.md) are mirrors for AI reference
 
 4. **Link related concepts**
    - Link scripts to the tables they modify
@@ -342,51 +430,10 @@ Each page should include:
 
 ---
 
-## Critical Reminders
-
-### Before Any Code Implementation
-
-- [ ] Have I read ALL relevant .md documentation files?
-- [ ] Have I followed the 9-step workflow?
-- [ ] Does this follow BPA, BPL, KISS, FAANG PE?
-- [ ] Have I implemented proper error handling?
-- [ ] Have I included transaction safety for database operations?
-- [ ] Have I written tests?
-- [ ] Is the code bulletproof for long-term use?
-
-### Before Committing Code
-
-- [ ] No emojis anywhere
-- [ ] No tool attribution or self-credit
-- [ ] All functions have docstrings
-- [ ] Type hints on all function parameters
-- [ ] Input validation implemented
-- [ ] Error handling complete
-- [ ] Tests passing
-- [ ] Documentation updated
-- [ ] Code reviewed against checklist in [[claudecode]]
-
----
-
-## Data Integrity Above All
-
-In this project, data integrity is paramount. When in doubt:
-
-1. Fail safely rather than risk corruption
-2. Verify before deleting source files
-3. Backup before destructive operations
-4. Test rollback procedures
-5. Log everything for audit trails
-6. Prioritize correctness over speed
-
-Data loss is unacceptable. Code must be bulletproof.
-
----
-
 ## Quick Reference Links
 
-- **Methodology**: [[claudecode]]
-- **Technical Specs**: [[project-overview]]
+- **Methodology**: claudecode.md (also in logseq/pages/claudecode.md)
+- **Technical Specs**: project-overview.md (also in logseq/pages/project-overview.md)
 - **All Documentation**: logseq/pages/
 - **Schema Definitions**: [[locations_table]], [[images_table]], [[videos]], [[documents_table]], [[urls_table]]
 - **Script Specifications**: [[db_migrate]], [[db_import]], [[db_organize]], [[db_folder]], [[db_ingest]], [[db_verify]], [[db_identify]]
@@ -395,7 +442,7 @@ Data loss is unacceptable. Code must be bulletproof.
 
 ## Version
 
-- v1.1 - Added Logseq documentation guidelines
+- v1.1 - Added Logseq documentation guidelines for graph view maintenance
 - v1.0 - Initial AI collaboration guide
 
 ---
