@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+CLAUDE.md
+QUICK_REFERENCE.md
+IMPLEMENTATION_SUMMARY.md
+logseq/
+docs/
+
+# Test data
+tempdata/
+tests/
+
+# Build artifacts
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# User data (mounted as volumes)
+user/user.json
+data/aupat.db
+data/archive/
+data/backups/
+data/ingest/
+data/immich/
+data/archivebox/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore

@@ -1,0 +1,151 @@
+version: '3.8'
+
+services:
+  # AUPAT Core API - Flask application
+  aupat-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aupat-core
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=web_interface.py
+      - FLASK_ENV=production
+      - IMMICH_URL=http://immich-server:3001
+      - ARCHIVEBOX_URL=http://archivebox:8000
+      - DB_PATH=/data/aupat.db
+    volumes:
+      - ./data:/data
+      - ./user:/app/user
+      - ./logs:/app/logs
+    networks:
+      - aupat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - immich-server
+      - archivebox
+
+  # Immich Server - Photo management API
+  immich-server:
+    container_name: immich-server
+    image: ghcr.io/immich-app/immich-server:release
+    restart: unless-stopped
+    command: ['start.sh', 'immich']
+    ports:
+      - "2283:3001"
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+      - LOG_LEVEL=log
+      - UPLOAD_LOCATION=/data/immich/upload
+    volumes:
+      - ./data/immich:/data/immich
+    networks:
+      - aupat-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/api/server-info/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - immich-postgres
+      - immich-redis
+
+  # Immich Machine Learning - AI tagging service
+  immich-machine-learning:
+    container_name: immich-machine-learning
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    restart: unless-stopped
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+    volumes:
+      - ./data/ml-cache:/cache
+    networks:
+      - aupat-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:3003/ping\")' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # PostgreSQL - Immich database
+  immich-postgres:
+    container_name: immich-postgres
+    image: tensorchord/pgvecto-rs:pg14-v0.2.0
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=immich
+    volumes:
+      - ./data/immich-postgres:/var/lib/postgresql/data
+    networks:
+      - aupat-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Immich cache
+  immich-redis:
+    container_name: immich-redis
+    image: redis:6-alpine
+    restart: unless-stopped
+    networks:
+      - aupat-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ArchiveBox - Web archiving service
+  archivebox:
+    container_name: archivebox
+    image: archivebox/archivebox:latest
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - ALLOWED_HOSTS=*
+      - MEDIA_MAX_SIZE=750m
+      - TIMEOUT=60
+      - CHECK_SSL_VALIDITY=False
+      - SAVE_ARCHIVE_DOT_ORG=False
+    volumes:
+      - ./data/archivebox:/data
+    networks:
+      - aupat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  aupat-network:
+    driver: bridge
+
+volumes:
+  # Named volumes for better management
+  immich-photos:
+  immich-postgres-data:
+  archivebox-data:

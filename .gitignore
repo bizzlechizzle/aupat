@@ -1,96 +1,72 @@
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.Spotlight-V100
-.Trashes
-.fseventsd
+# AUPAT v0.1.2 .gitignore
+# Generated for Python + Docker + macOS + Linux
+# Principles: BPA (Best Practices Always)
 
-# Logseq
-logseq/.recycle/
-logseq/bak/
-
-# AUPAT - Database files
-*.db
-*.sqlite
-*.sqlite3
-*.db-journal
-*.db-wal
-*.db-shm
-
-# AUPAT - Project folders (gitignored per design)
-backups/
-logs/
-venv/
-ingest/
-
-# AUPAT - User configuration (contains sensitive paths)
-user/user.json
-user/*.json
-
-# AUPAT - Test data and temporary files
-test_data/
-tmp/
-temp/
-*.test.db
-test_*.txt
-test_*.json
-*_test_*.md
-AUDIT_*.md
-CLEANUP_*.md
-COMPLETE.md
-FINAL_TEST_*.md
-IMPLEMENTATION_GUIDE_*_FIX.md
-IMPLEMENTATION_GUIDE.md
-TEST_IMPORT_*.md
-RESET_*.md
-PLAN_*.md
-FIX_SUMMARY.md
-
-# Unrelated projects
-abandonedupstate-nextjs/
-tempdata/abandonedupstate/
-
-# AUPAT - Generated archives and ingest staging
-data/archive/
-data/ingest/
-data/backups/
-data/*.db
-
+# ===================================
 # Python
+# ===================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.egg-info/
-dist/
+
+# Distribution / packaging
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
 *.egg
-*.manifest
-*.spec
+MANIFEST
 
 # Virtual environments
 venv/
 env/
 ENV/
 .venv/
+venv.bak/
+env.bak/
 
+# ===================================
 # Testing
+# ===================================
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
 .nox/
 coverage.xml
 *.cover
 .hypothesis/
+.pytest_cache/
+nosetests.xml
 
-# Jupyter Notebook (if used for testing)
-.ipynb_checkpoints
+# ===================================
+# Type checking and linting
+# ===================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pylint.d/
+.ruff_cache/
+.pytype/
 
-# IDE
+# ===================================
+# IDEs and Editors
+# ===================================
 .vscode/
 .idea/
 *.swp
@@ -99,29 +75,166 @@ coverage.xml
 .project
 .pydevproject
 .settings/
+*.sublime-project
+*.sublime-workspace
+.vs/
 
-# Linting and type checking
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pylint.d/
-.ruff_cache/
+# ===================================
+# macOS
+# ===================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 
-# Backup files
-*.bak
-*.tmp
-*.old
+# ===================================
+# Linux
+# ===================================
 *~
+.directory
+.Trash-*
+.nfs*
 
-# Logs
+# ===================================
+# Windows
+# ===================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ===================================
+# AUPAT - Database files
+# ===================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ===================================
+# AUPAT - User configuration
+# ===================================
+# User config contains sensitive paths
+user/user.json
+user/*.json
+!user/user.json.template
+
+# ===================================
+# AUPAT - Data directories
+# ===================================
+# These directories contain user data and should not be committed
+data/archive/
+data/backups/
+data/ingest/
+data/*.db
+data/*.sqlite
+
+# ===================================
+# AUPAT - Logs
+# ===================================
+logs/
 *.log
 
-# Environment files
+# ===================================
+# AUPAT - Temporary files
+# ===================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.old
+
+# ===================================
+# Docker
+# ===================================
+# Environment files (secrets should use .env, not .env.example)
 .env
 .env.local
 .env.*.local
 
-# OS-specific
-Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
+# Docker Compose override files
+docker-compose.override.yml
+
+# Docker volumes (if using local volumes)
+.docker/
+
+# ===================================
+# Node.js (if used in future phases)
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+.pnp.*
+
+# ===================================
+# Archives and compressed files
+# ===================================
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# ===================================
+# Jupyter Notebook (if used)
+# ===================================
+.ipynb_checkpoints
+
+# ===================================
+# Large media files (test data)
+# ===================================
+# Don't commit large test datasets
+*.dng
+*.nef
+*.cr2
+*.arw
+*.mov
+*.mp4
+*.avi
+*.mkv
+
+# Allow small example files in docs
+!docs/**/*.jpg
+!docs/**/*.png
+
+# ===================================
+# CI/CD artifacts
+# ===================================
+.github/secrets/
+.circleci/
+.gitlab-ci/
+
+# ===================================
+# Security and secrets
+# ===================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+.env.production
+.env.staging
+
+# ===================================
+# Misc
+# ===================================
+.DS_Store
+*.swp
+.vscode
+.idea

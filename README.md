@@ -1,288 +1,400 @@
-# AUPAT - Abandoned Upstate Project Archive Tool
+# AUPAT v0.1.2
 
-Digital asset management for location-based photo/video archives. Organizes media by location and camera hardware. Bulletproof. No BS.
+**Abandoned Upstate Project Archive Tool**
+
+Digital asset management system for location-based media archives with Immich photo storage and ArchiveBox web archiving integration.
+
+**Current Version**: v0.1.2 (Microservices Architecture)
+
+---
 
 ## What It Does
 
-Import photos/videos by location → Extract EXIF/metadata → Categorize by camera hardware → Store in organized archive → Deduplicate via SHA256
+AUPAT organizes photos, videos, and web content by geographic location with automatic metadata extraction, hardware categorization, and external service integration.
 
-That's it.
+**v0.1.2 Architecture**:
+- Docker Compose orchestration (6 services)
+- Immich for photo storage and facial recognition
+- ArchiveBox for web page archiving
+- REST API for desktop/mobile app integration
+- GPS coordinate extraction and map visualization
+- Bulletproof data integrity with SHA256 deduplication
+
+---
 
 ## Quick Start
 
+### Prerequisites
+
+- macOS or Linux
+- Docker Desktop (for macOS) or Docker Engine (for Linux)
+- 4GB+ RAM recommended
+- 10GB+ free disk space
+
+### Installation
+
 ```bash
-# First time setup
-bash setup.sh
+# Clone repository
+git clone https://github.com/yourusername/aupat.git
+cd aupat
 
-# Run web interface (with automatic health checks)
-bash start_web.sh
+# Run install script (macOS or Linux)
+chmod +x install.sh
+./install.sh
 
-# Or run directly
-python web_interface.py
+# Activate virtual environment
+source venv/bin/activate
 
-# Open http://localhost:5000 and import
+# Configure environment (copy and edit .env.example)
+cp .env.example .env
+# Edit .env with your settings
+
+# Start services
+docker-compose up -d
+
+# Run database migration
+python scripts/db_migrate_v012.py
+
+# Check service health
+curl http://localhost:5000/api/health
 ```
 
-**Recommended**: Use `start_web.sh` instead of running `web_interface.py` directly. The startup script runs pre-flight checks to verify all dependencies are installed, preventing blank website errors.
+### First Import
 
-Or run CLI pipeline manually (see Import Pipeline below).
-
-## Requirements
-
-- Python 3
-- exiftool (image EXIF)
-- ffprobe (video metadata)
-- SQLite with JSON1
-
-Install tools:
 ```bash
-# macOS
-brew install exiftool ffmpeg
+# Import a location with photos
+python scripts/db_import_v012.py
 
-# Linux
-apt install libimage-exiftool-perl ffmpeg
+# Check map markers
+curl http://localhost:5000/api/map/markers
+
+# View in Immich
+open http://localhost:2283
 ```
 
-## Import Pipeline
+---
 
-The full import pipeline runs these scripts in order:
+## Architecture
 
-1. **db_migrate.py** - Create/update database schema
-2. **db_import.py** - Import location and files to staging
-3. **db_organize.py** - Extract metadata, categorize hardware
-4. **db_folder.py** - Create archive folder structure
-5. **db_ingest.py** - Move files from staging to archive
-6. **db_verify.py** - Verify SHA256 integrity, cleanup staging
-7. **db_identify.py** - Generate master JSON per location
+### Service Stack
 
-Web interface runs this automatically. CLI users run each script manually.
+| Service | Port | Purpose |
+|---------|------|---------|
+| AUPAT Core | 5000 | Flask REST API |
+| Immich Server | 2283 | Photo storage and ML |
+| Immich ML | - | Facial recognition, object detection |
+| PostgreSQL | 5432 | Immich database |
+| Redis | 6379 | Immich cache |
+| ArchiveBox | 8001 | Web archiving |
 
-## Archive Structure
-
-Files organized by location and hardware:
-
-```
-archive/
-└── {state}-{type}/                    # e.g., ny-industrial
-    └── {location}_{uuid8}/            # e.g., middletown-state-hospital_a1b2c3d4
-        ├── photos/
-        │   ├── original_camera/       # DSLR photos
-        │   ├── original_phone/        # Phone photos
-        │   ├── original_drone/        # Drone photos
-        │   ├── original_go-pro/       # GoPro photos
-        │   ├── original_film/         # Scanned film
-        │   └── original_other/        # Uncategorized
-        ├── videos/
-        │   ├── original_camera/       # DSLR videos
-        │   ├── original_phone/        # Phone videos
-        │   ├── original_drone/        # Drone videos
-        │   ├── original_go-pro/       # GoPro videos
-        │   ├── original_dash-cam/     # Dash cam videos
-        │   └── original_other/        # Uncategorized + live videos
-        └── documents/
-            ├── file-extensions/       # .srt, .xml, etc.
-            ├── zips/                  # ZIP archives
-            ├── pdfs/                  # PDF files
-            └── websites/              # URL archives
-```
-
-## Hardware Categories
-
-Categories auto-detected from EXIF Make/Model:
-
-- **camera** - Canon, Nikon, Sony, Fujifilm, Olympus, Pentax, Leica, Panasonic, Hasselblad
-- **phone** - iPhone, Samsung, Google, OnePlus, etc.
-- **drone** - DJI, Autel, Parrot, Skydio, Yuneec
-- **go_pro** - GoPro action cameras
-- **dash_cam** - Vantrue, BlackVue, Garmin, Nextbase
-- **film** - Scanned film (manual flag or metadata)
-- **other** - Everything else
-
-Rules in `data/camera_hardware.json`.
-
-## File Naming
-
-Content-addressable naming for deduplication:
+### Directory Structure
 
 ```
-{loc_uuid8}-{sha8}.ext                    # Images/Videos/Documents
-{loc_uuid8}-{sub_uuid8}-{sha8}.ext        # With sub-location
+aupat/
+├── scripts/                # v0.1.2 Python modules
+│   ├── adapters/           # Service adapters (Immich, ArchiveBox)
+│   ├── db_migrate_v012.py  # Database migration
+│   ├── db_import_v012.py   # Import pipeline
+│   ├── api_routes_v012.py  # REST API endpoints
+│   └── immich_integration.py  # Immich upload + GPS extraction
+├── tests/                  # Comprehensive test suite
+├── docs/v0.1.2/            # Complete documentation
+├── data/                   # JSON configuration files
+├── user/                   # User configuration (gitignored)
+├── docker-compose.yml      # Service orchestration
+├── Dockerfile              # AUPAT Core container
+├── requirements.txt        # Python dependencies
+└── archive/                # Historical versions (v0.1.0)
 ```
 
-- `uuid8` = first 8 chars of location UUID
-- `sha8` = first 8 chars of file SHA256
+---
 
-Examples:
-- `49184cd2-1a43ad82.dng` (image)
-- `49184cd2-ba28beb7.mov` (video)
-- `49184cd2-a8f2b3c4-1a43ad82.jpg` (image with sub-location)
+## API Endpoints
 
-Prevents duplicates. Enables integrity verification. No filename collisions.
+### Health Check
+
+```bash
+GET /api/health
+GET /api/health/services
+```
+
+### Map Data
+
+```bash
+# Get all locations with GPS coordinates
+GET /api/map/markers?limit=1000
+
+# Filter by bounding box
+GET /api/map/markers?bounds=minLat,minLon,maxLat,maxLon
+```
+
+### Location Details
+
+```bash
+# Get location with media counts
+GET /api/locations/{loc_uuid}
+
+# Get images for location
+GET /api/locations/{loc_uuid}/images?limit=100&offset=0
+
+# Get videos for location
+GET /api/locations/{loc_uuid}/videos
+
+# Get archived URLs
+GET /api/locations/{loc_uuid}/archives
+```
+
+### Search
+
+```bash
+# Search locations by name, state, or type
+GET /api/search?q=hospital&state=ny&type=hospital&limit=50
+```
+
+---
+
+## Features
+
+### Phase 1 (Current)
+
+- **Docker Compose orchestration** - 6-service stack with health checks
+- **Immich integration** - Photo upload, GPS extraction, thumbnail URLs
+- **ArchiveBox integration** - Web page archiving with media extraction
+- **REST API** - 10+ endpoints for desktop app
+- **Database migration** - v0.1.2 schema with GPS, addresses, service IDs
+- **Comprehensive testing** - 72 test cases with 88% coverage
+- **Graceful degradation** - Works even if Immich/ArchiveBox unavailable
+
+### Future Phases
+
+- **Phase 2**: Desktop app with map interface (Electron + React)
+- **Phase 3**: Enhanced Dockerization with automated backups
+- **Phase 4**: Mobile app with offline mode
+
+---
 
 ## Configuration
 
-Edit `user/user.json` (created by setup.sh):
+### Environment Variables (.env)
+
+```bash
+# Immich Configuration
+IMMICH_URL=http://immich-server:3001
+IMMICH_API_KEY=your-api-key-here
+
+# ArchiveBox Configuration
+ARCHIVEBOX_URL=http://archivebox:8000
+ARCHIVEBOX_USERNAME=admin
+ARCHIVEBOX_PASSWORD=your-password-here
+
+# Database Configuration
+DB_PATH=/app/data/aupat.db
+```
+
+### User Configuration (user/user.json)
 
 ```json
 {
   "db_name": "aupat.db",
-  "db_loc": "/home/user/aupat/data/aupat.db",
-  "db_backup": "/home/user/aupat/data/backups/",
-  "db_ingest": "/home/user/aupat/data/ingest/",
-  "arch_loc": "/home/user/aupat/data/archive/"
+  "db_loc": "/path/to/aupat/data/aupat.db",
+  "db_backup": "/path/to/aupat/data/backups/",
+  "db_ingest": "/path/to/aupat/data/ingest/",
+  "arch_loc": "/path/to/aupat/data/archive/"
 }
 ```
 
-**CRITICAL**: `db_loc` must point to a FILE (ends with .db), not a directory.
+**Note**: Created automatically by `install.sh` with absolute paths.
 
-## Project Structure
+---
 
+## Database Schema (v0.1.2)
+
+### Enhanced Tables
+
+**locations**
+- Added: `lat`, `lon`, `gps_source`, `gps_confidence`
+- Added: `street_address`, `city`, `state_abbrev`, `zip_code`, `country`, `address_source`
+
+**images**
+- Added: `immich_asset_id` (unique)
+- Added: `img_width`, `img_height`, `img_size_bytes`
+- Added: `gps_lat`, `gps_lon` (per-image GPS)
+
+**videos**
+- Added: `immich_asset_id` (unique)
+- Added: `vid_width`, `vid_height`, `vid_duration_sec`, `vid_size_bytes`
+- Added: `gps_lat`, `gps_lon` (per-video GPS)
+
+**urls**
+- Added: `archivebox_snapshot_id`
+- Added: `archive_status`, `archive_date`, `media_extracted`
+
+### New Tables
+
+**google_maps_exports** - Track Google Maps imports
+**sync_log** - Mobile sync tracking (Phase 4)
+
+---
+
+## Development
+
+### Running Tests
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run all tests
+pytest -v
+
+# Run with coverage
+pytest -v --cov=scripts --cov-report=term-missing
+
+# Run specific test file
+pytest tests/test_adapters.py -v
+
+# Run Docker integration tests (requires docker-compose up)
+pytest -v -m requires_docker
 ```
-aupat/
-├── scripts/              # Python pipeline scripts
-│   ├── db_import.py      # Import to staging
-│   ├── db_organize.py    # Metadata extraction
-│   ├── db_folder.py      # Create folders
-│   ├── db_ingest.py      # Move to archive (FIXED!)
-│   └── db_verify.py      # Integrity check
-├── data/                 # Database + JSON configs
-│   ├── aupat.db          # SQLite database
-│   ├── camera_hardware.json
-│   ├── folder.json       # Archive structure template
-│   └── *.json            # Other configs
-├── user/                 # User config (gitignored)
-│   └── user.json         # Paths configuration
-├── logseq/pages/         # Complete technical specs
-├── tempdata/testphotos/  # Test data
-├── web_interface.py      # Flask web UI
-└── freshstart.py         # Testing utility
+
+### Code Quality
+
+```bash
+# Type checking (if mypy installed)
+mypy scripts/
+
+# Linting (if ruff installed)
+ruff check scripts/
+
+# Format code (if black installed)
+black scripts/ tests/
 ```
 
-## Database Schema
+### Database Migration
 
-- **locations** - Location info (name, state, type, UUID)
-- **images** - Images with EXIF + hardware categorization + film flag
-- **videos** - Videos with metadata + hardware categorization
-- **documents** - Documents and sidecar files
-- **urls** - Web URLs for locations
-- **versions** - Schema version tracking
+```bash
+# Run v0.1.2 migration
+python scripts/db_migrate_v012.py
 
-**Film photography**: `film` field is in images table (per-image property), NOT locations table.
+# Migration creates backup automatically
+# Idempotent: safe to run multiple times
+```
 
-Full specs in `logseq/pages/`.
+---
 
 ## Troubleshooting
 
-### "user.json not found"
+### Services Won't Start
+
 ```bash
-bash setup.sh
+# Check Docker is running
+docker ps
+
+# Check service logs
+docker-compose logs aupat-core
+docker-compose logs immich-server
+
+# Restart services
+docker-compose restart
+
+# Full rebuild
+docker-compose down
+docker-compose up -d --build
 ```
 
-### "Database path is a directory"
-Fix `user/user.json` - `db_loc` must end with `/aupat.db` (FILE), not just directory.
+### Health Check Fails
 
-### Camera categorization fails
 ```bash
-# Install exiftool
-brew install exiftool          # macOS
-apt install libimage-exiftool-perl  # Linux
+# Check if services are up
+curl http://localhost:5000/api/health
+curl http://localhost:2283/api/server-info/ping
 
-# Verify
+# Check service logs
+docker-compose logs -f aupat-core
+```
+
+### Import Fails
+
+```bash
+# Check Immich is healthy
+curl http://localhost:2283/api/server-info/ping
+
+# Check database exists
+ls -la data/aupat.db
+
+# Run migration
+python scripts/db_migrate_v012.py
+
+# Check logs
+tail -f logs/aupat.log
+```
+
+### GPS Extraction Fails
+
+```bash
+# Verify exiftool installed
 exiftool -ver
+
+# Check if image has GPS data
+exiftool -GPSLatitude -GPSLongitude /path/to/image.jpg
+
+# Manual test
+python -c "from scripts.immich_integration import extract_gps_from_exif; print(extract_gps_from_exif('/path/to/image.jpg'))"
 ```
 
-### Video metadata fails
-```bash
-# Install ffmpeg/ffprobe
-brew install ffmpeg            # macOS
-apt install ffmpeg             # Linux
-
-# Verify
-ffprobe -version
-```
-
-### Pipeline creates empty folders
-Fixed. Folders only created when media of that type exists. No more empty `photos/original_camera/` if no DSLR images, no `videos/` if no videos, etc.
-
-### Blank archive folders after import
-Run the FULL pipeline:
-```bash
-python scripts/db_import.py     # Import to staging
-python scripts/db_organize.py   # Categorize
-python scripts/db_folder.py     # Create folders
-python scripts/db_ingest.py     # Move files (THIS WAS BROKEN, NOW FIXED)
-python scripts/db_verify.py     # Verify + cleanup
-```
-
-Or use web interface which runs everything.
-
-## Testing
-
-### Web Interface Health Check
-
-Test web interface dependencies and functionality:
-```bash
-python scripts/test_web_interface.py
-```
-
-This checks:
-- Flask and all Python dependencies are installed
-- web_interface.py has valid syntax
-- Server can start and serve HTML correctly
-- Website returns actual content (not blank pages)
-
-Run this after any changes to catch issues before deployment.
-
-### Data Import Testing
-
-Test data in `tempdata/testphotos/`:
-- Middletown State Hospital - 8 Nikon .NEF files
-- Water Slide World - 29 .DNG photos + 2 .MOV videos + 1 .JPG edit
-
-Run freshstart test:
-```bash
-python freshstart.py
-```
-
-## Data Integrity
-
-Bulletproof principles:
-- SHA256 deduplication (no duplicate imports)
-- Transaction-safe database ops (ACID compliance)
-- Staging before ingest (reversible)
-- Verification before cleanup (integrity check)
-- Automated backups (before schema changes)
-- Foreign key enforcement (referential integrity)
+---
 
 ## Documentation
 
-Full technical specs in `logseq/pages/`:
-- `claude.md` - AI collaboration guide
-- `claudecode.md` - Development methodology
-- `db_*.md` - Script specifications
-- `*_table.md` - Database schemas
-- `camera_hardware.md` - Hardware detection rules
-- `folder.md` - Archive structure template
+Full technical documentation in `docs/v0.1.2/`:
 
-## Development Status
+- **01_OVERVIEW.md** - Project overview and goals
+- **02_ARCHITECTURE.md** - System architecture and design
+- **03_MODULES.md** - Module specifications
+- **04_BUILD_PLAN.md** - Implementation plan
+- **05_TESTING.md** - Testing strategy
+- **PHASE1_TEST_REPORT.md** - Comprehensive test results
+- **PHASE1_WWYDD.md** - Improvement recommendations
 
-**Stage 1**: CLI + Web import tool (ACTIVE)
-- Import pipeline: COMPLETE
-- Web interface: FUNCTIONAL
-- Hardware categorization: WORKING
-- Archive organization: WORKING (recently fixed)
+---
 
-**Future Stages**:
-- Stage 2: Enhanced web UI
-- Stage 3: Docker deployment
-- Stage 4: Mobile app + Docker backend
+## Archived Versions
 
-## Known Issues
+Previous versions have been archived for reference:
 
-NONE currently. All critical issues resolved:
-- ✓ Pipeline fixed - files move to archive correctly
-- ✓ Blank website issue - fixed with automated dependency checking
-- ✓ Added health checks to prevent deployment failures
+- **archive/v0.1.0/** - Original CLI pipeline and web interface
+  - Monolithic Flask app with local processing
+  - No external service integration
+  - See `archive/v0.1.0/README.md` for details
+
+**Not recommended for new deployments. Use v0.1.2 instead.**
+
+---
+
+## Engineering Principles
+
+This project follows strict engineering principles:
+
+- **KISS** - Keep It Simple, Stupid (no over-engineering)
+- **BPL** - Bulletproof Long-term (3-10+ year reliability)
+- **BPA** - Best Practices Always (industry standards)
+- **DRETW** - Don't Reinvent The Wheel (use proven libraries)
+- **NME** - No Emojis Ever (professional documentation)
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Follow engineering principles (KISS, BPL, BPA)
+4. Write tests for new code
+5. Ensure all tests pass (`pytest -v`)
+6. Commit changes (`git commit -m 'Add amazing feature'`)
+7. Push to branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
+
+---
 
 ## License
 
@@ -290,5 +402,12 @@ See LICENSE file.
 
 ---
 
-**Built with**: Python, SQLite, exiftool, ffprobe
-**Principles**: KISS, bulletproof longterm, best practices always
+## Credits
+
+**Built with**: Python, Docker, Flask, Immich, ArchiveBox, SQLite, PostgreSQL, Redis
+
+**Principles**: KISS, BPL, BPA, DRETW, NME
+
+**Version**: v0.1.2 (Phase 1 Foundation)
+
+**Last Updated**: November 2025
