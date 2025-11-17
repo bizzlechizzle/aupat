@@ -45,6 +45,7 @@ from flask import (
     flash,
     session
 )
+from werkzeug.serving import WSGIRequestHandler
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent / 'scripts'))
@@ -68,6 +69,15 @@ logger = logging.getLogger(__name__)
 # Flask app
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+# Flask configuration for large file uploads
+# Note: Increased to 10GB to support 4K video files
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10GB
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching for development
+
+# Increase request timeout for large uploads (10 minutes)
+# This prevents timeouts when uploading large 4K video files over slow connections
+WSGIRequestHandler.timeout = 600  # 600 seconds = 10 minutes
 
 # Global state for background tasks (thread-safe)
 WORKFLOW_STATUS = {}
@@ -195,6 +205,75 @@ def cleanup_orphaned_temp_dirs(max_age_hours: int = 24) -> int:
         logger.error(f"Failed to cleanup orphaned temp dirs: {e}")
 
     return cleaned
+
+
+def cleanup_stale_jobs():
+    """
+    Background thread to clean up stale import jobs.
+
+    Runs every hour and checks for jobs that have been "running" for > 2 hours.
+    Marks them as failed so they don't clog the UI and give users false hope.
+
+    This handles edge cases like:
+    - Server restart mid-import (job stuck in "running" state)
+    - Background process killed/crashed
+    - Thread deadlock or infinite loop
+
+    Runs as daemon thread - automatically stops when main program exits.
+    """
+    logger.info("Stale job cleanup thread started")
+
+    while True:
+        try:
+            # Sleep first (wait 1 hour before first check)
+            time.sleep(3600)  # 3600 seconds = 1 hour
+
+            logger.info("Running stale job cleanup check...")
+
+            with WORKFLOW_LOCK:
+                current_time = time.time()
+                stale_count = 0
+
+                for task_id, status in list(WORKFLOW_STATUS.items()):
+                    if status['running']:
+                        # Check age of job
+                        started_at_str = status.get('started_at')
+                        if started_at_str:
+                            try:
+                                started_at = datetime.fromisoformat(started_at_str)
+                                age_seconds = (datetime.now() - started_at).total_seconds()
+                                age_hours = age_seconds / 3600
+
+                                # Kill jobs running > 2 hours (almost certainly stalled)
+                                if age_hours > 2:
+                                    logger.error(
+                                        f"Marking stale job as failed: {task_id} "
+                                        f"(age: {age_hours:.1f}h, started: {started_at_str})"
+                                    )
+                                    status['running'] = False
+                                    status['completed'] = False
+                                    status['error'] = (
+                                        f'Job exceeded 2 hour timeout and was killed '
+                                        f'(ran for {age_hours:.1f} hours). '
+                                        f'This usually indicates a system issue. '
+                                        f'Please check server logs and try again.'
+                                    )
+                                    stale_count += 1
+                            except (ValueError, TypeError) as e:
+                                logger.warning(
+                                    f"Failed to parse started_at for task {task_id}: {e}"
+                                )
+
+                if stale_count > 0:
+                    logger.info(f"Cleaned up {stale_count} stale job(s)")
+                else:
+                    logger.debug("No stale jobs found")
+
+        except Exception as e:
+            # Don't crash the cleanup thread on errors - log and continue
+            logger.error(f"Error in stale job cleanup: {e}", exc_info=True)
+            # Sleep a bit before retrying to avoid tight error loop
+            time.sleep(60)
 
 
 def check_database_schema(db_path: str) -> tuple[bool, list[str]]:
@@ -4104,6 +4183,12 @@ def main():
     logger.info(f"URL: {url}")
     logger.info("Press Ctrl+C to stop")
     logger.info("=" * 60)
+
+    # Start background cleanup thread for stale jobs
+    # This handles cases where server restarts mid-import, leaving jobs in "running" state
+    cleanup_thread = threading.Thread(target=cleanup_stale_jobs, daemon=True, name="StaleJobCleanup")
+    cleanup_thread.start()
+    logger.info("Started stale job cleanup background thread")
 
     # Open browser automatically after a short delay (unless disabled)
     if not args.no_browser:
