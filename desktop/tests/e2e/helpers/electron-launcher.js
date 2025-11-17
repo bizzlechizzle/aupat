@@ -153,6 +153,7 @@ async function setupApiMocks(app, window) {
     ipcMain.removeHandler('locations:getById');
     ipcMain.removeHandler('map:getMarkers');
     ipcMain.removeHandler('images:getByLocation');
+    ipcMain.removeHandler('import:uploadFile');
 
     // Register mock handlers
     ipcMain.handle('api:health', async () => ({
@@ -183,6 +184,15 @@ async function setupApiMocks(app, window) {
     ipcMain.handle('images:getByLocation', async () => ({
       success: true,
       data: mockImages
+    }));
+
+    ipcMain.handle('import:uploadFile', async (event, fileData) => ({
+      success: true,
+      data: {
+        uploaded: true,
+        filename: fileData.filename,
+        size: fileData.size
+      }
     }));
   });
 

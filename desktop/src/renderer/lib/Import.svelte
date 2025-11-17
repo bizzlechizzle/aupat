@@ -71,6 +71,18 @@
   }
 
   /**
+   * Handle keyboard activation (for accessibility)
+   */
+  function handleKeyPress(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (selectedLocationId && fileInputElement) {
+        fileInputElement.click();
+      }
+    }
+  }
+
+  /**
    * Handle file drop
    */
   function handleDrop(event) {
@@ -283,6 +295,7 @@
         on:dragleave={handleDragLeave}
         on:drop={handleDrop}
         on:click={() => selectedLocationId && fileInputElement.click()}
+        on:keypress={handleKeyPress}
         role="button"
         tabindex="0"
       >

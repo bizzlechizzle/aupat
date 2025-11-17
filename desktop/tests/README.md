@@ -199,6 +199,39 @@ npm run test:e2e:debug
 **Issue**: Tests pass locally but fail in CI
 **Solution**: Ensure CI runs `npm run build` before E2E tests
 
+## Known Issues
+
+### E2E Test IPC Mocking Limitation
+
+**Status**: Known architectural limitation
+
+**Issue**: E2E tests fail with `ReferenceError: require is not defined` when attempting to mock IPC handlers in Playwright's `app.evaluate()` context.
+
+**Root cause**: Playwright's `app.evaluate()` runs in a restricted security context without access to Node.js `require()` or `import`. This prevents dynamic mocking of Electron's IPC handlers during test execution.
+
+**Impact**: E2E tests cannot properly mock API responses via IPC, causing tests to fail when the AUPAT Core API is unavailable.
+
+**Workarounds** (future solutions):
+
+1. **Environment-based mocking** (recommended):
+   - Modify `src/main/index.js` to check `process.env.NODE_ENV === 'test'`
+   - Return mock data directly from IPC handlers in test mode
+   - No Playwright mocking needed
+
+2. **Mock HTTP server**:
+   - Launch mock AUPAT Core API server during tests
+   - Tests hit real IPC → real HTTP → mock server
+   - Requires additional infrastructure
+
+3. **Integration tests with real API**:
+   - Replace E2E tests with integration tests
+   - Require AUPAT Core API running during tests
+   - Removes mocking complexity, adds dependency
+
+**Current status**: Unit tests provide core coverage (16/18 passing). E2E tests blocked pending implementation of workaround #1.
+
+**Reference**: See `tests/e2e/helpers/electron-launcher.js` for attempted mocking strategy.
+
 ## Test Data
 
 ### Unit Tests

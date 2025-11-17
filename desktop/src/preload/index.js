@@ -53,6 +53,13 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Import API
+   */
+  import: {
+    uploadFile: (fileData) => ipcRenderer.invoke('import:uploadFile', fileData)
+  },
+
+  /**
    * Health check
    */
   health: {

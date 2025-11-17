@@ -286,6 +286,41 @@ ipcMain.handle('images:getOriginalUrl', async (event, assetId) => {
 });
 
 /**
+ * Import API handlers
+ */
+ipcMain.handle('import:uploadFile', async (event, fileData) => {
+  try {
+    validateRequired(fileData, 'fileData');
+    validateRequired(fileData.locationId, 'locationId');
+    validateString(fileData.locationId, 'locationId');
+    validateRequired(fileData.filename, 'filename');
+    validateString(fileData.filename, 'filename');
+    validateRequired(fileData.category, 'category');
+    validateString(fileData.category, 'category');
+    validateRequired(fileData.size, 'size');
+    validateNumber(fileData.size, 'size', { min: 1, max: 104857600 }); // Max 100MB
+    validateRequired(fileData.data, 'data');
+    validateString(fileData.data, 'data');
+
+    log.info(`Uploading file ${fileData.filename} (${fileData.size} bytes) to location ${fileData.locationId}`);
+
+    // Send file to AUPAT Core API
+    const response = await api.post(`/api/locations/${fileData.locationId}/import`, {
+      filename: fileData.filename,
+      category: fileData.category,
+      size: fileData.size,
+      data: fileData.data
+    });
+
+    log.info(`Successfully uploaded ${fileData.filename}`);
+    return { success: true, data: response };
+  } catch (error) {
+    log.error(`Failed to upload file:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
  * Health check handler
  */
 ipcMain.handle('api:health', async () => {

@@ -84,13 +84,14 @@ test.describe('AUPAT Desktop - Main Application', () => {
     await expect(window.locator('.leaflet-container')).toBeVisible({ timeout: 5000 });
   });
 
-  test('should display Import placeholder', async () => {
+  test('should display Import interface', async () => {
     // Navigate to Import
     await window.locator('aside button:has-text("Import")').click();
 
-    // Verify placeholder content
-    await expect(window.locator('h2:has-text("Import")')).toBeVisible();
-    await expect(window.locator('text=Import interface coming in next iteration')).toBeVisible();
+    // Verify Import component renders
+    await expect(window.locator('h2:has-text("Import Files")')).toBeVisible();
+    await expect(window.locator('text=Select Location')).toBeVisible();
+    await expect(window.locator('#location-select')).toBeVisible();
   });
 
   test('should maintain selected view on reload', async () => {

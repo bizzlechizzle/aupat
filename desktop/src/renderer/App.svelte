@@ -8,6 +8,7 @@
   import { onMount } from 'svelte';
   import Map from './lib/Map.svelte';
   import LocationsList from './lib/LocationsList.svelte';
+  import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
   import { locations } from './stores/locations.js';
   import logo from './assets/logo.png';
@@ -96,10 +97,7 @@
     {:else if currentView === 'locations'}
       <LocationsList />
     {:else if currentView === 'import'}
-      <div class="p-8">
-        <h2 class="text-2xl font-bold mb-4">Import</h2>
-        <p class="text-gray-600">Import interface coming in next iteration...</p>
-      </div>
+      <Import />
     {:else if currentView === 'settings'}
       <Settings />
     {/if}
