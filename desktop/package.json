@@ -1,0 +1,60 @@
+{
+  "name": "aupat-desktop",
+  "version": "0.1.2",
+  "description": "AUPAT Desktop - Location-centric digital archive management",
+  "main": "dist-electron/main/index.js",
+  "author": "AUPAT Project",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-builder --mac --linux",
+    "package:mac": "electron-builder --mac",
+    "package:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "electron-log": "^5.0.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.0.1",
+    "autoprefixer": "^10.4.16",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-vite": "^2.0.0",
+    "leaflet": "^1.9.4",
+    "postcss": "^8.4.32",
+    "supercluster": "^8.0.1",
+    "svelte": "^4.2.8",
+    "tailwindcss": "^3.4.0",
+    "vite": "^5.0.8"
+  },
+  "build": {
+    "appId": "com.aupat.desktop",
+    "productName": "AUPAT",
+    "directories": {
+      "output": "dist-builder"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "resources/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    }
+  }
+}
