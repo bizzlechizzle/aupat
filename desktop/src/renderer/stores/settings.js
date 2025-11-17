@@ -27,8 +27,13 @@ function createSettingsStore() {
      */
     async load() {
       try {
-        const settings = await window.api.settings.get();
-        set(settings);
+        const response = await window.api.settings.get();
+
+        if (response.success) {
+          set(response.data);
+        } else {
+          throw new Error(response.error);
+        }
       } catch (error) {
         console.error('Failed to load settings:', error);
         set(defaultSettings);
@@ -40,8 +45,13 @@ function createSettingsStore() {
      */
     async updateSetting(key, value) {
       try {
-        await window.api.settings.set(key, value);
-        update(s => ({ ...s, [key]: value }));
+        const response = await window.api.settings.set(key, value);
+
+        if (response.success) {
+          update(s => ({ ...s, [key]: value }));
+        } else {
+          throw new Error(response.error);
+        }
       } catch (error) {
         console.error(`Failed to update setting ${key}:`, error);
         throw error;
