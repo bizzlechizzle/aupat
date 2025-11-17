@@ -168,6 +168,30 @@ ipcMain.handle('map:getMarkers', async () => {
 });
 
 /**
+ * Images API handlers
+ */
+ipcMain.handle('images:getByLocation', async (event, locUuid, limit = 100, offset = 0) => {
+  try {
+    log.info(`Fetching images for location ${locUuid}`);
+    const images = await api.get(`/api/locations/${locUuid}/images?limit=${limit}&offset=${offset}`);
+    return { success: true, data: images };
+  } catch (error) {
+    log.error(`Failed to fetch images for location ${locUuid}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('images:getThumbnailUrl', async (event, assetId) => {
+  const immichUrl = store.get('immichUrl');
+  return `${immichUrl}/api/asset/thumbnail/${assetId}?size=preview`;
+});
+
+ipcMain.handle('images:getOriginalUrl', async (event, assetId) => {
+  const immichUrl = store.get('immichUrl');
+  return `${immichUrl}/api/asset/file/${assetId}`;
+});
+
+/**
  * Health check handler
  */
 ipcMain.handle('api:health', async () => {

@@ -44,6 +44,15 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Images API
+   */
+  images: {
+    getByLocation: (locUuid, limit, offset) => ipcRenderer.invoke('images:getByLocation', locUuid, limit, offset),
+    getThumbnailUrl: (assetId) => ipcRenderer.invoke('images:getThumbnailUrl', assetId),
+    getOriginalUrl: (assetId) => ipcRenderer.invoke('images:getOriginalUrl', assetId)
+  },
+
+  /**
    * Health check
    */
   health: {
