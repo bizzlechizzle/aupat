@@ -3861,6 +3861,221 @@ def api_browse():
         return jsonify({'error': str(e)}), 500
 
 
+def auto_initialize():
+    """
+    Auto-initialize AUPAT on first run.
+    Creates necessary directories, config file, and database.
+    This ensures web interface works out of the box without manual setup.
+    """
+    project_root = Path(__file__).parent
+
+    logger.info("Checking for first-time initialization...")
+
+    # Step 1: Create directories
+    directories = [
+        project_root / 'user',
+        project_root / 'data',
+        project_root / 'data' / 'backups',
+        project_root / 'data' / 'ingest',
+        project_root / 'data' / 'archive',
+        project_root / 'logs'
+    ]
+
+    for directory in directories:
+        if not directory.exists():
+            directory.mkdir(parents=True, exist_ok=True)
+            logger.info(f"  Created directory: {directory}")
+
+    # Step 2: Create user.json with sensible defaults
+    config_path = project_root / 'user' / 'user.json'
+    if not config_path.exists():
+        logger.info("Creating default user.json configuration...")
+        default_config = {
+            "db_name": "aupat.db",
+            "db_loc": str(project_root / 'data' / 'aupat.db'),
+            "db_backup": str(project_root / 'data' / 'backups') + '/',
+            "db_ingest": str(project_root / 'data' / 'ingest') + '/',
+            "arch_loc": str(project_root / 'data' / 'archive') + '/'
+        }
+
+        with open(config_path, 'w') as f:
+            json.dump(default_config, f, indent=2)
+
+        logger.info(f"  Created {config_path}")
+        logger.info(f"  Database: {default_config['db_loc']}")
+
+    # Step 3: Initialize database if it doesn't exist
+    config = load_config()
+    if config:
+        db_path = Path(config.get('db_loc', 'data/aupat.db'))
+        if not db_path.exists():
+            logger.info(f"Initializing database: {db_path}")
+
+            # Database schema from db_migrate.py
+            SCHEMA_SQL = {
+                'locations': """
+                    CREATE TABLE IF NOT EXISTS locations (
+                        loc_uuid TEXT PRIMARY KEY,
+                        loc_name TEXT NOT NULL,
+                        aka_name TEXT,
+                        state TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        sub_type TEXT,
+                        org_loc TEXT,
+                        loc_loc TEXT,
+                        loc_add TEXT,
+                        loc_update TEXT,
+                        imp_author TEXT,
+                        json_update TEXT
+                    )
+                """,
+                'sub_locations': """
+                    CREATE TABLE IF NOT EXISTS sub_locations (
+                        sub_uuid TEXT PRIMARY KEY,
+                        sub_name TEXT NOT NULL,
+                        loc_uuid TEXT NOT NULL,
+                        org_loc TEXT,
+                        loc_loc TEXT,
+                        loc_add TEXT,
+                        loc_update TEXT,
+                        imp_author TEXT,
+                        FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE
+                    )
+                """,
+                'images': """
+                    CREATE TABLE IF NOT EXISTS images (
+                        img_sha256 TEXT UNIQUE NOT NULL,
+                        img_name TEXT NOT NULL,
+                        img_loc TEXT NOT NULL,
+                        original INTEGER,
+                        camera INTEGER,
+                        phone INTEGER,
+                        drone INTEGER,
+                        go_pro INTEGER,
+                        other INTEGER,
+                        film INTEGER,
+                        exiftool_hardware TEXT,
+                        img_hardware TEXT,
+                        loc_uuid TEXT NOT NULL,
+                        sub_uuid TEXT,
+                        img_loco TEXT,
+                        img_nameo TEXT,
+                        img_add TEXT,
+                        img_update TEXT,
+                        imp_author TEXT,
+                        img_docs TEXT,
+                        img_vids TEXT,
+                        FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE,
+                        FOREIGN KEY (sub_uuid) REFERENCES sub_locations(sub_uuid) ON DELETE SET NULL
+                    )
+                """,
+                'videos': """
+                    CREATE TABLE IF NOT EXISTS videos (
+                        vid_sha256 TEXT UNIQUE NOT NULL,
+                        vid_name TEXT NOT NULL,
+                        vid_loc TEXT NOT NULL,
+                        original INTEGER,
+                        camera INTEGER,
+                        drone INTEGER,
+                        phone INTEGER,
+                        go_pro INTEGER,
+                        dash_cam INTEGER,
+                        other INTEGER,
+                        ffmpeg_hardware TEXT,
+                        vid_hardware TEXT,
+                        loc_uuid TEXT NOT NULL,
+                        sub_uuid TEXT,
+                        vid_loco TEXT,
+                        vid_nameo TEXT,
+                        vid_add TEXT,
+                        vid_update TEXT,
+                        imp_author TEXT,
+                        vid_docs TEXT,
+                        vid_imgs TEXT,
+                        FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE,
+                        FOREIGN KEY (sub_uuid) REFERENCES sub_locations(sub_uuid) ON DELETE SET NULL
+                    )
+                """,
+                'documents': """
+                    CREATE TABLE IF NOT EXISTS documents (
+                        doc_sha256 TEXT UNIQUE NOT NULL,
+                        doc_name TEXT NOT NULL,
+                        doc_loc TEXT NOT NULL,
+                        doc_ext TEXT NOT NULL,
+                        loc_uuid TEXT NOT NULL,
+                        sub_uuid TEXT,
+                        doc_loco TEXT,
+                        doc_nameo TEXT,
+                        doc_add TEXT,
+                        doc_update TEXT,
+                        imp_author TEXT,
+                        docs_img TEXT,
+                        FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE,
+                        FOREIGN KEY (sub_uuid) REFERENCES sub_locations(sub_uuid) ON DELETE SET NULL
+                    )
+                """,
+                'urls': """
+                    CREATE TABLE IF NOT EXISTS urls (
+                        url_uuid TEXT PRIMARY KEY,
+                        url TEXT NOT NULL,
+                        domain TEXT NOT NULL,
+                        url_loc TEXT,
+                        loc_uuid TEXT NOT NULL,
+                        sub_uuid TEXT,
+                        url_add TEXT,
+                        url_update TEXT,
+                        imp_author TEXT,
+                        FOREIGN KEY (loc_uuid) REFERENCES locations(loc_uuid) ON DELETE CASCADE,
+                        FOREIGN KEY (sub_uuid) REFERENCES sub_locations(sub_uuid) ON DELETE SET NULL
+                    )
+                """,
+                'versions': """
+                    CREATE TABLE IF NOT EXISTS versions (
+                        modules TEXT PRIMARY KEY,
+                        version TEXT NOT NULL,
+                        ver_updated TEXT NOT NULL
+                    )
+                """
+            }
+
+            INDEXES_SQL = [
+                "CREATE INDEX IF NOT EXISTS idx_locations_state_type ON locations(state, type)",
+                "CREATE INDEX IF NOT EXISTS idx_images_loc_uuid ON images(loc_uuid)",
+                "CREATE INDEX IF NOT EXISTS idx_images_camera ON images(loc_uuid, camera)",
+                "CREATE INDEX IF NOT EXISTS idx_videos_loc_uuid ON videos(loc_uuid)",
+                "CREATE INDEX IF NOT EXISTS idx_videos_drone ON videos(loc_uuid, drone)",
+                "CREATE INDEX IF NOT EXISTS idx_documents_loc_uuid ON documents(loc_uuid)",
+                "CREATE INDEX IF NOT EXISTS idx_documents_ext ON documents(doc_ext)",
+                "CREATE INDEX IF NOT EXISTS idx_urls_loc_uuid ON urls(loc_uuid)",
+                "CREATE INDEX IF NOT EXISTS idx_urls_domain ON urls(domain)",
+            ]
+
+            try:
+                conn = sqlite3.connect(str(db_path))
+                cursor = conn.cursor()
+
+                # Create tables
+                for table_name, schema in SCHEMA_SQL.items():
+                    cursor.execute(schema)
+                    logger.info(f"  Created table: {table_name}")
+
+                # Create indexes
+                for index_sql in INDEXES_SQL:
+                    cursor.execute(index_sql)
+
+                logger.info(f"  Created {len(INDEXES_SQL)} indexes")
+
+                conn.commit()
+                conn.close()
+
+                logger.info("  Database initialized successfully")
+            except Exception as e:
+                logger.error(f"  Failed to initialize database: {e}")
+                raise
+
+    logger.info("Initialization complete - web interface is ready!")
+
+
 def main():
     """Start the web interface."""
     import argparse
@@ -3872,6 +4087,14 @@ def main():
     parser.add_argument('--no-browser', action='store_true', help='Do not open browser automatically')
 
     args = parser.parse_args()
+
+    # Auto-initialize on first run (creates config, database, directories)
+    try:
+        auto_initialize()
+    except Exception as e:
+        logger.error(f"Auto-initialization failed: {e}")
+        logger.error("Please run setup.sh manually or fix the error above")
+        sys.exit(1)
 
     url = f"http://{args.host}:{args.port}"
 
