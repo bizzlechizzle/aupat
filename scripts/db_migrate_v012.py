@@ -269,7 +269,8 @@ def migrate_images_table(cursor: sqlite3.Cursor) -> None:
     # Immich integration
     if 'immich_asset_id' not in existing_columns:
         logger.info("  Adding immich_asset_id column")
-        cursor.execute("ALTER TABLE images ADD COLUMN immich_asset_id TEXT UNIQUE")
+        cursor.execute("ALTER TABLE images ADD COLUMN immich_asset_id TEXT")
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_images_immich_asset_id ON images(immich_asset_id)")
 
     # Enhanced metadata
     if 'img_width' not in existing_columns:
@@ -310,7 +311,8 @@ def migrate_videos_table(cursor: sqlite3.Cursor) -> None:
     # Immich integration
     if 'immich_asset_id' not in existing_columns:
         logger.info("  Adding immich_asset_id column")
-        cursor.execute("ALTER TABLE videos ADD COLUMN immich_asset_id TEXT UNIQUE")
+        cursor.execute("ALTER TABLE videos ADD COLUMN immich_asset_id TEXT")
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_videos_immich_asset_id ON videos(immich_asset_id)")
 
     # Enhanced metadata
     if 'vid_width' not in existing_columns:
