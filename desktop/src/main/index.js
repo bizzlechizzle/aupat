@@ -76,23 +76,76 @@ function createWindow() {
 // IPC Handlers
 
 /**
+ * Input validation helpers
+ */
+function validateRequired(value, name) {
+  if (value === null || value === undefined || value === '') {
+    throw new Error(`${name} is required`);
+  }
+}
+
+function validateString(value, name) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${name} must be a non-empty string`);
+  }
+}
+
+function validateNumber(value, name, options = {}) {
+  if (typeof value !== 'number' || isNaN(value)) {
+    throw new Error(`${name} must be a number`);
+  }
+  if (options.min !== undefined && value < options.min) {
+    throw new Error(`${name} must be >= ${options.min}`);
+  }
+  if (options.max !== undefined && value > options.max) {
+    throw new Error(`${name} must be <= ${options.max}`);
+  }
+}
+
+/**
+ * Sanitize error message for renderer
+ */
+function sanitizeError(error) {
+  // Only send error message, not stack trace or internal details
+  if (typeof error === 'string') {
+    return error;
+  }
+  return error.message || 'An unknown error occurred';
+}
+
+/**
  * Settings handlers
  */
 ipcMain.handle('settings:get', async () => {
-  log.info('Getting all settings');
-  return store.store;
+  try {
+    log.info('Getting all settings');
+    const settings = store.store;
+    return { success: true, data: settings };
+  } catch (error) {
+    log.error('Failed to get settings:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
 });
 
 ipcMain.handle('settings:set', async (event, key, value) => {
-  log.info(`Setting ${key} = ${value}`);
-  store.set(key, value);
+  try {
+    validateRequired(key, 'key');
+    validateString(key, 'key');
+    validateRequired(value, 'value');
 
-  // Update API client if apiUrl changed
-  if (key === 'apiUrl') {
-    api.setBaseUrl(value);
+    log.info(`Setting ${key} = ${JSON.stringify(value)}`);
+    store.set(key, value);
+
+    // Update API client if apiUrl changed
+    if (key === 'apiUrl') {
+      api.setBaseUrl(value);
+    }
+
+    return { success: true, data: true };
+  } catch (error) {
+    log.error(`Failed to set ${key}:`, error);
+    return { success: false, error: sanitizeError(error) };
   }
-
-  return true;
 });
 
 /**
@@ -105,51 +158,63 @@ ipcMain.handle('locations:getAll', async () => {
     return { success: true, data: locations };
   } catch (error) {
     log.error('Failed to fetch locations:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
 ipcMain.handle('locations:getById', async (event, id) => {
   try {
+    validateRequired(id, 'id');
+    validateString(id, 'id');
+
     log.info(`Fetching location ${id}`);
     const location = await api.get(`/api/locations/${id}`);
     return { success: true, data: location };
   } catch (error) {
     log.error(`Failed to fetch location ${id}:`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
 ipcMain.handle('locations:create', async (event, locationData) => {
   try {
+    validateRequired(locationData, 'locationData');
+
     log.info('Creating new location');
     const location = await api.post('/api/locations', locationData);
     return { success: true, data: location };
   } catch (error) {
     log.error('Failed to create location:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
 ipcMain.handle('locations:update', async (event, id, locationData) => {
   try {
+    validateRequired(id, 'id');
+    validateString(id, 'id');
+    validateRequired(locationData, 'locationData');
+
     log.info(`Updating location ${id}`);
     const location = await api.put(`/api/locations/${id}`, locationData);
     return { success: true, data: location };
   } catch (error) {
     log.error(`Failed to update location ${id}:`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
 ipcMain.handle('locations:delete', async (event, id) => {
   try {
+    validateRequired(id, 'id');
+    validateString(id, 'id');
+
     log.info(`Deleting location ${id}`);
     await api.delete(`/api/locations/${id}`);
     return { success: true };
   } catch (error) {
     log.error(`Failed to delete location ${id}:`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
@@ -163,7 +228,7 @@ ipcMain.handle('map:getMarkers', async () => {
     return { success: true, data: markers };
   } catch (error) {
     log.error('Failed to fetch map markers:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
@@ -172,23 +237,52 @@ ipcMain.handle('map:getMarkers', async () => {
  */
 ipcMain.handle('images:getByLocation', async (event, locUuid, limit = 100, offset = 0) => {
   try {
-    log.info(`Fetching images for location ${locUuid}`);
+    validateRequired(locUuid, 'locUuid');
+    validateString(locUuid, 'locUuid');
+    validateNumber(limit, 'limit', { min: 1, max: 1000 });
+    validateNumber(offset, 'offset', { min: 0 });
+
+    log.info(`Fetching images for location ${locUuid} (limit=${limit}, offset=${offset})`);
     const images = await api.get(`/api/locations/${locUuid}/images?limit=${limit}&offset=${offset}`);
     return { success: true, data: images };
   } catch (error) {
     log.error(`Failed to fetch images for location ${locUuid}:`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
 ipcMain.handle('images:getThumbnailUrl', async (event, assetId) => {
-  const immichUrl = store.get('immichUrl');
-  return `${immichUrl}/api/asset/thumbnail/${assetId}?size=preview`;
+  try {
+    validateRequired(assetId, 'assetId');
+    validateString(assetId, 'assetId');
+
+    const immichUrl = store.get('immichUrl');
+    if (!immichUrl) {
+      throw new Error('Immich URL not configured in settings');
+    }
+
+    return `${immichUrl}/api/asset/thumbnail/${assetId}?size=preview`;
+  } catch (error) {
+    log.error(`Failed to generate thumbnail URL for ${assetId}:`, error);
+    throw error; // Re-throw to maintain contract (returns string or throws)
+  }
 });
 
 ipcMain.handle('images:getOriginalUrl', async (event, assetId) => {
-  const immichUrl = store.get('immichUrl');
-  return `${immichUrl}/api/asset/file/${assetId}`;
+  try {
+    validateRequired(assetId, 'assetId');
+    validateString(assetId, 'assetId');
+
+    const immichUrl = store.get('immichUrl');
+    if (!immichUrl) {
+      throw new Error('Immich URL not configured in settings');
+    }
+
+    return `${immichUrl}/api/asset/file/${assetId}`;
+  } catch (error) {
+    log.error(`Failed to generate original URL for ${assetId}:`, error);
+    throw error; // Re-throw to maintain contract (returns string or throws)
+  }
 });
 
 /**
@@ -200,7 +294,7 @@ ipcMain.handle('api:health', async () => {
     return { success: true, data: health };
   } catch (error) {
     log.error('Health check failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: sanitizeError(error) };
   }
 });
 
