@@ -168,6 +168,9 @@ def _parse_gps_coordinate(coord_str: str) -> Optional[float]:
         Float coordinate or None if parsing fails
     """
     try:
+        # Check direction BEFORE removing it
+        is_negative = ('S' in coord_str or 'W' in coord_str)
+
         # Remove direction letters
         coord_str = coord_str.replace('N', '').replace('S', '').replace('E', '').replace('W', '').strip()
 
@@ -183,7 +186,7 @@ def _parse_gps_coordinate(coord_str: str) -> Optional[float]:
             decimal = deg + (minutes / 60.0) + (seconds / 3600.0)
 
             # Handle negative (South/West)
-            if 'S' in coord_str or 'W' in coord_str:
+            if is_negative:
                 decimal = -decimal
 
             return decimal
