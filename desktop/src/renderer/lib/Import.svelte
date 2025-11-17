@@ -324,7 +324,9 @@
       {/if}
       {#if $locations.error}
         <p class="mt-2 text-sm text-red-600">
-          API Error: {$locations.error}. Make sure the backend services are running.
+          <strong>Cannot connect to backend:</strong> {$locations.error}
+          <br />
+          Please ensure the AUPAT API server is running (check scripts/api_routes_v012.py).
         </p>
       {/if}
     </div>
