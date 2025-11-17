@@ -1091,5 +1091,9 @@ def register_api_routes(app):
     Args:
         app: Flask application instance
     """
+    from scripts.api_maps import api_maps
+
     app.register_blueprint(api_v012)
+    app.register_blueprint(api_maps)
     logger.info("Registered v0.1.2 API routes")
+    logger.info("Registered map import API routes")
