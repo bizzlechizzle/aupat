@@ -6,6 +6,7 @@
    */
 
   import { onMount } from 'svelte';
+  import ErrorBoundary from './lib/ErrorBoundary.svelte';
   import Map from './lib/Map.svelte';
   import LocationsList from './lib/LocationsList.svelte';
   import Import from './lib/Import.svelte';
@@ -44,8 +45,14 @@
   function setView(view) {
     currentView = view;
   }
+
+  function handleError(event) {
+    console.error('App-level error:', event.detail);
+    // Could send to error reporting service here
+  }
 </script>
 
+<ErrorBoundary on:error={handleError}>
 <div class="flex h-screen bg-gray-50">
   <!-- Sidebar Navigation -->
   <aside class="w-64 bg-white shadow-lg flex flex-col">
@@ -93,13 +100,22 @@
   <!-- Main Content Area -->
   <main class="flex-1 overflow-hidden">
     {#if currentView === 'map'}
-      <Map />
+      <ErrorBoundary fallbackMessage="Map view encountered an error">
+        <Map />
+      </ErrorBoundary>
     {:else if currentView === 'locations'}
-      <LocationsList />
+      <ErrorBoundary fallbackMessage="Locations list encountered an error">
+        <LocationsList />
+      </ErrorBoundary>
     {:else if currentView === 'import'}
-      <Import />
+      <ErrorBoundary fallbackMessage="Import view encountered an error">
+        <Import />
+      </ErrorBoundary>
     {:else if currentView === 'settings'}
-      <Settings />
+      <ErrorBoundary fallbackMessage="Settings encountered an error">
+        <Settings />
+      </ErrorBoundary>
     {/if}
   </main>
 </div>
+</ErrorBoundary>

@@ -3,14 +3,18 @@
    * Locations List View
    *
    * Table view of all locations with search and CRUD operations.
-   * This is a stub implementation.
    */
 
   import { onMount } from 'svelte';
   import { locations } from '../stores/locations.js';
+  import LocationForm from './LocationForm.svelte';
 
   let locationItems = [];
   let loading = false;
+  let searchQuery = '';
+  let showForm = false;
+  let formMode = 'create';
+  let selectedLocation = null;
 
   onMount(async () => {
     loading = true;
@@ -22,14 +26,74 @@
     locationItems = state.items;
     loading = state.loading;
   });
+
+  // Filter locations by search query
+  $: filteredLocations = locationItems.filter(loc => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      loc.loc_name?.toLowerCase().includes(query) ||
+      loc.aka_name?.toLowerCase().includes(query) ||
+      loc.type?.toLowerCase().includes(query) ||
+      loc.state?.toLowerCase().includes(query) ||
+      loc.city?.toLowerCase().includes(query)
+    );
+  });
+
+  function openCreateForm() {
+    formMode = 'create';
+    selectedLocation = null;
+    showForm = true;
+  }
+
+  function openEditForm(location) {
+    formMode = 'edit';
+    selectedLocation = location;
+    showForm = true;
+  }
+
+  async function handleDelete(location) {
+    if (!confirm(`Are you sure you want to delete "${location.loc_name}"?`)) {
+      return;
+    }
+
+    try {
+      await locations.delete(location.loc_uuid);
+    } catch (error) {
+      alert(`Failed to delete location: ${error.message}`);
+    }
+  }
+
+  function handleFormClose() {
+    showForm = false;
+    selectedLocation = null;
+  }
 </script>
 
 <div class="p-8">
-  <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">All Locations</h2>
-    <p class="text-gray-600 mt-1">
-      {locationItems.length} location{locationItems.length !== 1 ? 's' : ''}
-    </p>
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-800">All Locations</h2>
+      <p class="text-gray-600 mt-1">
+        {filteredLocations.length} of {locationItems.length} location{locationItems.length !== 1 ? 's' : ''}
+      </p>
+    </div>
+    <button
+      on:click={openCreateForm}
+      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      Add Location
+    </button>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="mb-4">
+    <input
+      type="text"
+      bind:value={searchQuery}
+      placeholder="Search locations..."
+      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
   </div>
 
   {#if loading}
@@ -56,18 +120,24 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               GPS
             </th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          {#each locationItems as location}
-            <tr class="hover:bg-gray-50 cursor-pointer">
+          {#each filteredLocations as location}
+            <tr class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {location.loc_name}
+                {#if location.aka_name}
+                  <span class="text-gray-500 font-normal">({location.aka_name})</span>
+                {/if}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                 {location.type || '-'}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 uppercase">
                 {location.state || '-'}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -77,6 +147,20 @@
                   -
                 {/if}
               </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <button
+                  on:click={() => openEditForm(location)}
+                  class="text-blue-600 hover:text-blue-900"
+                >
+                  Edit
+                </button>
+                <button
+                  on:click={() => handleDelete(location)}
+                  class="text-red-600 hover:text-red-900"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
           {/each}
         </tbody>
@@ -84,3 +168,13 @@
     </div>
   {/if}
 </div>
+
+<!-- Location Form Modal -->
+<LocationForm
+  bind:isOpen={showForm}
+  mode={formMode}
+  location={selectedLocation}
+  on:close={handleFormClose}
+  on:created={handleFormClose}
+  on:updated={handleFormClose}
+/>

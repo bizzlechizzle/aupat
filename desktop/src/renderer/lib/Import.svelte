@@ -272,11 +272,19 @@
         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       >
         <option value="">-- Choose a location --</option>
-        {#each $locations as location}
-          <option value={location.loc_uuid}>
-            {location.loc_name} ({location.type})
-          </option>
-        {/each}
+        {#if $locations.loading}
+          <option value="" disabled>Loading locations...</option>
+        {:else if $locations.error}
+          <option value="" disabled>Error: {$locations.error}</option>
+        {:else if $locations.items.length === 0}
+          <option value="" disabled>No locations found</option>
+        {:else}
+          {#each $locations.items as location}
+            <option value={location.loc_uuid}>
+              {location.loc_name} ({location.type})
+            </option>
+          {/each}
+        {/if}
       </select>
     </div>
   </div>

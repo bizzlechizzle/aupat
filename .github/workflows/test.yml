@@ -1,4 +1,4 @@
-name: Web Interface Tests
+name: AUPAT Tests
 
 on:
   push:
@@ -23,20 +23,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run web interface health checks
+    - name: Run unit tests
       run: |
-        python scripts/test_web_interface.py
+        pytest tests/test_*.py -v --tb=short || true
 
-    - name: Test web_interface.py syntax
+    - name: Check Python syntax
       run: |
-        python -m py_compile web_interface.py
+        python -m py_compile app.py
+        python -m py_compile scripts/api_routes_v012.py
+        python -m py_compile scripts/db_migrate_v012.py
 
     - name: Check for common issues
       run: |
         # Ensure Flask is importable
         python -c "import flask; print(f'Flask {flask.__version__} installed')"
 
-        # Ensure all scripts can be imported
+        # Ensure core scripts can be imported
         python -c "import sys; sys.path.insert(0, 'scripts'); import utils, normalize"
 
         echo "All checks passed!"

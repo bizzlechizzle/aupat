@@ -803,6 +803,232 @@ def import_file_to_location(loc_uuid):
                 logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
 
 
+@api_v012.route('/locations', methods=['GET', 'POST'])
+def locations_list_create():
+    """
+    List all locations or create a new location.
+
+    GET: Returns list of all locations
+    POST: Creates a new location
+
+    Request JSON (POST):
+        {
+            "loc_name": "Location Name",
+            "aka_name": "Optional alternate name",
+            "state": "ny",
+            "type": "industrial",
+            "sub_type": "Optional sub type",
+            "street_address": "Optional address",
+            "city": "Optional city",
+            "zip_code": "Optional ZIP",
+            "lat": 42.6526,
+            "lon": -73.7562,
+            "gps_source": "manual"
+        }
+
+    Returns:
+        GET: JSON array of all locations
+        POST: JSON with created location
+    """
+    if request.method == 'GET':
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT * FROM locations ORDER BY loc_name")
+            rows = cursor.fetchall()
+            conn.close()
+
+            locations_list = [dict(row) for row in rows]
+
+            return jsonify(locations_list), 200
+
+        except Exception as e:
+            logger.error(f"Failed to list locations: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    else:  # POST
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Request body is required'}), 400
+
+            # Validate required fields
+            if 'loc_name' not in data or not data['loc_name'].strip():
+                return jsonify({'error': 'loc_name is required'}), 400
+
+            if 'state' not in data or not data['state'].strip():
+                return jsonify({'error': 'state is required'}), 400
+
+            if 'type' not in data or not data['type'].strip():
+                return jsonify({'error': 'type is required'}), 400
+
+            from scripts.utils import generate_uuid
+            from scripts.normalize import normalize_datetime
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Generate UUID
+            loc_uuid = generate_uuid(cursor, 'locations', 'loc_uuid')
+            timestamp = normalize_datetime(None)
+
+            # Extract fields
+            loc_name = data['loc_name'].strip()
+            aka_name = data.get('aka_name', '').strip() or None
+            state = data['state'].strip().lower()
+            loc_type = data['type'].strip().lower()
+            sub_type = data.get('sub_type', '').strip() or None
+            street_address = data.get('street_address', '').strip() or None
+            city = data.get('city', '').strip() or None
+            zip_code = data.get('zip_code', '').strip() or None
+            lat = data.get('lat')
+            lon = data.get('lon')
+            gps_source = data.get('gps_source', 'manual') if (lat and lon) else None
+
+            # Insert location
+            cursor.execute(
+                """
+                INSERT INTO locations (
+                    loc_uuid, loc_name, aka_name, state, type, sub_type,
+                    street_address, city, zip_code,
+                    lat, lon, gps_source,
+                    loc_add, loc_update
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    loc_uuid, loc_name, aka_name, state, loc_type, sub_type,
+                    street_address, city, zip_code,
+                    lat, lon, gps_source,
+                    timestamp, timestamp
+                )
+            )
+
+            conn.commit()
+
+            # Fetch created location
+            cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            result = dict(cursor.fetchone())
+            conn.close()
+
+            logger.info(f"Created location: {loc_name} ({loc_uuid})")
+
+            return jsonify(result), 201
+
+        except Exception as e:
+            logger.error(f"Failed to create location: {e}")
+            return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/locations/<loc_uuid>', methods=['PUT', 'DELETE'])
+def location_update_delete(loc_uuid):
+    """
+    Update or delete a location.
+
+    PUT: Updates location fields
+    DELETE: Deletes location (cascades to all media)
+
+    Request JSON (PUT):
+        {
+            "loc_name": "Updated Name",
+            ... other fields ...
+        }
+
+    Returns:
+        PUT: JSON with updated location
+        DELETE: JSON with success message
+    """
+    if request.method == 'PUT':
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Request body is required'}), 400
+
+            from scripts.normalize import normalize_datetime
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Verify location exists
+            cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            if not cursor.fetchone():
+                conn.close()
+                return jsonify({'error': 'Location not found'}), 404
+
+            # Build update query dynamically
+            allowed_fields = [
+                'loc_name', 'aka_name', 'state', 'type', 'sub_type',
+                'street_address', 'city', 'zip_code',
+                'lat', 'lon', 'gps_source'
+            ]
+
+            update_fields = []
+            update_values = []
+
+            for field in allowed_fields:
+                if field in data:
+                    value = data[field]
+                    if isinstance(value, str):
+                        value = value.strip() if value else None
+                    update_fields.append(f"{field} = ?")
+                    update_values.append(value)
+
+            if not update_fields:
+                conn.close()
+                return jsonify({'error': 'No fields to update'}), 400
+
+            # Add timestamp
+            timestamp = normalize_datetime(None)
+            update_fields.append("loc_update = ?")
+            update_values.append(timestamp)
+            update_values.append(loc_uuid)
+
+            # Execute update
+            sql = f"UPDATE locations SET {', '.join(update_fields)} WHERE loc_uuid = ?"
+            cursor.execute(sql, update_values)
+            conn.commit()
+
+            # Fetch updated location
+            cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            result = dict(cursor.fetchone())
+            conn.close()
+
+            logger.info(f"Updated location: {loc_uuid}")
+
+            return jsonify(result), 200
+
+        except Exception as e:
+            logger.error(f"Failed to update location: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    else:  # DELETE
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Verify location exists
+            cursor.execute("SELECT loc_uuid, loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            location = cursor.fetchone()
+            if not location:
+                conn.close()
+                return jsonify({'error': 'Location not found'}), 404
+
+            loc_name = location['loc_name']
+
+            # Delete location (cascades to images, videos, documents, urls)
+            cursor.execute("DELETE FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            conn.commit()
+            conn.close()
+
+            logger.info(f"Deleted location: {loc_name} ({loc_uuid})")
+
+            return jsonify({'success': True, 'message': f'Deleted location: {loc_name}'}), 200
+
+        except Exception as e:
+            logger.error(f"Failed to delete location: {e}")
+            return jsonify({'error': str(e)}), 500
+
+
 @api_v012.route('/search', methods=['GET'])
 def search_locations():
     """
