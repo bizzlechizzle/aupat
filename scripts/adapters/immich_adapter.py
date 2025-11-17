@@ -116,7 +116,7 @@ class ImmichAdapter:
             True if service is healthy, False otherwise
         """
         try:
-            response = self._request('GET', '/api/server-info/ping')
+            response = self._request('GET', '/api/server/ping')
             return response.json().get('res') == 'pong'
         except Exception as e:
             logger.warning(f"Immich health check failed: {e}")

@@ -11,7 +11,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
-      - IMMICH_URL=http://immich-server:3001
+      - IMMICH_URL=http://immich-server:2283
       - ARCHIVEBOX_URL=http://archivebox:8000
       - DB_PATH=/data/aupat.db
     volumes:

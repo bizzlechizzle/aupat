@@ -83,21 +83,21 @@ def health_check_services():
 
     # Check Immich
     try:
-        from adapters.immich_adapter import create_immich_adapter
+        from scripts.adapters.immich_adapter import create_immich_adapter
         immich = create_immich_adapter()
         services['immich'] = 'healthy' if immich.health_check() else 'unhealthy'
     except Exception as e:
         services['immich'] = 'unavailable'
-        logger.debug(f"Immich health check failed: {e}")
+        logger.error(f"Immich adapter import or health check failed: {e}")
 
     # Check ArchiveBox
     try:
-        from adapters.archivebox_adapter import create_archivebox_adapter
+        from scripts.adapters.archivebox_adapter import create_archivebox_adapter
         archivebox = create_archivebox_adapter()
         services['archivebox'] = 'healthy' if archivebox.health_check() else 'unhealthy'
     except Exception as e:
         services['archivebox'] = 'unavailable'
-        logger.debug(f"ArchiveBox health check failed: {e}")
+        logger.error(f"ArchiveBox adapter import or health check failed: {e}")
 
     # Determine overall status
     statuses = list(services.values())
@@ -389,7 +389,7 @@ def get_location_archives(loc_uuid):
         cursor.execute(
             """
             SELECT
-                url_uuid, url, domain,
+                url_uuid, url, url_title, url_desc,
                 archivebox_snapshot_id, archive_status,
                 archive_date, media_extracted,
                 url_add
@@ -409,6 +409,163 @@ def get_location_archives(loc_uuid):
 
     except Exception as e:
         logger.error(f"Failed to get location archives: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/locations/<loc_uuid>/urls', methods=['POST'])
+def archive_url(loc_uuid):
+    """
+    Archive a new URL for a location.
+
+    Args:
+        loc_uuid: Location UUID
+
+    Request JSON:
+        {
+            "url": "https://example.com",
+            "title": "Optional title",
+            "description": "Optional description"
+        }
+
+    Returns:
+        JSON with created URL record
+    """
+    try:
+        # Validate request
+        data = request.get_json()
+        if not data or 'url' not in data:
+            return jsonify({'error': 'url is required'}), 400
+
+        url = data['url'].strip()
+        if not url:
+            return jsonify({'error': 'url cannot be empty'}), 400
+
+        # Optional fields
+        title = data.get('title', '').strip() or None
+        description = data.get('description', '').strip() or None
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verify location exists
+        cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'Location not found'}), 404
+
+        # Generate UUID and timestamp
+        from scripts.utils import generate_uuid
+        from scripts.normalize import normalize_datetime
+
+        url_uuid = generate_uuid(cursor, 'urls', 'url_uuid')
+        timestamp = normalize_datetime(None)
+
+        # Insert URL record
+        cursor.execute(
+            """
+            INSERT INTO urls (
+                url_uuid, loc_uuid, url, url_title, url_desc,
+                archive_status, url_add, url_update
+            ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+            """,
+            (url_uuid, loc_uuid, url, title, description, timestamp, timestamp)
+        )
+
+        conn.commit()
+        conn.close()
+
+        # Phase B: Attempt to archive URL via ArchiveBox
+        # Database connection closed before network call to prevent blocking
+        try:
+            from scripts.adapters.archivebox_adapter import create_archivebox_adapter
+
+            logger.info(f"Archiving URL via ArchiveBox: {url}")
+            archivebox = create_archivebox_adapter()
+            snapshot_id = archivebox.archive_url(url)
+
+            if snapshot_id:
+                # Reopen database to update with snapshot ID
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE urls
+                    SET archivebox_snapshot_id = ?,
+                        archive_status = 'archiving',
+                        url_update = ?
+                    WHERE url_uuid = ?
+                    """,
+                    (snapshot_id, timestamp, url_uuid)
+                )
+                conn.commit()
+                conn.close()
+                logger.info(f"ArchiveBox snapshot created: {snapshot_id}")
+            else:
+                logger.warning(f"ArchiveBox returned no snapshot ID for {url}")
+
+        except Exception as e:
+            # Graceful degradation: Log error but continue
+            # URL is already saved to database with status='pending'
+            # Background worker (Phase C) can retry
+            logger.warning(f"ArchiveBox archiving failed, URL saved as pending: {e}")
+
+        # Fetch final record
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                url_uuid, url, url_title, url_desc,
+                archivebox_snapshot_id, archive_status,
+                archive_date, media_extracted, url_add
+            FROM urls
+            WHERE url_uuid = ?
+            """,
+            (url_uuid,)
+        )
+
+        result = dict(cursor.fetchone())
+        conn.close()
+
+        logger.info(f"URL saved for location {loc_uuid}: {url} (status: {result['archive_status']})")
+        return jsonify(result), 201
+
+    except Exception as e:
+        logger.error(f"Failed to archive URL: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/urls/<url_uuid>', methods=['DELETE'])
+def delete_url(url_uuid):
+    """
+    Delete an archived URL.
+
+    Args:
+        url_uuid: URL UUID
+
+    Returns:
+        JSON with success status
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verify URL exists
+        cursor.execute("SELECT url_uuid FROM urls WHERE url_uuid = ?", (url_uuid,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'URL not found'}), 404
+
+        # Delete URL
+        cursor.execute("DELETE FROM urls WHERE url_uuid = ?", (url_uuid,))
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Deleted URL {url_uuid}")
+        return jsonify({'success': True, 'message': 'URL deleted'}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to delete URL: {e}")
         return jsonify({'error': str(e)}), 500
 
 

@@ -293,6 +293,11 @@ def migrate_images_table(cursor: sqlite3.Cursor) -> None:
         logger.info("  Adding gps_lon column")
         cursor.execute("ALTER TABLE images ADD COLUMN gps_lon REAL")
 
+    # Phase D: Media extraction tracking
+    if 'source_url' not in existing_columns:
+        logger.info("  Adding source_url column (Phase D)")
+        cursor.execute("ALTER TABLE images ADD COLUMN source_url TEXT")
+
     logger.info("Images table migration complete")
 
 
@@ -332,6 +337,11 @@ def migrate_videos_table(cursor: sqlite3.Cursor) -> None:
     if 'gps_lon' not in existing_columns:
         logger.info("  Adding gps_lon column")
         cursor.execute("ALTER TABLE videos ADD COLUMN gps_lon REAL")
+
+    # Phase D: Media extraction tracking
+    if 'source_url' not in existing_columns:
+        logger.info("  Adding source_url column (Phase D)")
+        cursor.execute("ALTER TABLE videos ADD COLUMN source_url TEXT")
 
     logger.info("Videos table migration complete")
 

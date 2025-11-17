@@ -321,6 +321,66 @@ ipcMain.handle('import:uploadFile', async (event, fileData) => {
 });
 
 /**
+ * URL Archive API handlers
+ */
+ipcMain.handle('urls:archive', async (event, data) => {
+  try {
+    validateRequired(data, 'data');
+    validateRequired(data.locationId, 'locationId');
+    validateString(data.locationId, 'locationId');
+    validateRequired(data.url, 'url');
+    validateString(data.url, 'url');
+
+    log.info(`Archiving URL for location ${data.locationId}: ${data.url}`);
+
+    const response = await api.post(`/api/locations/${data.locationId}/urls`, {
+      url: data.url,
+      title: data.title || null,
+      description: data.description || null
+    });
+
+    log.info(`Successfully archived URL: ${data.url}`);
+    return { success: true, data: response };
+  } catch (error) {
+    log.error(`Failed to archive URL:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('urls:getByLocation', async (event, locationId) => {
+  try {
+    validateRequired(locationId, 'locationId');
+    validateString(locationId, 'locationId');
+
+    log.info(`Fetching archived URLs for location ${locationId}`);
+
+    const urls = await api.get(`/api/locations/${locationId}/archives`);
+
+    return { success: true, data: urls };
+  } catch (error) {
+    log.error(`Failed to fetch URLs for location ${locationId}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('urls:delete', async (event, urlUuid) => {
+  try {
+    validateRequired(urlUuid, 'urlUuid');
+    validateString(urlUuid, 'urlUuid');
+
+    log.info(`Deleting URL ${urlUuid}`);
+
+    const response = await api.delete(`/api/urls/${urlUuid}`);
+
+    log.info(`Successfully deleted URL ${urlUuid}`);
+    return { success: true, data: response };
+  } catch (error) {
+    log.error(`Failed to delete URL ${urlUuid}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
  * Health check handler
  */
 ipcMain.handle('api:health', async () => {

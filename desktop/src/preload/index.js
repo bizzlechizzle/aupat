@@ -60,6 +60,15 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * URLs API (Web Archive)
+   */
+  urls: {
+    archive: (data) => ipcRenderer.invoke('urls:archive', data),
+    getByLocation: (locationId) => ipcRenderer.invoke('urls:getByLocation', locationId),
+    delete: (urlUuid) => ipcRenderer.invoke('urls:delete', urlUuid)
+  },
+
+  /**
    * Health check
    */
   health: {

@@ -278,6 +278,91 @@ class ArchiveBoxAdapter:
             logger.error(f"Failed to get extracted media for {snapshot_id}: {e}")
             return []
 
+    def get_snapshot_files(self, snapshot_id: str, archivebox_data_dir: str) -> List[Dict]:
+        """
+        Get media files from ArchiveBox snapshot directory (filesystem-based).
+
+        This method works with ArchiveBox v0.7.3 which lacks REST API for media extraction.
+        Directly scans the archive directory for extractable media files.
+
+        Args:
+            snapshot_id: ArchiveBox snapshot ID (timestamp)
+            archivebox_data_dir: Path to ArchiveBox data directory (e.g., /data/archivebox)
+
+        Returns:
+            List of dictionaries with file metadata:
+            [{
+                'path': '/absolute/path/to/file.jpg',
+                'filename': 'file.jpg',
+                'type': 'image',  # or 'video'
+                'size': 12345
+            }]
+        """
+        from pathlib import Path
+
+        snapshot_dir = Path(archivebox_data_dir) / 'archive' / snapshot_id
+
+        if not snapshot_dir.exists():
+            logger.warning(f"Snapshot directory not found: {snapshot_dir}")
+            return []
+
+        media_files = []
+
+        try:
+            # Scan for media files
+            media_files.extend(self._scan_directory_for_media(snapshot_dir))
+
+            logger.info(f"Found {len(media_files)} media files in snapshot {snapshot_id}")
+            return media_files
+
+        except Exception as e:
+            logger.error(f"Error scanning snapshot {snapshot_id}: {e}")
+            return []
+
+    def _scan_directory_for_media(self, directory: Path) -> List[Dict]:
+        """
+        Scan directory for media files and return metadata.
+
+        Args:
+            directory: Path object to scan
+
+        Returns:
+            List of file metadata dictionaries
+        """
+        from pathlib import Path
+
+        image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.heic', '.heif'}
+        video_extensions = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'}
+
+        media_files = []
+
+        try:
+            for file_path in directory.rglob('*'):
+                if not file_path.is_file():
+                    continue
+
+                ext = file_path.suffix.lower()
+
+                # Determine file type
+                file_type = None
+                if ext in image_extensions:
+                    file_type = 'image'
+                elif ext in video_extensions:
+                    file_type = 'video'
+
+                if file_type:
+                    media_files.append({
+                        'path': str(file_path.absolute()),
+                        'filename': file_path.name,
+                        'type': file_type,
+                        'size': file_path.stat().st_size
+                    })
+
+        except Exception as e:
+            logger.error(f"Error scanning directory {directory}: {e}")
+
+        return media_files
+
     def _find_media_files(self, directory: str) -> List[str]:
         """
         Recursively find media files in a directory.

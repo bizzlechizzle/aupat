@@ -15,8 +15,20 @@
   let error = null;
   let selectedImage = null;
 
+  // URL archiving state
+  let archivedUrls = [];
+  let urlsLoading = false;
+  let urlsError = null;
+  let newUrl = '';
+  let newUrlTitle = '';
+  let newUrlDescription = '';
+  let archiving = false;
+
   onMount(async () => {
-    await loadImages();
+    await Promise.all([
+      loadImages(),
+      loadArchivedUrls()
+    ]);
   });
 
   async function loadImages() {
@@ -65,6 +77,76 @@
   function handleKeydown(event) {
     if (event.key === 'Escape' && selectedImage) {
       closeLightbox();
+    }
+  }
+
+  async function loadArchivedUrls() {
+    urlsLoading = true;
+    urlsError = null;
+
+    try {
+      const response = await window.api.urls.getByLocation(location.loc_uuid);
+
+      if (response.success) {
+        archivedUrls = response.data || [];
+      } else {
+        urlsError = response.error;
+      }
+    } catch (err) {
+      console.error('Failed to load archived URLs:', err);
+      urlsError = err.message;
+    } finally {
+      urlsLoading = false;
+    }
+  }
+
+  async function archiveUrl() {
+    if (!newUrl.trim()) return;
+
+    archiving = true;
+    urlsError = null;
+
+    try {
+      const response = await window.api.urls.archive({
+        locationId: location.loc_uuid,
+        url: newUrl.trim(),
+        title: newUrlTitle.trim() || null,
+        description: newUrlDescription.trim() || null
+      });
+
+      if (response.success) {
+        // Clear form
+        newUrl = '';
+        newUrlTitle = '';
+        newUrlDescription = '';
+
+        // Reload URLs
+        await loadArchivedUrls();
+      } else {
+        urlsError = response.error;
+      }
+    } catch (err) {
+      console.error('Failed to archive URL:', err);
+      urlsError = err.message;
+    } finally {
+      archiving = false;
+    }
+  }
+
+  async function deleteUrl(urlUuid) {
+    if (!confirm('Are you sure you want to delete this archived URL?')) return;
+
+    try {
+      const response = await window.api.urls.delete(urlUuid);
+
+      if (response.success) {
+        await loadArchivedUrls();
+      } else {
+        urlsError = response.error;
+      }
+    } catch (err) {
+      console.error('Failed to delete URL:', err);
+      urlsError = err.message;
     }
   }
 </script>
@@ -146,6 +228,108 @@
               />
               <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
             </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Archived URLs Section -->
+    <div class="mt-6">
+      <h4 class="text-sm font-medium text-gray-700 mb-2">
+        Archived URLs ({archivedUrls.length})
+      </h4>
+
+      <!-- Add URL Form -->
+      <div class="bg-gray-50 rounded-lg p-3 mb-3">
+        <input
+          type="url"
+          bind:value={newUrl}
+          placeholder="https://example.com"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <input
+          type="text"
+          bind:value={newUrlTitle}
+          placeholder="Title (optional)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <textarea
+          bind:value={newUrlDescription}
+          placeholder="Description (optional)"
+          rows="2"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <button
+          on:click={archiveUrl}
+          disabled={!newUrl.trim() || archiving}
+          class="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {archiving ? 'Archiving...' : 'Archive URL'}
+        </button>
+      </div>
+
+      <!-- Error Message -->
+      {#if urlsError}
+        <div class="bg-red-50 rounded-lg p-3 text-sm text-red-600 mb-3">
+          {urlsError}
+        </div>
+      {/if}
+
+      <!-- URLs List -->
+      {#if urlsLoading}
+        <div class="bg-gray-100 rounded-lg p-8 text-center text-gray-500">
+          Loading URLs...
+        </div>
+      {:else if archivedUrls.length === 0}
+        <div class="bg-gray-100 rounded-lg p-8 text-center text-gray-500">
+          No archived URLs yet
+        </div>
+      {:else}
+        <div class="space-y-2">
+          {#each archivedUrls as archivedUrl}
+            <div class="bg-white border border-gray-200 rounded-lg p-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <a
+                    href={archivedUrl.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-blue-600 hover:text-blue-800 break-all block"
+                  >
+                    {archivedUrl.url_title || archivedUrl.url}
+                  </a>
+                  {#if archivedUrl.url_title}
+                    <p class="text-xs text-gray-500 break-all mt-1">{archivedUrl.url}</p>
+                  {/if}
+                  {#if archivedUrl.url_desc}
+                    <p class="text-xs text-gray-600 mt-1">{archivedUrl.url_desc}</p>
+                  {/if}
+                  <div class="flex items-center gap-3 mt-1">
+                    <span class="text-xs text-gray-500 capitalize">
+                      {archivedUrl.archive_status || 'pending'}
+                    </span>
+                    {#if archivedUrl.archive_date}
+                      <span class="text-xs text-gray-400">
+                        {new Date(archivedUrl.archive_date).toLocaleDateString()}
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+                <button
+                  on:click={() => deleteUrl(archivedUrl.url_uuid)}
+                  class="text-gray-400 hover:text-red-600 flex-shrink-0"
+                  title="Delete URL"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fill-rule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
           {/each}
         </div>
       {/if}
