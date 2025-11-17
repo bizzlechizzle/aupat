@@ -271,7 +271,7 @@ DOCUMENT_EXTENSIONS = {
     '.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt',
     '.srt', '.xml', '.json', '.csv', '.xls', '.xlsx',
     '.ppt', '.pptx', '.odp', '.ods', '.pages', '.numbers',
-    '.keynote', '.md', '.markdown', '.log', '.ini', '.cfg'
+    '.keynote', '.log', '.ini', '.cfg'
 }
 
 
