@@ -24,7 +24,7 @@ log.info('AUPAT Desktop starting...');
 // Initialize settings store
 const store = new Store({
   defaults: {
-    apiUrl: 'http://localhost:5001',
+    apiUrl: 'http://localhost:5000',
     immichUrl: 'http://localhost:2283',
     archiveboxUrl: 'http://localhost:8001',
     mapCenter: { lat: 42.6526, lng: -73.7562 }, // Albany, NY
