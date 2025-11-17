@@ -577,6 +577,232 @@ def delete_url(url_uuid):
         return jsonify({'error': str(e)}), 500
 
 
+@api_v012.route('/locations/<loc_uuid>/import', methods=['POST'])
+def import_file_to_location(loc_uuid):
+    """
+    Import a media file to a location.
+
+    Accepts base64-encoded file data from desktop app, uploads to Immich,
+    extracts metadata, and creates database record.
+
+    Args:
+        loc_uuid: Location UUID
+
+    Request JSON:
+        {
+            "filename": "photo.jpg",
+            "category": "image" | "video",
+            "size": 1234567,
+            "data": "base64-encoded-file-data"
+        }
+
+    Returns:
+        JSON with import result and asset metadata
+    """
+    import base64
+    import tempfile
+    import os
+    from pathlib import Path
+
+    temp_file = None
+
+    try:
+        # Validate request
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        # Validate required fields
+        required_fields = ['filename', 'category', 'size', 'data']
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            return jsonify({'error': f'Missing required fields: {missing}'}), 400
+
+        filename = data['filename'].strip()
+        category = data['category'].strip().lower()
+        file_size = data['size']
+        base64_data = data['data']
+
+        # Validate category
+        if category not in ['image', 'video']:
+            return jsonify({'error': f'Invalid category: {category}. Must be "image" or "video"'}), 400
+
+        # Validate location exists
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'Location not found'}), 404
+        conn.close()
+
+        # Decode base64 data
+        try:
+            file_data = base64.b64decode(base64_data)
+        except Exception as e:
+            return jsonify({'error': f'Invalid base64 data: {e}'}), 400
+
+        # Validate decoded size matches declared size
+        if len(file_data) != file_size:
+            logger.warning(f"Size mismatch: declared {file_size}, actual {len(file_data)}")
+
+        # Write to temporary file
+        file_ext = Path(filename).suffix
+        temp_fd, temp_path = tempfile.mkstemp(suffix=file_ext, prefix='aupat_import_')
+        temp_file = temp_path
+
+        try:
+            os.write(temp_fd, file_data)
+            os.close(temp_fd)
+        except Exception as e:
+            os.close(temp_fd)
+            raise e
+
+        logger.info(f"Importing {category} file: {filename} ({file_size} bytes) to location {loc_uuid}")
+
+        # Import utility functions
+        from scripts.utils import calculate_sha256, generate_uuid, check_sha256_collision
+        from scripts.normalize import normalize_datetime
+        from scripts.immich_integration import (
+            upload_to_immich,
+            extract_gps_from_exif,
+            get_image_dimensions,
+            get_video_dimensions,
+            get_file_size
+        )
+
+        # Calculate SHA256
+        sha256_full = calculate_sha256(temp_path)
+        sha256_short = sha256_full[:8]
+
+        # Check for duplicate
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if check_sha256_collision(cursor, sha256_full, category):
+            conn.close()
+            logger.warning(f"Duplicate {category} detected: {filename} (SHA256: {sha256_short})")
+            return jsonify({
+                'error': 'Duplicate file detected',
+                'sha256': sha256_short,
+                'message': f'This {category} already exists in the database'
+            }), 409
+
+        # Upload to Immich
+        immich_asset_id = upload_to_immich(temp_path)
+        if not immich_asset_id:
+            logger.warning(f"Immich upload failed for {filename}, continuing without Immich integration")
+
+        # Extract metadata
+        timestamp = normalize_datetime(None)
+        gps_coords = extract_gps_from_exif(temp_path)
+        gps_lat = gps_coords[0] if gps_coords else None
+        gps_lon = gps_coords[1] if gps_coords else None
+
+        if category == 'image':
+            # Image-specific metadata
+            dimensions = get_image_dimensions(temp_path)
+            width = dimensions[0] if dimensions else None
+            height = dimensions[1] if dimensions else None
+
+            # Generate UUID
+            img_uuid = generate_uuid(cursor, 'images', 'img_uuid')
+
+            # Insert into images table
+            cursor.execute(
+                """
+                INSERT INTO images (
+                    img_uuid, loc_uuid, img_sha, img_name, img_ext,
+                    img_add, img_update, immich_asset_id,
+                    img_width, img_height, img_size_bytes,
+                    gps_lat, gps_lon
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    img_uuid, loc_uuid, sha256_full, filename, file_ext,
+                    timestamp, timestamp, immich_asset_id,
+                    width, height, file_size,
+                    gps_lat, gps_lon
+                )
+            )
+
+            conn.commit()
+            conn.close()
+
+            logger.info(f"Image imported: {filename} -> {img_uuid} (SHA256: {sha256_short})")
+
+            return jsonify({
+                'success': True,
+                'category': 'image',
+                'uuid': img_uuid,
+                'sha256': sha256_short,
+                'immich_asset_id': immich_asset_id,
+                'width': width,
+                'height': height,
+                'size_bytes': file_size,
+                'gps': {'lat': gps_lat, 'lon': gps_lon} if gps_coords else None
+            }), 201
+
+        else:  # category == 'video'
+            # Video-specific metadata
+            vid_data = get_video_dimensions(temp_path)
+            width = vid_data[0] if vid_data else None
+            height = vid_data[1] if vid_data else None
+            duration = vid_data[2] if vid_data else None
+
+            # Generate UUID
+            vid_uuid = generate_uuid(cursor, 'videos', 'vid_uuid')
+
+            # Insert into videos table
+            cursor.execute(
+                """
+                INSERT INTO videos (
+                    vid_uuid, loc_uuid, vid_sha, vid_name, vid_ext,
+                    vid_add, vid_update, immich_asset_id,
+                    vid_width, vid_height, vid_duration_sec, vid_size_bytes,
+                    gps_lat, gps_lon
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    vid_uuid, loc_uuid, sha256_full, filename, file_ext,
+                    timestamp, timestamp, immich_asset_id,
+                    width, height, duration, file_size,
+                    gps_lat, gps_lon
+                )
+            )
+
+            conn.commit()
+            conn.close()
+
+            logger.info(f"Video imported: {filename} -> {vid_uuid} (SHA256: {sha256_short})")
+
+            return jsonify({
+                'success': True,
+                'category': 'video',
+                'uuid': vid_uuid,
+                'sha256': sha256_short,
+                'immich_asset_id': immich_asset_id,
+                'width': width,
+                'height': height,
+                'duration_sec': duration,
+                'size_bytes': file_size,
+                'gps': {'lat': gps_lat, 'lon': gps_lon} if gps_coords else None
+            }), 201
+
+    except Exception as e:
+        logger.error(f"Import failed for {filename}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        # Clean up temporary file
+        if temp_file and os.path.exists(temp_file):
+            try:
+                os.unlink(temp_file)
+                logger.debug(f"Cleaned up temp file: {temp_file}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
+
+
 @api_v012.route('/search', methods=['GET'])
 def search_locations():
     """
