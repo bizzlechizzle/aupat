@@ -95,7 +95,11 @@ def test_immich_services_configuration():
 
     # Immich PostgreSQL
     postgres = config['services']['immich-postgres']
-    assert 'POSTGRES_DB' in postgres.get('environment', {}) or 'POSTGRES_DB' in postgres.get('environment', [])
+    env = postgres.get('environment', [])
+    if isinstance(env, dict):
+        assert 'POSTGRES_DB' in env
+    else:  # List format (KEY=VALUE strings)
+        assert any(var.startswith('POSTGRES_DB=') for var in env)
     assert 'healthcheck' in postgres
 
     # Immich Redis

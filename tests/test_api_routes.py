@@ -112,6 +112,8 @@ def test_app():
         CREATE TABLE urls (
             url_uuid TEXT PRIMARY KEY,
             url TEXT,
+            url_title TEXT,
+            url_desc TEXT,
             domain TEXT,
             archivebox_snapshot_id TEXT,
             archive_status TEXT,

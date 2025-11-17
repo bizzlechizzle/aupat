@@ -149,7 +149,7 @@ def fetch_pending_extractions(db_path: str, limit: int = 5) -> List[Dict]:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT url_uuid, url, archivebox_snapshot_id, loc_uuid
+            SELECT url_uuid, url, archivebox_snapshot_id, loc_uuid, archive_status, media_extracted
             FROM urls
             WHERE archive_status = 'archiving'
               AND media_extracted = 0
