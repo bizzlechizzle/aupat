@@ -11,7 +11,7 @@
  * - All IPC communication via preload script
  */
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import { join } from 'path';
 import log from 'electron-log';
 import Store from 'electron-store';
@@ -409,6 +409,120 @@ ipcMain.handle('import:uploadFile', async (event, fileData) => {
     return { success: true, data: response };
   } catch (error) {
     log.error(`Failed to upload file:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Directory picker handler
+ */
+ipcMain.handle('dialog:selectDirectory', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Source Directory for Import'
+    });
+
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+
+    const selectedPath = result.filePaths[0];
+    log.info(`Directory selected: ${selectedPath}`);
+    return { success: true, path: selectedPath };
+  } catch (error) {
+    log.error('Failed to show directory picker:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Bulk import handler
+ */
+ipcMain.handle('import:bulkImport', async (event, data) => {
+  try {
+    validateRequired(data, 'data');
+    validateRequired(data.locationId, 'locationId');
+    validateString(data.locationId, 'locationId');
+    validateRequired(data.sourcePath, 'sourcePath');
+    validateString(data.sourcePath, 'sourcePath');
+
+    log.info(`Starting bulk import for location ${data.locationId} from ${data.sourcePath}`);
+
+    // Call the bulk import API endpoint
+    const response = await api.post(`/api/locations/${data.locationId}/import/bulk`, {
+      source_path: data.sourcePath,
+      author: data.author || 'desktop-app'
+    });
+
+    log.info(`Bulk import completed for location ${data.locationId}. Batch ID: ${response.batch_id}`);
+    return { success: true, data: response };
+  } catch (error) {
+    log.error(`Bulk import failed:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Import batch status handler
+ */
+ipcMain.handle('import:getBatchStatus', async (event, batchId) => {
+  try {
+    validateRequired(batchId, 'batchId');
+    validateString(batchId, 'batchId');
+
+    log.info(`Fetching batch status for ${batchId}`);
+    const status = await api.get(`/api/import/batches/${batchId}`);
+    return { success: true, data: status };
+  } catch (error) {
+    log.error(`Failed to fetch batch status:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Import batch logs handler
+ */
+ipcMain.handle('import:getBatchLogs', async (event, batchId, filters = {}) => {
+  try {
+    validateRequired(batchId, 'batchId');
+    validateString(batchId, 'batchId');
+
+    const params = new URLSearchParams();
+    if (filters.stage) params.append('stage', filters.stage);
+    if (filters.status) params.append('status', filters.status);
+
+    const queryString = params.toString();
+    const url = `/api/import/batches/${batchId}/logs${queryString ? '?' + queryString : ''}`;
+
+    log.info(`Fetching batch logs for ${batchId}`);
+    const logs = await api.get(url);
+    return { success: true, data: logs };
+  } catch (error) {
+    log.error(`Failed to fetch batch logs:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * List import batches handler
+ */
+ipcMain.handle('import:listBatches', async (event, filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+    if (filters.loc_uuid) params.append('loc_uuid', filters.loc_uuid);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.offset) params.append('offset', filters.offset.toString());
+
+    const queryString = params.toString();
+    const url = `/api/import/batches${queryString ? '?' + queryString : ''}`;
+
+    log.info('Fetching import batches');
+    const batches = await api.get(url);
+    return { success: true, data: batches };
+  } catch (error) {
+    log.error('Failed to fetch import batches:', error);
     return { success: false, error: sanitizeError(error) };
   }
 });
