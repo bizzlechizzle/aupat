@@ -16,6 +16,7 @@ import { join } from 'path';
 import log from 'electron-log';
 import Store from 'electron-store';
 import { createAPIClient } from './api-client.js';
+import { BrowserManager } from './browser-manager.js';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -66,6 +67,7 @@ if (currentApiUrl && currentApiUrl.includes('localhost')) {
 const api = createAPIClient(store.get('apiUrl'));
 
 let mainWindow;
+let browserManager;
 
 /**
  * Clear application cache on startup to prevent stale cached code issues
@@ -461,6 +463,271 @@ ipcMain.handle('api:health', async () => {
     return { success: true, data: health };
   } catch (error) {
     log.error('Health check failed:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Browser handlers
+ */
+ipcMain.handle('browser:create', async () => {
+  try {
+    if (!browserManager) {
+      browserManager = new BrowserManager(mainWindow);
+    }
+
+    const view = browserManager.create();
+    if (!view) {
+      return { success: false, error: 'Failed to create browser view' };
+    }
+
+    log.info('Browser view created via IPC');
+    return { success: true };
+  } catch (error) {
+    log.error('Failed to create browser:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:navigate', async (event, url) => {
+  try {
+    validateRequired(url, 'url');
+    validateString(url, 'url');
+
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    browserManager.navigate(url);
+    return { success: true };
+  } catch (error) {
+    log.error(`Failed to navigate to ${url}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:goBack', async () => {
+  try {
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    browserManager.goBack();
+    return { success: true };
+  } catch (error) {
+    log.error('Failed to go back:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:goForward', async () => {
+  try {
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    browserManager.goForward();
+    return { success: true };
+  } catch (error) {
+    log.error('Failed to go forward:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:reload', async () => {
+  try {
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    browserManager.reload();
+    return { success: true };
+  } catch (error) {
+    log.error('Failed to reload:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:setBounds', async (event, bounds) => {
+  try {
+    validateRequired(bounds, 'bounds');
+
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    browserManager.setBounds(bounds);
+    return { success: true };
+  } catch (error) {
+    log.error('Failed to set browser bounds:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:getCookies', async (event, domain) => {
+  try {
+    validateRequired(domain, 'domain');
+    validateString(domain, 'domain');
+
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    const cookies = await browserManager.getCookies(domain);
+    return { success: true, data: cookies };
+  } catch (error) {
+    log.error(`Failed to get cookies for ${domain}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:exportCookies', async (event, domain) => {
+  try {
+    validateRequired(domain, 'domain');
+    validateString(domain, 'domain');
+
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    const cookieString = await browserManager.exportCookiesForArchiveBox(domain);
+    return { success: true, data: cookieString };
+  } catch (error) {
+    log.error(`Failed to export cookies for ${domain}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:destroy', async () => {
+  try {
+    if (browserManager) {
+      browserManager.destroy();
+      log.info('Browser view destroyed via IPC');
+    }
+    return { success: true };
+  } catch (error) {
+    log.error('Failed to destroy browser:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:getCurrentUrl', async () => {
+  try {
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    const url = browserManager.getCurrentUrl();
+    return { success: true, data: url };
+  } catch (error) {
+    log.error('Failed to get current URL:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('browser:getCurrentTitle', async () => {
+  try {
+    if (!browserManager || !browserManager.isCreated()) {
+      return { success: false, error: 'Browser not initialized' };
+    }
+
+    const title = browserManager.getCurrentTitle();
+    return { success: true, data: title };
+  } catch (error) {
+    log.error('Failed to get current title:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Bookmark handlers
+ */
+ipcMain.handle('bookmarks:create', async (event, bookmarkData) => {
+  try {
+    validateRequired(bookmarkData, 'bookmarkData');
+
+    log.info('Creating bookmark via IPC');
+    const bookmark = await api.post('/api/bookmarks', bookmarkData);
+    return { success: true, data: bookmark };
+  } catch (error) {
+    log.error('Failed to create bookmark:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('bookmarks:getAll', async (event, filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+
+    if (filters.folder) params.append('folder', filters.folder);
+    if (filters.loc_uuid) params.append('loc_uuid', filters.loc_uuid);
+    if (filters.search) params.append('search', filters.search);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.offset) params.append('offset', filters.offset.toString());
+    if (filters.order) params.append('order', filters.order);
+
+    const queryString = params.toString();
+    const url = `/api/bookmarks${queryString ? '?' + queryString : ''}`;
+
+    log.info('Fetching bookmarks via IPC');
+    const bookmarks = await api.get(url);
+    return { success: true, data: bookmarks };
+  } catch (error) {
+    log.error('Failed to fetch bookmarks:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('bookmarks:getById', async (event, bookmarkUuid) => {
+  try {
+    validateRequired(bookmarkUuid, 'bookmarkUuid');
+    validateString(bookmarkUuid, 'bookmarkUuid');
+
+    log.info(`Fetching bookmark ${bookmarkUuid} via IPC`);
+    const bookmark = await api.get(`/api/bookmarks/${bookmarkUuid}`);
+    return { success: true, data: bookmark };
+  } catch (error) {
+    log.error(`Failed to fetch bookmark ${bookmarkUuid}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('bookmarks:update', async (event, bookmarkUuid, bookmarkData) => {
+  try {
+    validateRequired(bookmarkUuid, 'bookmarkUuid');
+    validateString(bookmarkUuid, 'bookmarkUuid');
+    validateRequired(bookmarkData, 'bookmarkData');
+
+    log.info(`Updating bookmark ${bookmarkUuid} via IPC`);
+    const bookmark = await api.put(`/api/bookmarks/${bookmarkUuid}`, bookmarkData);
+    return { success: true, data: bookmark };
+  } catch (error) {
+    log.error(`Failed to update bookmark ${bookmarkUuid}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('bookmarks:delete', async (event, bookmarkUuid) => {
+  try {
+    validateRequired(bookmarkUuid, 'bookmarkUuid');
+    validateString(bookmarkUuid, 'bookmarkUuid');
+
+    log.info(`Deleting bookmark ${bookmarkUuid} via IPC`);
+    await api.delete(`/api/bookmarks/${bookmarkUuid}`);
+    return { success: true };
+  } catch (error) {
+    log.error(`Failed to delete bookmark ${bookmarkUuid}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('bookmarks:getFolders', async () => {
+  try {
+    log.info('Fetching bookmark folders via IPC');
+    const folders = await api.get('/api/bookmarks/folders');
+    return { success: true, data: folders };
+  } catch (error) {
+    log.error('Failed to fetch bookmark folders:', error);
     return { success: false, error: sanitizeError(error) };
   }
 });
