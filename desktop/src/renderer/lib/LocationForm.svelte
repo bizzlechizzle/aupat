@@ -27,11 +27,19 @@
     zip_code: '',
     lat: null,
     lon: null,
-    gps_source: 'manual'
+    gps_source: 'manual',
+    imp_author: ''
   };
 
   let errors = {};
   let isSubmitting = false;
+
+  // Autocomplete data
+  let typeOptions = [];
+  let subTypeOptions = [];
+  let stateOptions = [];
+  let authorOptions = [];
+  let cityOptions = [];
 
   // US States
   const states = [
@@ -73,8 +81,62 @@
       zip_code: location.zip_code || '',
       lat: location.lat,
       lon: location.lon,
-      gps_source: location.gps_source || 'manual'
+      gps_source: location.gps_source || 'manual',
+      imp_author: location.imp_author || ''
     };
+  }
+
+  // Load autocomplete options when form opens
+  $: if (isOpen) {
+    loadAutocompleteOptions();
+  }
+
+  // Update sub_type options when type changes
+  $: if (formData.type) {
+    loadSubTypeOptions(formData.type);
+  }
+
+  async function loadAutocompleteOptions() {
+    try {
+      // Load all autocomplete options in parallel
+      const [typeRes, stateRes, authorRes, cityRes] = await Promise.all([
+        window.api.locations.autocomplete('type', { limit: 50 }),
+        window.api.locations.autocomplete('state', { limit: 50 }),
+        window.api.locations.autocomplete('imp_author', { limit: 50 }),
+        window.api.locations.autocomplete('city', { limit: 50 })
+      ]);
+
+      if (typeRes.success) typeOptions = typeRes.data;
+      if (stateRes.success) stateOptions = stateRes.data;
+      if (authorRes.success) authorOptions = authorRes.data;
+      if (cityRes.success) cityOptions = cityRes.data;
+
+      // Set defaults to most popular if creating new location
+      if (mode === 'create') {
+        if (typeOptions.length > 0 && !formData.type) {
+          formData.type = typeOptions[0].value;
+        }
+        if (stateOptions.length > 0 && !formData.state) {
+          formData.state = stateOptions[0].value;
+        }
+        if (authorOptions.length > 0 && !formData.imp_author) {
+          formData.imp_author = authorOptions[0].value;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load autocomplete options:', error);
+    }
+  }
+
+  async function loadSubTypeOptions(type) {
+    try {
+      const res = await window.api.locations.autocomplete('sub_type', { type, limit: 50 });
+      if (res.success) {
+        subTypeOptions = res.data;
+      }
+    } catch (error) {
+      console.error('Failed to load sub_type options:', error);
+    }
   }
 
   function validateForm() {
@@ -129,7 +191,8 @@
         zip_code: formData.zip_code.trim() || null,
         lat: formData.lat !== null && formData.lat !== '' ? parseFloat(formData.lat) : null,
         lon: formData.lon !== null && formData.lon !== '' ? parseFloat(formData.lon) : null,
-        gps_source: formData.gps_source
+        gps_source: formData.gps_source,
+        imp_author: formData.imp_author.trim() || null
       };
 
       if (mode === 'create') {
@@ -143,7 +206,13 @@
       close();
     } catch (error) {
       console.error('Failed to save location:', error);
-      errors.submit = error.message || 'Failed to save location';
+      // Check for collision error
+      if (error.message && error.message.includes('already exists')) {
+        errors.loc_name = 'A location with this name already exists';
+        errors.submit = 'Name collision detected. Please use a different name.';
+      } else {
+        errors.submit = error.message || 'Failed to save location';
+      }
     } finally {
       isSubmitting = false;
     }
@@ -167,7 +236,8 @@
       zip_code: '',
       lat: null,
       lon: null,
-      gps_source: 'manual'
+      gps_source: 'manual',
+      imp_author: ''
     };
     errors = {};
   }
@@ -290,9 +360,35 @@
               id="sub_type"
               type="text"
               bind:value={formData.sub_type}
+              list="sub_type_options"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., textile mill, warehouse"
             />
+            <datalist id="sub_type_options">
+              {#each subTypeOptions as option}
+                <option value={option.value}>{option.value} ({option.count})</option>
+              {/each}
+            </datalist>
+          </div>
+
+          <!-- Author -->
+          <div>
+            <label for="imp_author" class="block text-sm font-medium text-gray-700 mb-1">
+              Author
+            </label>
+            <input
+              id="imp_author"
+              type="text"
+              bind:value={formData.imp_author}
+              list="author_options"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Your name or username"
+            />
+            <datalist id="author_options">
+              {#each authorOptions as option}
+                <option value={option.value}>{option.value} ({option.count})</option>
+              {/each}
+            </datalist>
           </div>
         </div>
 
@@ -322,9 +418,15 @@
                 id="city"
                 type="text"
                 bind:value={formData.city}
+                list="city_options"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Albany"
               />
+              <datalist id="city_options">
+                {#each cityOptions as option}
+                  <option value={option.value}>{option.value} ({option.count})</option>
+                {/each}
+              </datalist>
             </div>
 
             <div>
