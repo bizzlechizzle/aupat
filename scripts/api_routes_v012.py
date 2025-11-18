@@ -854,13 +854,13 @@ def locations_list_create():
                 return jsonify({'error': 'Request body is required'}), 400
 
             # Validate required fields
-            if 'loc_name' not in data or not data['loc_name'].strip():
+            if 'loc_name' not in data or not data['loc_name'] or not data['loc_name'].strip():
                 return jsonify({'error': 'loc_name is required'}), 400
 
-            if 'state' not in data or not data['state'].strip():
+            if 'state' not in data or not data['state'] or not data['state'].strip():
                 return jsonify({'error': 'state is required'}), 400
 
-            if 'type' not in data or not data['type'].strip():
+            if 'type' not in data or not data['type'] or not data['type'].strip():
                 return jsonify({'error': 'type is required'}), 400
 
             from scripts.utils import generate_uuid
@@ -875,13 +875,13 @@ def locations_list_create():
 
             # Extract fields
             loc_name = data['loc_name'].strip()
-            aka_name = data.get('aka_name', '').strip() or None
+            aka_name = (data.get('aka_name') or '').strip() or None
             state = data['state'].strip().lower()
             loc_type = data['type'].strip().lower()
-            sub_type = data.get('sub_type', '').strip() or None
-            street_address = data.get('street_address', '').strip() or None
-            city = data.get('city', '').strip() or None
-            zip_code = data.get('zip_code', '').strip() or None
+            sub_type = (data.get('sub_type') or '').strip() or None
+            street_address = (data.get('street_address') or '').strip() or None
+            city = (data.get('city') or '').strip() or None
+            zip_code = (data.get('zip_code') or '').strip() or None
             lat = data.get('lat')
             lon = data.get('lon')
             gps_source = data.get('gps_source', 'manual') if (lat and lon) else None
