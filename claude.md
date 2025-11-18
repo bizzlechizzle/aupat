@@ -847,6 +847,171 @@ python scripts/health.py --cleanup-incomplete
 
 ---
 
+## VERSION ROADMAP
+
+**IMPORTANT: MY ROAD = LAW**
+
+The version roadmap defines EXACTLY what features belong in each version. DO NOT add features from future versions. DO NOT skip features from the current version.
+
+### v0.1.0 - Desktop GUI (CURRENT VERSION)
+
+**Status:** In Development
+**Goal:** Desktop application for importing and organizing abandoned location media
+
+**Features:**
+
+1. **Import**
+   - Scan files and record original name/location to database
+   - Assign unique keys:
+     - Files (photos/videos/docs/maps): SHA256 hash (first 12 chars)
+     - Other (locations/sub-locations/URLs): UUID4 (first 12 chars)
+   - Create folders per spec
+   - Import media to archive
+   - Verify files
+   - Optional: Delete source files after successful import
+   - Input methods: File explorer, drag & drop, folder input
+   - Supported file types:
+     - **Photos:** 3fr ai arw avif bay bmp cin cr2 cr3 crw cur dcr dds dng dpx eip eps erf exr fff g3 gif hdr heic heif ico iiq j2k jls jng jp2 jpf jpe jpeg jpg jpa jpm jpx jxl kdc mef mfw mos mrw nef nrw orf pbm pcx pct pdn pef pgm png ppm ps psb psd ptx pxi qtk raf raw rw2 rwl sr2 srf svg tga thm tif tiff vff webp x3f xbm xcf xmp xpm
+     - **Videos:** 3gp 3g2 amv asf avi av1 bik dat dng dv f4v flv gif gxf h261 h263 h264 h265 hevc m2t m2ts m2v m4v mkv mov mp4 mpeg mpg mpls mts mxf oga ogg ogm ogv opus qt rm rmvb swf ts vob vp8 vp9 webm wmv y4m
+     - **Documents:** Any file type
+     - **Maps:** kml kmz gpx geojson json topojson shp shx dbf prj qgz qgs mbtiles pbf osm o5m obf sid vrt tiff tif geotiff asc grd bil dem dt0 dt1 dt2 rst xyz gpkg sqlite csv tab mif mid e00 nc netcdf img hgt bz2 gz jp2 jpx tifc raster lidar las laz rpf ccf bsb kap
+   - Location input fields (* = required):
+     - Name * (autofill for existing)
+     - Short Name
+     - Sub-Location Name (autofill, requires location name first)
+     - Primary (checkbox for primary sub-location)
+     - Status: Abandoned, Demolished, Rehabbed, Future Classic, Unknown, Recently Sold
+     - Explored: Interior, Exterior, Un-Documented, N/A
+     - Type * (autofill)
+     - Sub-Type (autofill)
+     - Street Address (street, state *, city, zip)
+     - County
+     - Region
+     - GPS (accepts multiple formats)
+     - Import Author (autofill)
+     - Historical (checkbox)
+
+2. **Map Viewer**
+   - Show any location with at least state + 1 more variable
+   - Use city center/county capital for locations with loose info
+   - Click location to open profile
+   - Add locations from map screen
+   - Satellite view option
+
+3. **Locations**
+   - Pinned Locations (show top 5, view all option)
+   - Recent Locations (last 5, view all)
+   - Recently Imported/Updated (last 5, view all)
+   - States (top 5 by import number, view all)
+   - Types (top 10 by import number in 2 rows, view all)
+   - Quick access: Favorites, Random, Un-Documented, Historical, To-Do List
+   - Individual Location Page:
+     - Hero image
+     - Location name
+     - Sub-locations
+     - Edit/Import buttons
+     - Details (all collected fields)
+     - User Notes (text box, note title list, can edit)
+     - Images gallery
+     - Videos gallery
+     - Bookmarks list
+     - Documents list
+     - Nerd Stats
+
+4. **Browser**
+   - Works like normal browser
+   - Save bookmarks
+   - Bookmark structure: State / Type / Location
+
+5. **Settings**
+   - Archive Location
+   - Database Location
+   - Ingest Location
+   - Import Map
+   - Backup Database
+   - Delete Import Media (true/false)
+   - Author Mode:
+     - Single (default import author)
+     - Multiple Author Mode
+
+**Database Schema v0.1.0:**
+- locations
+- sub_locations
+- images
+- videos
+- documents
+- urls
+- maps
+- bookmarks
+- notes
+
+### v0.1.1 - Website Archiving
+
+**Features:**
+- Sync bookmarks from browser to database
+- Download URLs from database
+
+### v0.1.2 - Metadata Dump
+
+**Features:**
+- Images: ExifTool integration
+- Videos: FFmpeg integration
+- HTML: Beautiful Soup + Trafilatura
+
+### v0.1.3 - Metadata Extraction
+
+Enhanced metadata processing and extraction capabilities.
+
+### v0.1.4 - AI Assisted Metadata Extraction
+
+AI-powered metadata analysis and extraction.
+
+### v0.2.0 - Website Export
+
+Export posts to website/blog (static HTML generator).
+
+### v0.3.0 - Mobile Offline
+
+Mobile app with offline sync to desktop database:
+- Simple text interface
+- Syncs custom mobile database with home database
+- Location features: View, Search, Near Me, Add New (text/GPS), Update, Add URLs
+
+### v0.4.0 - Mobile Online
+
+Full mobile app features:
+- Import media
+- Import documents
+- Edit/update locations
+- Map view (works offline)
+- View locations (stripped blog post, works offline)
+
+### v0.5.0 - Full Mac/Linux & iOS Apps
+
+Platform-specific native apps.
+
+### v0.6.0 - Full Windows & Android Apps
+
+Platform-specific native apps for Windows and Android.
+
+### v0.7.0 - Move Off Docker/Self-Hosting
+
+Cloud deployment options.
+
+### v0.8.0 - God Mode
+
+Aggregate master location database from app users.
+
+### v0.9.0 - Beta Testing
+
+Public beta release and testing.
+
+### v1.0 - Launch
+
+Official public release.
+
+---
+
 ## SCALE CONSIDERATIONS
 
 **Current:** 70k photos
