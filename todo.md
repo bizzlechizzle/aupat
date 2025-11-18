@@ -21,7 +21,7 @@ This document tracks all identified tasks, gaps, and improvements for the AUPAT 
 
 ### 1. Consolidate Startup Scripts
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** Medium
 **Estimated Time:** 4 hours
@@ -58,7 +58,7 @@ Create unified launch.sh script with mode flags:
 
 ### 2. Fix Blueprint Registration in app.py
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** Low
 **Estimated Time:** 30 minutes
@@ -104,7 +104,7 @@ curl http://localhost:5002/api/maps/exports
 
 ### 3. Fix Hardcoded Database Path
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** Low
 **Estimated Time:** 15 minutes
@@ -145,7 +145,7 @@ python /home/user/aupat/app.py  # Should work
 
 ### 4. Fix Import Path in immich_integration.py
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** Low
 **Estimated Time:** 15 minutes
@@ -185,7 +185,7 @@ python -c "from scripts.immich_integration import get_immich_adapter"
 
 ### 5. Create Comprehensive Health Check System
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** High
 **Estimated Time:** 6 hours
@@ -816,6 +816,13 @@ Move to separate repository or document clearly:
 - Dependency mapping (all 27 Python files)
 - Identified critical issues and gaps
 - No circular dependencies found
+
+### Critical Fixes (2025-11-18)
+- Fixed blueprint registration in app.py (api_routes_bookmarks, api_maps now accessible)
+- Fixed hardcoded database path in api_routes_bookmarks.py (now uses current_app.config)
+- Fixed import path in immich_integration.py (changed from relative to absolute import)
+- Created unified launch.sh script (consolidates 4 different startup methods)
+- Created comprehensive health_check.py script (database, filesystem, tools, services)
 
 ---
 

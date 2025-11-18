@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,8 @@ def get_db_connection():
     Returns:
         sqlite3.Connection with row_factory configured
     """
-    conn = sqlite3.connect('data/aupat.db')
+    db_path = current_app.config.get('DB_PATH', 'data/aupat.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
