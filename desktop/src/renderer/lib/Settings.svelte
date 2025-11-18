@@ -70,7 +70,7 @@
             type="url"
             bind:value={currentSettings.apiUrl}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="http://localhost:5001"
+            placeholder="http://localhost:5002"
           />
         </div>
 

@@ -9,7 +9,7 @@ import { writable } from 'svelte/store';
 
 // Default settings (fallback if API unavailable)
 const defaultSettings = {
-  apiUrl: 'http://localhost:5001',
+  apiUrl: 'http://localhost:5002',
   immichUrl: 'http://localhost:2283',
   archiveboxUrl: 'http://localhost:8001',
   mapCenter: { lat: 42.6526, lng: -73.7562 }, // Albany, NY

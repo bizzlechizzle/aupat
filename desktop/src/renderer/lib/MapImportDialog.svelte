@@ -9,11 +9,23 @@
    * Supports CSV and GeoJSON formats with preview and duplicate detection.
    */
 
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { settings } from '../stores/settings.js';
 
   export let isOpen = false;
 
   const dispatch = createEventDispatcher();
+
+  // Load API URL from settings
+  let apiUrl = 'http://localhost:5002'; // Fallback
+
+  onMount(async () => {
+    await settings.load();
+  });
+
+  settings.subscribe(s => {
+    apiUrl = s.apiUrl;
+  });
 
   // State
   let currentStep = 1; // 1: Upload, 2: Preview, 3: Import
@@ -96,7 +108,7 @@
       const content = await selectedFile.text();
 
       // Send to backend for parsing
-      const response = await fetch('http://localhost:5000/api/maps/parse', {
+      const response = await fetch(`${apiUrl}/api/maps/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +147,7 @@
     error = null;
 
     try {
-      const response = await fetch('http://localhost:5000/api/maps/check-duplicates', {
+      const response = await fetch(`${apiUrl}/api/maps/check-duplicates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ locations })
@@ -168,7 +180,7 @@
       // Read file content again
       const content = await selectedFile.text();
 
-      const response = await fetch('http://localhost:5000/api/maps/import', {
+      const response = await fetch(`${apiUrl}/api/maps/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
