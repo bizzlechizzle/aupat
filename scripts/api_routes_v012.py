@@ -948,8 +948,13 @@ def location_update_delete(loc_uuid):
     """
     if request.method == 'PUT':
         try:
+            logger.info(f"[API] PUT request received for location {loc_uuid}")
+
             data = request.get_json()
+            logger.debug(f"[API] Request data: {data}")
+
             if not data:
+                logger.warning("[API] No request body provided")
                 return jsonify({'error': 'Request body is required'}), 400
 
             from scripts.normalize import normalize_datetime
@@ -958,10 +963,15 @@ def location_update_delete(loc_uuid):
             cursor = conn.cursor()
 
             # Verify location exists
-            cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-            if not cursor.fetchone():
+            logger.debug(f"[API] Verifying location exists: {loc_uuid}")
+            cursor.execute("SELECT loc_uuid, loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            existing = cursor.fetchone()
+            if not existing:
+                logger.warning(f"[API] Location not found: {loc_uuid}")
                 conn.close()
                 return jsonify({'error': 'Location not found'}), 404
+
+            logger.info(f"[API] Updating location: {existing['loc_name']} ({loc_uuid})")
 
             # Build update query dynamically
             allowed_fields = [
@@ -981,9 +991,31 @@ def location_update_delete(loc_uuid):
                     update_fields.append(f"{field} = ?")
                     update_values.append(value)
 
+            logger.debug(f"[API] Fields to update: {update_fields}")
+
             if not update_fields:
+                logger.warning("[API] No fields to update in request")
                 conn.close()
                 return jsonify({'error': 'No fields to update'}), 400
+
+            # Validate required fields if they're being updated
+            if 'loc_name' in data:
+                if not data['loc_name'] or not data['loc_name'].strip():
+                    logger.warning("[API] Invalid update: loc_name cannot be empty")
+                    conn.close()
+                    return jsonify({'error': 'loc_name cannot be empty'}), 400
+
+            if 'state' in data:
+                if not data['state'] or not data['state'].strip():
+                    logger.warning("[API] Invalid update: state cannot be empty")
+                    conn.close()
+                    return jsonify({'error': 'state cannot be empty'}), 400
+
+            if 'type' in data:
+                if not data['type'] or not data['type'].strip():
+                    logger.warning("[API] Invalid update: type cannot be empty")
+                    conn.close()
+                    return jsonify({'error': 'type cannot be empty'}), 400
 
             # Add timestamp
             timestamp = normalize_datetime(None)
@@ -993,20 +1025,28 @@ def location_update_delete(loc_uuid):
 
             # Execute update
             sql = f"UPDATE locations SET {', '.join(update_fields)} WHERE loc_uuid = ?"
+            logger.debug(f"[API] Executing SQL: {sql}")
+            logger.debug(f"[API] With values: {update_values}")
+
             cursor.execute(sql, update_values)
             conn.commit()
+            logger.info(f"[API] Database update committed")
 
             # Fetch updated location
             cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
             result = dict(cursor.fetchone())
             conn.close()
 
-            logger.info(f"Updated location: {loc_uuid}")
+            logger.info(f"[API] Successfully updated location: {loc_uuid}")
 
             return jsonify(result), 200
 
         except Exception as e:
-            logger.error(f"Failed to update location: {e}")
+            logger.error(f"[API] Failed to update location {loc_uuid}: {str(e)}")
+            logger.error(f"[API] Error type: {type(e).__name__}")
+            logger.error(f"[API] Error details: {repr(e)}")
+            import traceback
+            logger.error(f"[API] Traceback: {traceback.format_exc()}")
             return jsonify({'error': str(e)}), 500
 
     else:  # DELETE
