@@ -23,8 +23,9 @@
     "package:linux": "electron-builder --linux"
   },
   "dependencies": {
+    "electron-log": "^5.0.1",
     "electron-store": "^8.1.0",
-    "electron-log": "^5.0.1"
+    "marked": "^17.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.1",

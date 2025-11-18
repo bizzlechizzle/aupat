@@ -1,6 +1,6 @@
 <script>
   /**
-   * AUPAT Desktop - Root Component
+   * Abandoned Upstate - Root Component
    *
    * Main app container with sidebar navigation and content area
    */
@@ -9,13 +9,16 @@
   import ErrorBoundary from './lib/ErrorBoundary.svelte';
   import Map from './lib/Map.svelte';
   import LocationsList from './lib/LocationsList.svelte';
+  import LocationPage from './lib/LocationPage.svelte';
   import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
   import { locations } from './stores/locations.js';
   import logo from './assets/logo.png';
+  import './styles/theme.css';
 
   // Current active view
-  let currentView = 'map'; // 'map', 'locations', 'import', 'settings'
+  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'settings'
+  let selectedLocationUuid = null;
 
   // Navigation menu items
   const menuItems = [
@@ -44,6 +47,33 @@
 
   function setView(view) {
     currentView = view;
+    // Clear selected location when switching away from location page
+    if (view !== 'location-page') {
+      selectedLocationUuid = null;
+    }
+  }
+
+  function navigateToLocation(uuid) {
+    selectedLocationUuid = uuid;
+    currentView = 'location-page';
+  }
+
+  function handleLocationClick(event) {
+    const { location } = event.detail;
+    if (location && location.loc_uuid) {
+      navigateToLocation(location.loc_uuid);
+    }
+  }
+
+  function handleLocationPageClose() {
+    // Return to map view
+    currentView = 'map';
+    selectedLocationUuid = null;
+  }
+
+  function handleLocationPageNavigate(event) {
+    const { uuid } = event.detail;
+    navigateToLocation(uuid);
   }
 
   function handleError(event) {
@@ -59,7 +89,7 @@
     <!-- Header -->
     <div class="p-6 border-b border-gray-200 flex flex-col items-center">
       <img src={logo} alt="Abandoned Upstate" class="w-40 h-40 object-contain mb-3" />
-      <p class="text-sm text-gray-600 font-medium">Archive Tool</p>
+      <p class="text-sm text-gray-600 font-medium" style="font-family: var(--au-font-mono); text-transform: uppercase; letter-spacing: 0.05em;">Abandoned Upstate</p>
     </div>
 
     <!-- Navigation Menu -->
@@ -98,14 +128,22 @@
   </aside>
 
   <!-- Main Content Area -->
-  <main class="flex-1 overflow-auto">
+  <main class="flex-1 overflow-auto {currentView === 'location-page' ? 'location-page-view' : ''}">
     {#if currentView === 'map'}
       <ErrorBoundary fallbackMessage="Map view encountered an error">
-        <Map />
+        <Map on:locationClick={handleLocationClick} />
       </ErrorBoundary>
     {:else if currentView === 'locations'}
       <ErrorBoundary fallbackMessage="Locations list encountered an error">
-        <LocationsList />
+        <LocationsList on:locationClick={handleLocationClick} />
+      </ErrorBoundary>
+    {:else if currentView === 'location-page' && selectedLocationUuid}
+      <ErrorBoundary fallbackMessage="Location page encountered an error">
+        <LocationPage
+          locationUuid={selectedLocationUuid}
+          on:close={handleLocationPageClose}
+          on:navigate={handleLocationPageNavigate}
+        />
       </ErrorBoundary>
     {:else if currentView === 'import'}
       <ErrorBoundary fallbackMessage="Import view encountered an error">

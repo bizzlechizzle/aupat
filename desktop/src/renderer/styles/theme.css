@@ -1,0 +1,417 @@
+/**
+ * Abandoned Upstate - Brand Theme
+ *
+ * Design system for the Abandoned Upstate digital archive.
+ * Inspired by the original abandonedupstate.com aesthetic.
+ *
+ * Color Palette: Cream, Dark Gray, Black, Warm Brown
+ * Typography: Roboto Mono (headings), Lora (body)
+ * Aesthetic: Moody, exploration-focused, information-rich
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Roboto+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  /* === CORE BRAND COLORS === */
+  --au-black: #000000;
+  --au-white: #FFFFFF;
+  --au-cream: #fffbf7;
+  --au-dark-gray: #474747;
+  --au-text-dark: #454545;
+  --au-text-light: #fffbf7;
+
+  /* === ACCENT COLORS === */
+  --au-accent-brown: #b9975c;
+  --au-accent-gold: #d4af37;
+  --au-accent-rust: #a0522d;
+
+  /* === UI STATE COLORS === */
+  --au-success: #5a7f5c;
+  --au-warning: #b9975c;
+  --au-error: #8b4c4c;
+  --au-info: #5c7f99;
+
+  /* === MAP COLORS === */
+  --au-marker-precise: #000000;
+  --au-marker-approximate: #b9975c;
+  --au-marker-none: #cccccc;
+  --au-cluster-bg: rgba(185, 151, 92, 0.8);
+  --au-cluster-text: #FFFFFF;
+
+  /* === GRAYS === */
+  --au-gray-50: #f9fafb;
+  --au-gray-100: #f3f4f6;
+  --au-gray-200: #e5e7eb;
+  --au-gray-300: #d1d5db;
+  --au-gray-400: #9ca3af;
+  --au-gray-500: #6b7280;
+  --au-gray-600: #4b5563;
+  --au-gray-700: #374151;
+  --au-gray-800: #1f2937;
+  --au-gray-900: #111827;
+
+  /* === TYPOGRAPHY === */
+  --au-font-heading: 'Roboto Mono', 'Courier New', monospace;
+  --au-font-body: 'Lora', 'Georgia', 'Times New Roman', serif;
+  --au-font-mono: 'Roboto Mono', 'Courier New', monospace;
+  --au-font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+
+  /* === TYPE SCALE === */
+  --au-text-xs: 0.75rem;      /* 12px */
+  --au-text-sm: 0.875rem;     /* 14px */
+  --au-text-base: 1rem;       /* 16px */
+  --au-text-lg: 1.125rem;     /* 18px */
+  --au-text-xl: 1.25rem;      /* 20px */
+  --au-text-2xl: 1.5rem;      /* 24px */
+  --au-text-3xl: 1.875rem;    /* 30px */
+  --au-text-4xl: 2.25rem;     /* 36px */
+  --au-text-5xl: 3rem;        /* 48px */
+  --au-text-6xl: 3.75rem;     /* 60px */
+
+  /* === SPACING SCALE === */
+  --au-space-1: 0.25rem;      /* 4px */
+  --au-space-2: 0.5rem;       /* 8px */
+  --au-space-3: 0.75rem;      /* 12px */
+  --au-space-4: 1rem;         /* 16px */
+  --au-space-5: 1.25rem;      /* 20px */
+  --au-space-6: 1.5rem;       /* 24px */
+  --au-space-8: 2rem;         /* 32px */
+  --au-space-10: 2.5rem;      /* 40px */
+  --au-space-12: 3rem;        /* 48px */
+  --au-space-16: 4rem;        /* 64px */
+  --au-space-20: 5rem;        /* 80px */
+  --au-space-24: 6rem;        /* 96px */
+
+  /* === BORDERS === */
+  --au-border-radius: 4px;
+  --au-border-radius-lg: 8px;
+  --au-border-radius-xl: 12px;
+  --au-border-width: 1px;
+  --au-border-width-thick: 2px;
+
+  /* === SHADOWS === */
+  --au-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --au-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --au-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --au-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --au-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* === TRANSITIONS === */
+  --au-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --au-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --au-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* === Z-INDEX SCALE === */
+  --au-z-base: 0;
+  --au-z-dropdown: 100;
+  --au-z-sticky: 200;
+  --au-z-fixed: 300;
+  --au-z-modal-backdrop: 400;
+  --au-z-modal: 500;
+  --au-z-popover: 600;
+  --au-z-tooltip: 700;
+
+  /* === THEME DEFAULTS (Light Theme) === */
+  --au-bg-primary: var(--au-cream);
+  --au-bg-secondary: #FFFFFF;
+  --au-bg-tertiary: var(--au-gray-50);
+  --au-text-primary: var(--au-text-dark);
+  --au-text-secondary: var(--au-gray-600);
+  --au-text-tertiary: var(--au-gray-500);
+  --au-border-color: var(--au-gray-200);
+  --au-border-color-strong: var(--au-gray-300);
+}
+
+/* === DARK THEME === */
+[data-theme="dark"] {
+  --au-bg-primary: var(--au-dark-gray);
+  --au-bg-secondary: #2a2a2a;
+  --au-bg-tertiary: #1a1a1a;
+  --au-text-primary: var(--au-text-light);
+  --au-text-secondary: var(--au-gray-300);
+  --au-text-tertiary: var(--au-gray-400);
+  --au-border-color: var(--au-gray-600);
+  --au-border-color-strong: var(--au-gray-500);
+}
+
+/* === BASE STYLES === */
+body {
+  font-family: var(--au-font-body);
+  background: var(--au-bg-primary);
+  color: var(--au-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === TYPOGRAPHY === */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--au-font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+h1 {
+  font-size: var(--au-text-4xl);
+  margin-bottom: var(--au-space-6);
+}
+
+h2 {
+  font-size: var(--au-text-3xl);
+  margin-bottom: var(--au-space-5);
+  border-bottom: 2px solid var(--au-accent-brown);
+  padding-bottom: var(--au-space-2);
+}
+
+h3 {
+  font-size: var(--au-text-2xl);
+  margin-bottom: var(--au-space-4);
+}
+
+h4 {
+  font-size: var(--au-text-xl);
+  margin-bottom: var(--au-space-3);
+}
+
+h5 {
+  font-size: var(--au-text-lg);
+  margin-bottom: var(--au-space-2);
+}
+
+h6 {
+  font-size: var(--au-text-base);
+  margin-bottom: var(--au-space-2);
+}
+
+p {
+  margin-bottom: var(--au-space-4);
+}
+
+a {
+  color: var(--au-accent-brown);
+  text-decoration: underline;
+  transition: color var(--au-transition-fast);
+}
+
+a:hover {
+  color: var(--au-accent-gold);
+}
+
+code {
+  font-family: var(--au-font-mono);
+  font-size: 0.9em;
+  background: var(--au-bg-tertiary);
+  padding: 0.2em 0.4em;
+  border-radius: var(--au-border-radius);
+}
+
+pre {
+  font-family: var(--au-font-mono);
+  background: var(--au-bg-tertiary);
+  padding: var(--au-space-4);
+  border-radius: var(--au-border-radius-lg);
+  overflow-x: auto;
+  margin-bottom: var(--au-space-4);
+}
+
+blockquote {
+  border-left: 4px solid var(--au-accent-brown);
+  padding-left: var(--au-space-4);
+  margin-left: 0;
+  margin-bottom: var(--au-space-4);
+  font-style: italic;
+  color: var(--au-text-secondary);
+}
+
+/* === BUTTONS === */
+.au-btn {
+  font-family: var(--au-font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--au-space-3) var(--au-space-6);
+  border-radius: var(--au-border-radius);
+  font-weight: 600;
+  font-size: var(--au-text-sm);
+  cursor: pointer;
+  transition: all var(--au-transition-base);
+  border: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-space-2);
+}
+
+.au-btn-primary {
+  background: var(--au-black);
+  color: var(--au-white);
+  border-color: var(--au-black);
+}
+
+.au-btn-primary:hover:not(:disabled) {
+  background: var(--au-accent-brown);
+  border-color: var(--au-accent-brown);
+}
+
+.au-btn-secondary {
+  background: transparent;
+  color: var(--au-text-primary);
+  border-color: var(--au-border-color-strong);
+}
+
+.au-btn-secondary:hover:not(:disabled) {
+  background: var(--au-bg-tertiary);
+  border-color: var(--au-black);
+}
+
+.au-btn-outline {
+  background: transparent;
+  color: var(--au-accent-brown);
+  border-color: var(--au-accent-brown);
+}
+
+.au-btn-outline:hover:not(:disabled) {
+  background: var(--au-accent-brown);
+  color: var(--au-white);
+}
+
+.au-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === CARDS === */
+.au-card {
+  background: var(--au-bg-secondary);
+  border: 1px solid var(--au-border-color);
+  border-radius: var(--au-border-radius-lg);
+  padding: var(--au-space-6);
+  box-shadow: var(--au-shadow-sm);
+}
+
+.au-card-hover {
+  transition: all var(--au-transition-base);
+}
+
+.au-card-hover:hover {
+  box-shadow: var(--au-shadow-md);
+  transform: translateY(-2px);
+}
+
+/* === BADGES === */
+.au-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-space-1);
+  padding: var(--au-space-1) var(--au-space-3);
+  border-radius: 999px;
+  font-family: var(--au-font-mono);
+  font-size: var(--au-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.au-badge-brown {
+  background: rgba(185, 151, 92, 0.1);
+  color: var(--au-accent-brown);
+  border: 1px solid var(--au-accent-brown);
+}
+
+.au-badge-black {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--au-black);
+  border: 1px solid var(--au-black);
+}
+
+.au-badge-gray {
+  background: var(--au-gray-100);
+  color: var(--au-gray-700);
+  border: 1px solid var(--au-gray-300);
+}
+
+/* === UTILITY CLASSES === */
+.au-prose {
+  font-family: var(--au-font-body);
+  font-size: var(--au-text-base);
+  line-height: 1.7;
+  color: var(--au-text-primary);
+}
+
+.au-prose p {
+  margin-bottom: var(--au-space-4);
+}
+
+.au-prose a {
+  color: var(--au-accent-brown);
+  text-decoration: underline;
+}
+
+.au-prose a:hover {
+  color: var(--au-accent-gold);
+}
+
+.au-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--au-border-radius-lg);
+  margin: var(--au-space-6) 0;
+}
+
+.au-prose ul, .au-prose ol {
+  margin-bottom: var(--au-space-4);
+  padding-left: var(--au-space-6);
+}
+
+.au-prose li {
+  margin-bottom: var(--au-space-2);
+}
+
+.au-section-divider {
+  border: none;
+  border-top: 2px solid var(--au-accent-brown);
+  margin: var(--au-space-8) 0;
+}
+
+.au-text-muted {
+  color: var(--au-text-secondary);
+}
+
+.au-text-caption {
+  font-size: var(--au-text-sm);
+  color: var(--au-text-tertiary);
+  font-family: var(--au-font-mono);
+}
+
+/* === SCROLLBAR STYLING === */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--au-bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--au-accent-brown);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--au-accent-gold);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  :root {
+    --au-text-4xl: 1.875rem;
+    --au-text-3xl: 1.5rem;
+    --au-text-2xl: 1.25rem;
+  }
+
+  .au-btn {
+    padding: var(--au-space-2) var(--au-space-4);
+  }
+}
