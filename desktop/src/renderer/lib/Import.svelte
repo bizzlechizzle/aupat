@@ -11,9 +11,57 @@
   import LocationForm from './LocationForm.svelte';
 
   // Allowed file extensions
+  // Comprehensive list based on exiftool (images) and ffmpeg (videos) support
   const ALLOWED_EXTENSIONS = {
-    images: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'dng', 'cr2', 'nef', 'arw'],
-    videos: ['mp4', 'mov', 'avi', 'mkv', 'mts', 'm2ts'],
+    images: [
+      // Common formats
+      'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff', 'webp',
+      // Apple formats
+      'heic', 'heif',
+      // RAW formats (Canon)
+      'cr2', 'cr3', 'crw',
+      // RAW formats (Nikon)
+      'nef', 'nrw',
+      // RAW formats (Sony)
+      'arw', 'srf', 'sr2',
+      // RAW formats (Other manufacturers)
+      'orf', 'orf',      // Olympus
+      'rw2', 'raw',      // Panasonic
+      'raf',             // Fuji
+      'pef', 'ptx',      // Pentax
+      'srw',             // Samsung
+      '3fr', 'fff',      // Hasselblad
+      'iiq',             // Phase One
+      'erf',             // Epson
+      'mef',             // Mamiya
+      'mrw',             // Minolta
+      'rwl',             // Leica
+      'dng',             // Adobe Digital Negative
+      // Advanced formats
+      'jp2', 'j2k', 'jpf', 'jxl',  // JPEG 2000 / JPEG XL
+      'exr',             // High dynamic range
+      'psd', 'psb',      // Photoshop
+      'svg',             // Vector
+      'ico', 'cur'       // Icons
+    ],
+    videos: [
+      // Common formats
+      'mp4', 'm4v', 'mov', 'avi', 'mkv', 'webm',
+      // MPEG formats
+      'mpg', 'mpeg', 'm2v', 'mp2', 'mpe', 'mpv',
+      // Broadcast/camera formats
+      'mts', 'm2ts', 'ts', 'mxf', 'dv',
+      // Mobile formats
+      '3gp', '3g2',
+      // Streaming formats
+      'flv', 'f4v',
+      // Windows formats
+      'wmv', 'asf', 'dvr-ms',
+      // Other formats
+      'ogv', 'ogg', 'vob', 'rm', 'rmvb', 'divx', 'xvid',
+      // Alternate/legacy
+      'qt', 'movie', 'amv'
+    ],
     documents: ['pdf', 'txt', 'doc', 'docx']
   };
 
@@ -107,7 +155,7 @@
   /**
    * Handle file drop
    */
-  function handleDrop(event) {
+  async function handleDrop(event) {
     event.preventDefault();
     isDragging = false;
 
@@ -116,8 +164,51 @@
       return;
     }
 
-    const files = Array.from(event.dataTransfer.files);
-    addFilesToQueue(files);
+    // Use DataTransferItem API to handle folders
+    const items = event.dataTransfer.items;
+    if (items) {
+      const files = await getAllFiles(items);
+      addFilesToQueue(files);
+    } else {
+      // Fallback for older browsers
+      const files = Array.from(event.dataTransfer.files);
+      addFilesToQueue(files);
+    }
+  }
+
+  /**
+   * Recursively get all files from dropped items (including folders)
+   */
+  async function getAllFiles(items) {
+    const files = [];
+
+    async function traverseEntry(entry) {
+      if (entry.isFile) {
+        const file = await new Promise((resolve, reject) => {
+          entry.file(resolve, reject);
+        });
+        files.push(file);
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const entries = await new Promise((resolve, reject) => {
+          reader.readEntries(resolve, reject);
+        });
+        for (const childEntry of entries) {
+          await traverseEntry(childEntry);
+        }
+      }
+    }
+
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+          await traverseEntry(entry);
+        }
+      }
+    }
+
+    return files;
   }
 
   /**

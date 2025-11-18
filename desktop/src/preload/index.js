@@ -33,7 +33,8 @@ contextBridge.exposeInMainWorld('api', {
     getById: (id) => ipcRenderer.invoke('locations:getById', id),
     create: (data) => ipcRenderer.invoke('locations:create', data),
     update: (id, data) => ipcRenderer.invoke('locations:update', id, data),
-    delete: (id) => ipcRenderer.invoke('locations:delete', id)
+    delete: (id) => ipcRenderer.invoke('locations:delete', id),
+    autocomplete: (field, options) => ipcRenderer.invoke('locations:autocomplete', field, options)
   },
 
   /**
