@@ -8,7 +8,6 @@
   import { onMount } from 'svelte';
   import { locations } from '../stores/locations.js';
   import LocationForm from './LocationForm.svelte';
-  import MapImportDialog from './MapImportDialog.svelte';
 
   let locationItems = [];
   let loading = false;
@@ -16,7 +15,6 @@
   let showForm = false;
   let formMode = 'create';
   let selectedLocation = null;
-  let showMapImport = false;
 
   onMount(async () => {
     loading = true;
@@ -70,20 +68,6 @@
     showForm = false;
     selectedLocation = null;
   }
-
-  function openMapImport() {
-    showMapImport = true;
-  }
-
-  function handleMapImported(event) {
-    showMapImport = false;
-    const { mode, count } = event.detail;
-
-    // Refresh locations if in full import mode
-    if (mode === 'full' && count > 0) {
-      locations.fetchAll();
-    }
-  }
 </script>
 
 <div class="p-8">
@@ -94,20 +78,12 @@
         {filteredLocations.length} of {locationItems.length} location{locationItems.length !== 1 ? 's' : ''}
       </p>
     </div>
-    <div class="flex gap-3">
-      <button
-        on:click={openMapImport}
-        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-      >
-        Import Map
-      </button>
-      <button
-        on:click={openCreateForm}
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        Add Location
-      </button>
-    </div>
+    <button
+      on:click={openCreateForm}
+      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      Add Location
+    </button>
   </div>
 
   <!-- Search Bar -->
@@ -201,11 +177,4 @@
   on:close={handleFormClose}
   on:created={handleFormClose}
   on:updated={handleFormClose}
-/>
-
-<!-- Map Import Dialog -->
-<MapImportDialog
-  bind:isOpen={showMapImport}
-  on:close={() => showMapImport = false}
-  on:imported={handleMapImported}
 />
