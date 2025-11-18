@@ -57,6 +57,20 @@ const api = createAPIClient(store.get('apiUrl'));
 let mainWindow;
 
 /**
+ * Clear application cache on startup to prevent stale cached code issues
+ * Especially important after port migrations or code updates
+ */
+async function clearAppCache() {
+  const { session } = require('electron');
+  try {
+    await session.defaultSession.clearCache();
+    log.info('Cleared application cache on startup');
+  } catch (error) {
+    log.warn('Failed to clear cache on startup:', error);
+  }
+}
+
+/**
  * Create the main application window
  */
 function createWindow() {
@@ -414,9 +428,12 @@ ipcMain.handle('api:health', async () => {
 
 // App lifecycle
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for Windows
   app.setAppUserModelId('com.aupat.desktop');
+
+  // Clear cache to prevent stale code issues
+  await clearAppCache();
 
   createWindow();
 
