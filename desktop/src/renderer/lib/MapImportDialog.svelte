@@ -88,8 +88,12 @@
       fileFormat = 'csv';
     } else if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
       fileFormat = 'geojson';
+    } else if (fileName.endsWith('.kml')) {
+      fileFormat = 'kml';
+    } else if (fileName.endsWith('.kmz')) {
+      fileFormat = 'kmz';
     } else {
-      error = 'Unsupported file format. Please use .csv or .geojson files.';
+      error = 'Unsupported file format. Please use .csv, .geojson, .kml, or .kmz files.';
       selectedFile = null;
       return;
     }
@@ -278,7 +282,7 @@
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                   </svg>
                   <p>Click to select a map file</p>
-                  <p class="hint">Supports CSV and GeoJSON formats</p>
+                  <p class="hint">Supports CSV, GeoJSON, KML, and KMZ formats</p>
                 </div>
               {/if}
             </div>
