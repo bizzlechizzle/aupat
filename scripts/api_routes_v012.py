@@ -46,6 +46,31 @@ def get_db_connection():
     return conn
 
 
+def create_pagination_response(data, total, limit, offset, data_key='data'):
+    """
+    Create standardized pagination response.
+
+    Args:
+        data: List of items
+        total: Total count of items
+        limit: Limit per page
+        offset: Current offset
+        data_key: Key name for data array (default: 'data')
+
+    Returns:
+        dict: Standardized response with pagination metadata
+    """
+    return {
+        data_key: data,
+        'pagination': {
+            'limit': limit,
+            'offset': offset,
+            'total': total,
+            'has_more': offset + limit < total
+        }
+    }
+
+
 @api_v012.route('/health', methods=['GET'])
 def health_check():
     """
@@ -267,14 +292,14 @@ def get_location_images(loc_uuid):
         loc_uuid: Location UUID
 
     Query parameters:
-        - limit: Maximum number of results (default: 100)
+        - limit: Maximum number of results (default: 50, max: 500)
         - offset: Offset for pagination (default: 0)
 
     Returns:
         JSON array of image records with Immich asset IDs
     """
     try:
-        limit = int(request.args.get('limit', 100))
+        limit = min(int(request.args.get('limit', 50)), 500)
         offset = int(request.args.get('offset', 0))
 
         conn = get_db_connection()
@@ -287,7 +312,8 @@ def get_location_images(loc_uuid):
                 immich_asset_id, img_width, img_height,
                 img_size_bytes, gps_lat, gps_lon,
                 camera_make, camera_model, camera_type,
-                img_taken, img_add, img_update
+                img_taken, img_add, img_update,
+                COUNT(*) OVER() as total_count
             FROM images
             WHERE loc_uuid = ?
             ORDER BY img_add DESC
@@ -299,9 +325,19 @@ def get_location_images(loc_uuid):
         rows = cursor.fetchall()
         conn.close()
 
-        images = [dict(row) for row in rows]
+        images = []
+        total = 0
+        for row in rows:
+            row_dict = dict(row)
+            total = row_dict.pop('total_count', 0)
+            images.append(row_dict)
 
-        return jsonify(images), 200
+        return jsonify(create_pagination_response(
+            data=images,
+            total=total,
+            limit=limit,
+            offset=offset
+        )), 200
 
     except Exception as e:
         logger.error(f"Failed to get location images: {e}")
@@ -1280,7 +1316,7 @@ def locations_list_create():
     POST: Creates a new location
 
     Query parameters (GET):
-        limit: Maximum number of results (default: 100, max: 1000)
+        limit: Maximum number of results (default: 50, max: 500)
         offset: Pagination offset (default: 0)
 
     Request JSON (POST):
@@ -1305,7 +1341,7 @@ def locations_list_create():
     if request.method == 'GET':
         try:
             # Get pagination parameters
-            limit = min(int(request.args.get('limit', 100)), 1000)
+            limit = min(int(request.args.get('limit', 50)), 500)
             offset = int(request.args.get('offset', 0))
 
             conn = get_db_connection()
@@ -1328,12 +1364,12 @@ def locations_list_create():
                 total_count = row_dict.pop('total_count', 0)
                 locations_list.append(row_dict)
 
-            return jsonify({
-                'locations': locations_list,
-                'total': total_count,
-                'limit': limit,
-                'offset': offset
-            }), 200
+            return jsonify(create_pagination_response(
+                data=locations_list,
+                total=total_count,
+                limit=limit,
+                offset=offset
+            )), 200
 
         except ValueError:
             return jsonify({'error': 'Invalid limit or offset format'}), 400
@@ -1677,7 +1713,8 @@ def search_locations():
         - q: Search query (matches location name)
         - state: Filter by state code
         - type: Filter by location type
-        - limit: Maximum results (default: 50)
+        - limit: Maximum results (default: 50, max: 500)
+        - offset: Pagination offset (default: 0)
 
     Returns:
         JSON array of matching locations
@@ -1686,13 +1723,14 @@ def search_locations():
         query = request.args.get('q', '')
         state = request.args.get('state')
         loc_type = request.args.get('type')
-        limit = int(request.args.get('limit', 50))
+        limit = min(int(request.args.get('limit', 50)), 500)
+        offset = int(request.args.get('offset', 0))
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Build query dynamically
-        sql = "SELECT * FROM locations WHERE 1=1"
+        # Build query dynamically with window function for total count
+        sql = "SELECT *, COUNT(*) OVER() as total_count FROM locations WHERE 1=1"
         params = []
 
         if query:
@@ -1707,16 +1745,26 @@ def search_locations():
             sql += " AND type = ?"
             params.append(loc_type)
 
-        sql += " ORDER BY loc_name LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY loc_name LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
         conn.close()
 
-        results = [dict(row) for row in rows]
+        results = []
+        total = 0
+        for row in rows:
+            row_dict = dict(row)
+            total = row_dict.pop('total_count', 0)
+            results.append(row_dict)
 
-        return jsonify(results), 200
+        return jsonify(create_pagination_response(
+            data=results,
+            total=total,
+            limit=limit,
+            offset=offset
+        )), 200
 
     except Exception as e:
         logger.error(f"Search failed: {e}")

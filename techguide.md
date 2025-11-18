@@ -474,6 +474,35 @@ Migrations must be run in this order:
 http://localhost:5002/api
 ```
 
+### Pagination
+
+List endpoints support standardized pagination using limit/offset parameters.
+
+**Standard Pagination Parameters:**
+- `limit` (default: 50, max: 500) - Maximum number of results per page
+- `offset` (default: 0) - Number of results to skip
+
+**Standard Pagination Response:**
+```json
+{
+  "data": [...],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 1234,
+    "has_more": true
+  }
+}
+```
+
+The `has_more` flag indicates whether additional results are available beyond the current page.
+
+**Paginated Endpoints:**
+- `GET /api/locations`
+- `GET /api/search`
+- `GET /api/locations/{uuid}/images`
+- `GET /api/bookmarks`
+
 ### Health & Status
 
 ```
@@ -509,15 +538,16 @@ Check external services (Immich, ArchiveBox).
 ```
 GET /api/locations
 ```
-List all locations (WARNING: no pagination, returns all).
+List all locations with pagination.
 
 **Query parameters:**
-- None currently (TODO: add pagination)
+- `limit` (default: 50, max: 500) - Maximum number of results per page
+- `offset` (default: 0) - Number of results to skip
 
 **Response:**
 ```json
 {
-  "locations": [
+  "data": [
     {
       "loc_uuid": "abc123",
       "loc_name": "Abandoned Hospital",
@@ -526,7 +556,13 @@ List all locations (WARNING: no pagination, returns all).
       "lat": 42.123,
       "lon": -73.456
     }
-  ]
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 1234,
+    "has_more": true
+  }
 }
 ```
 
@@ -585,16 +621,16 @@ Delete location (and associated media).
 ```
 GET /api/locations/{uuid}/images
 ```
-Get images for location.
+Get images for location with pagination.
 
 **Query parameters:**
-- `limit` (default: 50)
+- `limit` (default: 50, max: 500)
 - `offset` (default: 0)
 
 **Response:**
 ```json
 {
-  "images": [
+  "data": [
     {
       "img_uuid": "img123",
       "img_name": "Front View",
@@ -604,7 +640,13 @@ Get images for location.
       "camera": "Nikon D750",
       "img_taken": "2024-01-15T12:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 237,
+    "has_more": true
+  }
 }
 ```
 
@@ -666,15 +708,17 @@ Get all locations as GeoJSON for map display.
 ```
 GET /api/search
 ```
-Search locations by various criteria.
+Search locations by various criteria with pagination.
 
 **Query parameters:**
 - `q` - Search query (searches name, aka_name)
 - `state` - Filter by state code
 - `type` - Filter by location type
 - `city` - Filter by city
+- `limit` (default: 50, max: 500) - Maximum number of results per page
+- `offset` (default: 0) - Number of results to skip
 
-**Response:** Same as GET /api/locations
+**Response:** Same format as GET /api/locations (includes pagination metadata)
 
 ### Autocomplete
 
@@ -711,15 +755,49 @@ POST /api/maps/import
 ```
 Import parsed locations to database.
 
-### Bookmarks (WARN: Not registered in app.py yet)
+### Bookmarks
 
 ```
 GET /api/bookmarks
-POST /api/bookmarks
-GET /api/bookmarks/{id}
-PUT /api/bookmarks/{id}
-DELETE /api/bookmarks/{id}
-GET /api/bookmarks/folders
+```
+List bookmarks with filtering and pagination.
+
+**Query parameters:**
+- `folder` - Filter by folder (exact match)
+- `loc_uuid` - Filter by location UUID
+- `search` - Search in title/description/URL
+- `limit` (default: 50, max: 500) - Maximum number of results per page
+- `offset` (default: 0) - Number of results to skip
+- `order` - Sort order: 'created' (default), 'updated', 'title', 'visits'
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "bookmark_uuid": "bm123",
+      "title": "Example Bookmark",
+      "url": "https://example.com",
+      "folder": "Research",
+      "tags": ["tag1", "tag2"]
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 156,
+    "has_more": true
+  }
+}
+```
+
+**Other bookmark endpoints:**
+```
+POST /api/bookmarks           - Create bookmark
+GET /api/bookmarks/{id}       - Get specific bookmark
+PUT /api/bookmarks/{id}       - Update bookmark
+DELETE /api/bookmarks/{id}    - Delete bookmark
+GET /api/bookmarks/folders    - List folders
 ```
 
 ### Mobile Sync
