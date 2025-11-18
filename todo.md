@@ -247,7 +247,7 @@ python scripts/health_check.py
 
 ### 6. Fix Hardcoded macOS Paths
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** Medium
 **Estimated Time:** 2 hours
@@ -823,6 +823,7 @@ Move to separate repository or document clearly:
 - Fixed import path in immich_integration.py (changed from relative to absolute import)
 - Created unified launch.sh script (consolidates 4 different startup methods)
 - Created comprehensive health_check.py script (database, filesystem, tools, services)
+- Fixed hardcoded macOS paths by creating template system (com.aupat.worker.plist.template + generate_plist.py)
 
 ---
 

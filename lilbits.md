@@ -1115,6 +1115,69 @@ python scripts/migrations/add_performance_indexes.py
 
 ---
 
+### scripts/generate_plist.py (NEW)
+
+**Location:** `/home/user/aupat/scripts/generate_plist.py`
+**LOC:** ~200 lines
+**Purpose:** Generate macOS LaunchAgent plist from template
+
+**What it does:**
+- Generates com.aupat.worker.plist from template
+- Replaces {{PLACEHOLDERS}} with actual system paths
+- Automatically detects project root, Python path, venv path
+- Ensures logs directory exists
+- Shows installation instructions
+
+**Why it exists:**
+- Original plist had hardcoded paths: `/Users/bryant/Documents/tools/aupat/`
+- Wouldn't work on other machines
+- Now portable across any macOS system
+
+**How to run:**
+```bash
+# Generate with default output
+python scripts/generate_plist.py
+
+# Generate with custom output path
+python scripts/generate_plist.py --output /path/to/output.plist
+```
+
+**What it generates:**
+- Replaces `{{PYTHON_PATH}}` with actual Python interpreter
+- Replaces `{{PROJECT_PATH}}` with actual project directory
+- Replaces `{{VENV_PATH}}` with actual venv directory
+- Adds environment variables (DB_PATH, PATH)
+
+**Output:**
+- Creates com.aupat.worker.plist
+- File is in .gitignore (regenerate on each machine)
+- Shows installation commands for macOS LaunchAgent
+
+**Installation on macOS:**
+```bash
+# Generate the plist
+python scripts/generate_plist.py
+
+# Install
+cp com.aupat.worker.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.aupat.worker.plist
+
+# Check status
+launchctl list | grep aupat
+```
+
+**When to run:**
+- First time setup on new machine
+- After moving project to different directory
+- After changing Python version or venv
+
+**Dependencies:**
+- None (uses standard library only)
+
+**Follows LILBITS principle:** One script, one purpose - generate plist
+
+---
+
 ## SYSTEM HEALTH
 
 ### scripts/health_check.py (NEW)
