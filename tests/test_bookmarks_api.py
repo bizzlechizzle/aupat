@@ -27,6 +27,9 @@ from api_routes_bookmarks import (
     get_db_connection
 )
 
+# Test constants
+TEST_LOC_UUID = '12345678-1234-1234-1234-123456789012'
+
 
 @pytest.fixture
 def test_db():
@@ -71,8 +74,8 @@ def test_db():
     # Insert test location
     cursor.execute("""
         INSERT INTO locations (loc_uuid, loc_name, state)
-        VALUES ('test-loc-1', 'Test Location', 'NY')
-    """)
+        VALUES (?, 'Test Location', 'NY')
+    """, (TEST_LOC_UUID,))
 
     conn.commit()
     conn.close()
@@ -80,7 +83,15 @@ def test_db():
     # Override db connection in module
     original_db = 'data/aupat.db'
     import api_routes_bookmarks
-    api_routes_bookmarks.get_db_connection = lambda: sqlite3.connect(db_path)
+
+    def _get_test_db_conn():
+        """Test database connection with proper row_factory."""
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    api_routes_bookmarks.get_db_connection = _get_test_db_conn
 
     yield db_path
 
@@ -155,7 +166,7 @@ class TestCreateBookmark:
             'url': 'https://example.com/page',
             'title': 'Example Page',
             'description': 'A test bookmark',
-            'loc_uuid': 'test-loc-1',
+            'loc_uuid': TEST_LOC_UUID,
             'folder': 'Research/NY',
             'tags': ['test', 'example']
         })
@@ -208,7 +219,7 @@ class TestListBookmarks:
                 'url': f'https://example.com/page{i}',
                 'title': f'Page {i}',
                 'folder': 'Research' if i % 2 == 0 else 'Archive',
-                'loc_uuid': 'test-loc-1' if i < 3 else None
+                'loc_uuid': TEST_LOC_UUID if i < 3 else None
             })
             data = response.get_json()
             self.bookmarks.append(data['bookmark_uuid'])
@@ -254,11 +265,11 @@ class TestListBookmarks:
 
     def test_list_bookmarks_filter_by_location(self, client):
         """Test filtering bookmarks by location."""
-        response = client.get('/api/bookmarks?loc_uuid=test-loc-1')
+        response = client.get(f'/api/bookmarks?loc_uuid={TEST_LOC_UUID}')
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['total'] == 3  # 3 bookmarks linked to test-loc-1
+        assert data['total'] == 3  # 3 bookmarks linked to test location
 
     def test_list_bookmarks_search(self, client):
         """Test searching bookmarks."""
