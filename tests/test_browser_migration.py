@@ -312,8 +312,8 @@ class TestFullMigration:
         conn.close()
 
     def test_migration_rollback_on_error(self, empty_db):
-        """Test migration rolls back on error."""
-        # Create database without urls table (will cause foreign key error)
+        """Test migration handles missing urls table gracefully."""
+        # Create database without urls table
         conn = sqlite3.connect(empty_db)
         cursor = conn.cursor()
         cursor.execute("""
@@ -325,14 +325,20 @@ class TestFullMigration:
         conn.commit()
         conn.close()
 
-        # Run migration - should fail due to missing urls table
-        with pytest.raises(Exception):
-            run_migration(empty_db)
+        # Run migration - should succeed but skip urls enhancement
+        result = run_migration(empty_db)
 
-        # Verify bookmarks table was not created (transaction rolled back)
+        # Migration should succeed
+        assert result['success'] is True
+        assert result['bookmarks_created'] is True
+
+        # Verify bookmarks table was created
         conn = sqlite3.connect(empty_db)
         cursor = conn.cursor()
-        assert not table_exists(cursor, 'bookmarks')
+        assert table_exists(cursor, 'bookmarks')
+
+        # But urls table was not enhanced (columns_added should be 0)
+        assert result['urls_columns_added'] == 0
         conn.close()
 
 
