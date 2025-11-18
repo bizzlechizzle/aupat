@@ -825,6 +825,7 @@ Move to separate repository or document clearly:
 - Created comprehensive health_check.py script (database, filesystem, tools, services)
 - Fixed hardcoded macOS paths by creating template system (com.aupat.worker.plist.template + generate_plist.py)
 - Added transaction boundaries to all multi-step database operations (db_import_v012.py, db_organize.py, db_ingest.py, map_import.py, api_routes_v012.py)
+- Added startup external tool availability checks in app.py (warns if exiftool/ffmpeg missing with install instructions)
 
 ---
 

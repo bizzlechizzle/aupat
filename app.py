@@ -27,6 +27,71 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def check_external_tools_on_startup():
+    """
+    Check for optional external tools and log warnings if missing.
+
+    This provides immediate feedback on startup rather than waiting for
+    users to discover missing tools when trying to upload media.
+
+    Tools checked:
+    - exiftool: Required for EXIF GPS extraction from photos
+    - ffmpeg/ffprobe: Required for video metadata extraction
+
+    Note: Missing tools don't prevent app startup (graceful degradation).
+    """
+    import subprocess
+
+    tools_status = []
+
+    # Check exiftool
+    try:
+        result = subprocess.run(['exiftool', '-ver'], capture_output=True, timeout=5)
+        if result.returncode == 0:
+            version = result.stdout.decode().strip()
+            logger.info(f"exiftool found (version {version})")
+            tools_status.append(True)
+        else:
+            logger.warning("exiftool found but not working properly")
+            logger.warning("  Install: brew install exiftool (macOS) or apt-get install libimage-exiftool-perl (Linux)")
+            tools_status.append(False)
+    except FileNotFoundError:
+        logger.warning("exiftool NOT FOUND - GPS/EXIF extraction will not work")
+        logger.warning("  Install: brew install exiftool (macOS) or apt-get install libimage-exiftool-perl (Linux)")
+        tools_status.append(False)
+    except Exception as e:
+        logger.warning(f"Could not check exiftool: {e}")
+        tools_status.append(False)
+
+    # Check ffmpeg
+    try:
+        result = subprocess.run(['ffmpeg', '-version'], capture_output=True, timeout=5)
+        if result.returncode == 0:
+            version_line = result.stdout.decode().split('\n')[0]
+            logger.info(f"ffmpeg found ({version_line.split()[2]})")
+            tools_status.append(True)
+        else:
+            logger.warning("ffmpeg found but not working properly")
+            logger.warning("  Install: brew install ffmpeg (macOS) or apt-get install ffmpeg (Linux)")
+            tools_status.append(False)
+    except FileNotFoundError:
+        logger.warning("ffmpeg NOT FOUND - video metadata extraction will not work")
+        logger.warning("  Install: brew install ffmpeg (macOS) or apt-get install ffmpeg (Linux)")
+        tools_status.append(False)
+    except Exception as e:
+        logger.warning(f"Could not check ffmpeg: {e}")
+        tools_status.append(False)
+
+    # Summary
+    if all(tools_status):
+        logger.info("All external media tools available")
+    elif any(tools_status):
+        logger.warning("Some external media tools missing - functionality will be limited")
+    else:
+        logger.warning("No external media tools found - metadata extraction disabled")
+
+
 # Create Flask app
 app = Flask(__name__)
 
@@ -76,6 +141,9 @@ if __name__ == '__main__':
         logger.warning(f"Database not found at {db_path}")
         logger.info("Run 'python scripts/db_migrate_v012.py' to initialize the database")
         logger.info("Alternatively, the database will be created automatically on first write operation")
+
+    # Check external tools availability
+    check_external_tools_on_startup()
 
     logger.info(f"Starting AUPAT Core API v0.1.2")
     logger.info(f"Database: {app.config['DB_PATH']}")
