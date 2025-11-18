@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-AUPAT Database Migration Script for v0.1.2
-Adds schema enhancements for Immich integration, ArchiveBox integration,
-GPS coordinates, address fields, and enhanced metadata.
+AUPAT Database Migration Script for v0.1.3
+Consolidated migration including v0.1.2 + v0.1.3 features.
 
 This script:
-1. Adds new columns to existing tables
-2. Creates new tables for Google Maps imports and sync tracking
-3. Adds performance indexes for map queries
-4. Maintains backward compatibility with v0.1.0 schema
+1. Adds new columns to existing tables (v0.1.2)
+2. Creates new tables for Google Maps imports and sync tracking (v0.1.2)
+3. Enhances google_maps_exports table with import tracking fields (v0.1.3)
+4. Adds source_map_id to locations table for import tracking (v0.1.3)
+5. Creates map_locations table for reference mode imports (v0.1.3)
+6. Adds performance indexes for map queries and fuzzy matching (v0.1.2 + v0.1.3)
+7. Maintains backward compatibility with v0.1.0 schema
 
-Version: 0.1.2
-Last Updated: 2025-11-17
+Version: 0.1.3 (consolidated migration)
+Last Updated: 2025-11-18
 """
 
 import argparse
@@ -210,7 +212,7 @@ def create_base_tables(cursor: sqlite3.Cursor) -> None:
 
 
 def migrate_locations_table(cursor: sqlite3.Cursor) -> None:
-    """Add v0.1.2 columns to locations table."""
+    """Add v0.1.2 and v0.1.3 columns to locations table."""
     logger.info("Migrating locations table...")
 
     existing_columns = get_table_columns(cursor, 'locations')
@@ -256,6 +258,16 @@ def migrate_locations_table(cursor: sqlite3.Cursor) -> None:
     if 'address_source' not in existing_columns:
         logger.info("  Adding address_source column")
         cursor.execute("ALTER TABLE locations ADD COLUMN address_source TEXT")
+
+    # v0.1.3: Map import tracking
+    if 'source_map_id' not in existing_columns:
+        logger.info("  Adding source_map_id column (v0.1.3)")
+        cursor.execute("ALTER TABLE locations ADD COLUMN source_map_id TEXT")
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_locations_source_map
+            ON locations(source_map_id)
+            WHERE source_map_id IS NOT NULL
+        """)
 
     logger.info("Locations table migration complete")
 
@@ -374,6 +386,48 @@ def migrate_urls_table(cursor: sqlite3.Cursor) -> None:
     logger.info("URLs table migration complete")
 
 
+def migrate_google_maps_exports_table(cursor: sqlite3.Cursor) -> None:
+    """Enhance google_maps_exports table for better map import tracking (v0.1.3)."""
+    logger.info("Migrating google_maps_exports table...")
+
+    existing_columns = get_table_columns(cursor, 'google_maps_exports')
+
+    # Add new tracking columns
+    if 'filename' not in existing_columns:
+        logger.info("  Adding filename column")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN filename TEXT")
+
+    if 'import_mode' not in existing_columns:
+        logger.info("  Adding import_mode column (full/reference)")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN import_mode TEXT DEFAULT 'full'")
+
+    if 'file_format' not in existing_columns:
+        logger.info("  Adding file_format column (csv/geojson/kml)")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN file_format TEXT")
+
+    if 'import_status' not in existing_columns:
+        logger.info("  Adding import_status column")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN import_status TEXT DEFAULT 'completed'")
+
+    if 'source_description' not in existing_columns:
+        logger.info("  Adding source_description column")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN source_description TEXT")
+
+    if 'locations_imported' not in existing_columns:
+        logger.info("  Adding locations_imported column")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN locations_imported INTEGER DEFAULT 0")
+
+    if 'locations_skipped' not in existing_columns:
+        logger.info("  Adding locations_skipped column")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN locations_skipped INTEGER DEFAULT 0")
+
+    if 'duplicates_found' not in existing_columns:
+        logger.info("  Adding duplicates_found column")
+        cursor.execute("ALTER TABLE google_maps_exports ADD COLUMN duplicates_found INTEGER DEFAULT 0")
+
+    logger.info("google_maps_exports table migration complete")
+
+
 def create_google_maps_exports_table(cursor: sqlite3.Cursor) -> None:
     """Create google_maps_exports table for tracking Google Maps imports."""
     logger.info("Creating google_maps_exports table...")
@@ -384,14 +438,23 @@ def create_google_maps_exports_table(cursor: sqlite3.Cursor) -> None:
                 export_id TEXT PRIMARY KEY,
                 import_date TEXT NOT NULL,
                 file_path TEXT NOT NULL,
+                filename TEXT,
+                import_mode TEXT DEFAULT 'full',
+                file_format TEXT,
+                import_status TEXT DEFAULT 'completed',
+                source_description TEXT,
                 locations_found INTEGER DEFAULT 0,
+                locations_imported INTEGER DEFAULT 0,
+                locations_skipped INTEGER DEFAULT 0,
+                duplicates_found INTEGER DEFAULT 0,
                 addresses_extracted INTEGER DEFAULT 0,
                 images_processed INTEGER DEFAULT 0
             )
         """)
-        logger.info("google_maps_exports table created")
+        logger.info("google_maps_exports table created with full schema")
     else:
-        logger.info("google_maps_exports table already exists")
+        logger.info("google_maps_exports table already exists - migrating if needed")
+        migrate_google_maps_exports_table(cursor)
 
 
 def create_sync_log_table(cursor: sqlite3.Cursor) -> None:
@@ -415,17 +478,57 @@ def create_sync_log_table(cursor: sqlite3.Cursor) -> None:
         logger.info("sync_log table already exists")
 
 
+def create_map_locations_table(cursor: sqlite3.Cursor) -> None:
+    """Create map_locations table for storing imported map data (v0.1.3)."""
+    logger.info("Creating map_locations table...")
+
+    if not table_exists(cursor, 'map_locations'):
+        cursor.execute("""
+            CREATE TABLE map_locations (
+                map_loc_id TEXT PRIMARY KEY,
+                map_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                state TEXT,
+                state_abbrev TEXT,
+                type TEXT,
+                lat REAL,
+                lon REAL,
+                street_address TEXT,
+                city TEXT,
+                zip_code TEXT,
+                notes TEXT,
+                original_data TEXT,
+                created_date TEXT NOT NULL,
+                FOREIGN KEY (map_id) REFERENCES google_maps_exports(export_id) ON DELETE CASCADE
+            )
+        """)
+
+        # Create indexes for fast lookups
+        cursor.execute("CREATE INDEX idx_map_locations_map_id ON map_locations(map_id)")
+        cursor.execute("CREATE INDEX idx_map_locations_name_state ON map_locations(name, state_abbrev)")
+        cursor.execute("CREATE INDEX idx_map_locations_gps ON map_locations(lat, lon) WHERE lat IS NOT NULL")
+
+        logger.info("map_locations table created")
+    else:
+        logger.info("map_locations table already exists")
+
+
 def create_indexes(cursor: sqlite3.Cursor) -> None:
-    """Create performance indexes for v0.1.2."""
+    """Create performance indexes for v0.1.2 and v0.1.3."""
     logger.info("Creating performance indexes...")
 
     indexes = [
+        # v0.1.2 indexes
         ("idx_locations_gps", "CREATE INDEX IF NOT EXISTS idx_locations_gps ON locations(lat, lon) WHERE lat IS NOT NULL"),
         ("idx_images_immich", "CREATE INDEX IF NOT EXISTS idx_images_immich ON images(immich_asset_id) WHERE immich_asset_id IS NOT NULL"),
         ("idx_videos_immich", "CREATE INDEX IF NOT EXISTS idx_videos_immich ON videos(immich_asset_id) WHERE immich_asset_id IS NOT NULL"),
         ("idx_images_gps", "CREATE INDEX IF NOT EXISTS idx_images_gps ON images(gps_lat, gps_lon) WHERE gps_lat IS NOT NULL"),
         ("idx_videos_gps", "CREATE INDEX IF NOT EXISTS idx_videos_gps ON videos(gps_lat, gps_lon) WHERE gps_lat IS NOT NULL"),
         ("idx_urls_archive_status", "CREATE INDEX IF NOT EXISTS idx_urls_archive_status ON urls(archive_status)"),
+        # v0.1.3 indexes for map import and fuzzy matching
+        ("idx_locations_name", "CREATE INDEX IF NOT EXISTS idx_locations_name ON locations(loc_name)"),
+        ("idx_locations_state", "CREATE INDEX IF NOT EXISTS idx_locations_state ON locations(state)"),
+        ("idx_locations_name_state", "CREATE INDEX IF NOT EXISTS idx_locations_name_state ON locations(loc_name, state)"),
     ]
 
     for idx_name, idx_sql in indexes:
@@ -455,18 +558,18 @@ def update_version(cursor: sqlite3.Cursor) -> None:
             )
         """)
 
-    # Update or insert version
+    # Update or insert version (now at v0.1.3 with map import features)
     cursor.execute("""
         INSERT OR REPLACE INTO versions (modules, version, ver_updated)
-        VALUES ('aupat_core', '0.1.2', ?)
+        VALUES ('aupat_core', '0.1.3', ?)
     """, (timestamp,))
 
-    logger.info("Schema version updated to 0.1.2")
+    logger.info("Schema version updated to 0.1.3 (includes v0.1.2 + map import features)")
 
 
 def run_migration(db_path: str, backup: bool = True) -> None:
-    """Run full v0.1.2 database migration."""
-    logger.info(f"Starting v0.1.2 migration for database: {db_path}")
+    """Run full v0.1.3 database migration (includes v0.1.2 + map import features)."""
+    logger.info(f"Starting v0.1.3 migration for database: {db_path}")
 
     # Ensure database directory exists
     db_file = Path(db_path)
@@ -494,14 +597,15 @@ def run_migration(db_path: str, backup: bool = True) -> None:
         create_base_tables(cursor)
 
         # Run migrations (for existing v0.1.0 databases)
-        migrate_locations_table(cursor)
+        migrate_locations_table(cursor)  # Includes v0.1.3 source_map_id
         migrate_images_table(cursor)
         migrate_videos_table(cursor)
         migrate_urls_table(cursor)
-        create_google_maps_exports_table(cursor)
+        create_google_maps_exports_table(cursor)  # Includes v0.1.3 columns
         create_sync_log_table(cursor)
-        create_indexes(cursor)
-        update_version(cursor)
+        create_map_locations_table(cursor)  # v0.1.3 new table
+        create_indexes(cursor)  # Includes v0.1.3 name-based indexes
+        update_version(cursor)  # Updates to v0.1.3
 
         # Commit changes
         conn.commit()
@@ -516,13 +620,13 @@ def run_migration(db_path: str, backup: bool = True) -> None:
     finally:
         conn.close()
 
-    logger.info("v0.1.2 migration complete")
+    logger.info("v0.1.3 migration complete (includes v0.1.2 + map import features)")
 
 
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='AUPAT v0.1.2 Database Schema Migration'
+        description='AUPAT v0.1.3 Database Schema Migration (consolidated v0.1.2 + v0.1.3)'
     )
     parser.add_argument(
         '--config',
@@ -545,7 +649,8 @@ def main():
         run_migration(db_path, backup=not args.no_backup)
 
         logger.info("\nMigration successful!")
-        logger.info("Database is now at schema version 0.1.2")
+        logger.info("Database is now at schema version 0.1.3")
+        logger.info("Includes: v0.1.2 features + Map Import with KML/CSV/GeoJSON support")
 
     except Exception as e:
         logger.error(f"Migration failed: {e}")
