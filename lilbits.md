@@ -27,30 +27,38 @@ This document catalogs all scripts in the AUPAT project, following the LILBITS p
 ### app.py
 
 **Location:** `/home/user/aupat/app.py`
-**LOC:** 80 lines
+**LOC:** 200 lines
 **Purpose:** Flask application entry point and configuration
 
 **What it does:**
 - Initializes Flask application
 - Configures database path from environment
 - Registers API route blueprints
+- Sets up Swagger/OpenAPI documentation (v0.1.6)
 - Sets up health check endpoints
 - Configures CORS for cross-origin requests
+- Checks external tool availability on startup
 
 **Key functions:**
 - Application initialization
 - Blueprint registration
+- Swagger UI configuration
 - Root endpoint with API info
+- External tool availability checks (exiftool, ffmpeg)
 
 **Dependencies:**
 - Flask
+- flasgger (OpenAPI/Swagger documentation)
 - scripts.api_routes_v012
 - scripts.api_sync_mobile
+- scripts.api_routes_bookmarks
+- scripts.api_maps
 
 **Database tables:** None directly (delegates to blueprints)
 
 **Configuration:**
-- DB_PATH environment variable (default: data/aupat.db)
+- DB_PATH environment variable (default: /app/data/aupat.db)
+- API_HOST environment variable (default: localhost:5002)
 - PORT (default: 5002)
 
 **How to run:**
@@ -62,6 +70,12 @@ python app.py
 ```bash
 curl http://localhost:5002/api/health
 ```
+
+**NEW: Interactive API Documentation:**
+Visit `http://localhost:5002/api/docs` for Swagger UI
+- Try out API endpoints interactively
+- View complete request/response schemas
+- Download OpenAPI spec from `/api/apispec.json`
 
 ---
 

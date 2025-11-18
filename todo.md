@@ -475,7 +475,7 @@ Implement JSON logging with python-json-logger:
 
 ### 11. Generate OpenAPI/Swagger Spec
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** Medium
 **Complexity:** Low
 **Estimated Time:** 2 hours

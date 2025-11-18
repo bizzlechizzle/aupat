@@ -17,6 +17,7 @@ PyYAML>=6.0              # YAML parsing for docker-compose validation
 
 # Web Interface
 Flask>=3.0.0             # Web framework for import interface
+flasgger>=0.9.7          # OpenAPI/Swagger documentation (v0.1.6)
 
 # Logging (v0.1.5)
 python-json-logger>=2.0.7  # JSON structured logging

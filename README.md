@@ -202,6 +202,22 @@ aupat/
 http://localhost:5002/api
 ```
 
+### Interactive API Documentation
+
+**NEW: Swagger/OpenAPI Documentation** (v0.1.6)
+
+Explore and test the API interactively using the built-in Swagger UI:
+
+```
+http://localhost:5002/api/docs
+```
+
+Features:
+- Interactive API explorer with "Try it out" functionality
+- Complete endpoint documentation with parameters and responses
+- OpenAPI 2.0 specification available at `/api/apispec.json`
+- Organized by tags (health, locations, map, search, media, etc.)
+
 ### Health Check
 
 ```bash

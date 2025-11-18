@@ -75,9 +75,44 @@ def create_pagination_response(data, total, limit, offset, data_key='data'):
 def health_check():
     """
     Health check endpoint.
-
-    Returns:
-        JSON with service status
+    ---
+    tags:
+      - health
+    summary: Check API and database health
+    description: Returns the service status, version, and database connectivity information
+    responses:
+      200:
+        description: Service is healthy
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+            version:
+              type: string
+              example: 0.1.2
+            database:
+              type: string
+              example: connected
+            location_count:
+              type: integer
+              example: 42
+      500:
+        description: Service is unhealthy
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: error
+            version:
+              type: string
+            database:
+              type: string
+              example: disconnected
+            error:
+              type: string
     """
     try:
         # Check database connection
@@ -153,13 +188,49 @@ def health_check_services():
 def get_map_markers():
     """
     Get all locations with GPS coordinates for map display.
-
-    Query parameters:
-        - bounds: Optional bounding box filter (format: "minLat,minLon,maxLat,maxLon")
-        - limit: Maximum number of results (default: 5000, max 200000)
-
-    Returns:
-        JSON array of locations with GPS data
+    ---
+    tags:
+      - map
+    summary: Get location markers for map
+    description: Returns all locations with GPS coordinates for map display with optional bounding box filtering
+    parameters:
+      - name: bounds
+        in: query
+        type: string
+        required: false
+        description: Bounding box filter (format minLat,minLon,maxLat,maxLon)
+        example: "42.5,-75.0,43.5,-74.0"
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 5000
+        maximum: 200000
+        description: Maximum number of results
+    responses:
+      200:
+        description: List of location markers
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              loc_uuid:
+                type: string
+              loc_name:
+                type: string
+              lat:
+                type: number
+              lon:
+                type: number
+              type:
+                type: string
+              state:
+                type: string
+      400:
+        description: Invalid bounds format
+      500:
+        description: Server error
     """
     try:
         conn = get_db_connection()
@@ -1311,32 +1382,93 @@ def get_import_batch_logs(batch_id):
 def locations_list_create():
     """
     List all locations or create a new location.
-
-    GET: Returns list of all locations with pagination
-    POST: Creates a new location
-
-    Query parameters (GET):
-        limit: Maximum number of results (default: 50, max: 500)
-        offset: Pagination offset (default: 0)
-
-    Request JSON (POST):
-        {
-            "loc_name": "Location Name",
-            "aka_name": "Optional alternate name",
-            "state": "ny",
-            "type": "industrial",
-            "sub_type": "Optional sub type",
-            "street_address": "Optional address",
-            "city": "Optional city",
-            "zip_code": "Optional ZIP",
-            "lat": 42.6526,
-            "lon": -73.7562,
-            "gps_source": "manual"
-        }
-
-    Returns:
-        GET: JSON array of locations with pagination metadata
-        POST: JSON with created location
+    ---
+    tags:
+      - locations
+    summary: List all locations or create new location
+    description: GET returns paginated list of locations, POST creates a new location
+    parameters:
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 50
+        maximum: 500
+        description: Maximum number of results (GET only)
+      - name: offset
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: Pagination offset (GET only)
+      - name: body
+        in: body
+        required: false
+        description: Location data (POST only)
+        schema:
+          type: object
+          required:
+            - loc_name
+            - state
+            - type
+          properties:
+            loc_name:
+              type: string
+              example: "Abandoned Factory"
+            aka_name:
+              type: string
+              example: "Old Textile Mill"
+            state:
+              type: string
+              example: "ny"
+            type:
+              type: string
+              example: "industrial"
+            sub_type:
+              type: string
+              example: "textile"
+            street_address:
+              type: string
+            city:
+              type: string
+            zip_code:
+              type: string
+            lat:
+              type: number
+              example: 42.6526
+            lon:
+              type: number
+              example: -73.7562
+            gps_source:
+              type: string
+              example: "manual"
+    responses:
+      200:
+        description: Successful response
+        schema:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+            pagination:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+                total:
+                  type: integer
+                has_more:
+                  type: boolean
+      201:
+        description: Location created successfully (POST)
+      400:
+        description: Invalid request
+      500:
+        description: Server error
     """
     if request.method == 'GET':
         try:
@@ -1708,16 +1840,66 @@ def location_autocomplete(field):
 def search_locations():
     """
     Search locations by name or other criteria.
-
-    Query parameters:
-        - q: Search query (matches location name)
-        - state: Filter by state code
-        - type: Filter by location type
-        - limit: Maximum results (default: 50, max: 500)
-        - offset: Pagination offset (default: 0)
-
-    Returns:
-        JSON array of matching locations
+    ---
+    tags:
+      - search
+    summary: Search locations
+    description: Search locations by name with optional filtering by state and type
+    parameters:
+      - name: q
+        in: query
+        type: string
+        required: false
+        description: Search query (matches location name)
+        example: "hospital"
+      - name: state
+        in: query
+        type: string
+        required: false
+        description: Filter by state code
+        example: "ny"
+      - name: type
+        in: query
+        type: string
+        required: false
+        description: Filter by location type
+        example: "industrial"
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 50
+        maximum: 500
+        description: Maximum number of results
+      - name: offset
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: Pagination offset
+    responses:
+      200:
+        description: Search results with pagination
+        schema:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+            pagination:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+                total:
+                  type: integer
+                has_more:
+                  type: boolean
+      500:
+        description: Server error
     """
     try:
         query = request.args.get('q', '')

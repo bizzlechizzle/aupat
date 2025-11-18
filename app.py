@@ -15,6 +15,7 @@ import os
 import logging
 from pathlib import Path
 from flask import Flask
+from flasgger import Swagger
 from scripts.api_routes_v012 import register_api_routes
 from scripts.api_sync_mobile import register_mobile_sync_routes
 from scripts.api_routes_bookmarks import bookmarks_bp
@@ -99,6 +100,52 @@ app = Flask(__name__)
 app.config['DB_PATH'] = os.environ.get('DB_PATH', '/app/data/aupat.db')
 app.config['JSON_SORT_KEYS'] = False
 
+# Configure Swagger/OpenAPI documentation
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec',
+            "route": '/api/apispec.json',
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/api/docs"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "AUPAT Core API",
+        "description": "Location-centric digital archive management system for abandoned and historical places",
+        "version": "0.1.2",
+        "contact": {
+            "name": "AUPAT Project",
+            "url": "https://github.com/bizzlechizzle/aupat"
+        }
+    },
+    "host": os.environ.get('API_HOST', 'localhost:5002'),
+    "basePath": "/",
+    "schemes": ["http", "https"],
+    "tags": [
+        {"name": "health", "description": "Health check and service status endpoints"},
+        {"name": "locations", "description": "Location CRUD operations"},
+        {"name": "map", "description": "Map markers and GeoJSON data"},
+        {"name": "media", "description": "Images, videos, and archives"},
+        {"name": "search", "description": "Location search and autocomplete"},
+        {"name": "bookmarks", "description": "Browser bookmark integration"},
+        {"name": "maps", "description": "Map file import (KML, GeoJSON, CSV)"},
+        {"name": "mobile", "description": "Mobile app sync endpoints"},
+        {"name": "config", "description": "Configuration management"}
+    ]
+}
+
+# Initialize Swagger
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
+
 # Register v0.1.2 API routes
 register_api_routes(app)
 
@@ -128,7 +175,11 @@ def index():
             'mobile_sync_push': '/api/sync/mobile',
             'mobile_sync_pull': '/api/sync/mobile/pull'
         },
-        'documentation': 'https://github.com/bizzlechizzle/aupat'
+        'documentation': {
+            'interactive_api_docs': '/api/docs',
+            'openapi_spec': '/api/apispec.json',
+            'github': 'https://github.com/bizzlechizzle/aupat'
+        }
     }
 
 if __name__ == '__main__':
