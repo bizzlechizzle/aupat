@@ -305,11 +305,11 @@ def get_location_images(loc_uuid):
         cursor.execute(
             """
             SELECT
-                img_sha256, img_name, img_loc,
+                img_uuid, img_sha, img_name,
                 immich_asset_id, img_width, img_height,
                 img_size_bytes, gps_lat, gps_lon,
-                img_hardware, camera, phone, drone, go_pro, film,
-                img_add
+                camera_make, camera_model, camera_type,
+                img_taken, img_add, img_update
             FROM images
             WHERE loc_uuid = ?
             ORDER BY img_add DESC

@@ -344,9 +344,9 @@ def check_sha256_collision(cursor, sha256: str, file_type: str) -> bool:
     """
     # Map file type to table and hash field
     table_map = {
-        'image': ('images', 'img_sha256'),
-        'video': ('videos', 'vid_sha256'),
-        'document': ('documents', 'doc_sha256')
+        'image': ('images', 'img_sha'),
+        'video': ('videos', 'vid_sha'),
+        'document': ('documents', 'doc_sha')
     }
 
     if file_type not in table_map:

@@ -258,7 +258,7 @@
             <div class="upload-section">
               <input
                 type="file"
-                accept=".csv,.json,.geojson"
+                accept=".csv,.json,.geojson,.kml,.kmz"
                 on:change={handleFileSelect}
                 bind:this={fileInput}
                 style="display: none;"
