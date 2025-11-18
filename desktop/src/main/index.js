@@ -219,7 +219,9 @@ ipcMain.handle('settings:set', async (event, key, value) => {
 ipcMain.handle('locations:getAll', async () => {
   try {
     log.info('Fetching all locations');
-    const locations = await api.get('/api/locations');
+    const response = await api.get('/api/locations?limit=1000');
+    // API now returns paginated response: { locations, total, limit, offset }
+    const locations = response.locations || response;
     return { success: true, data: locations };
   } catch (error) {
     log.error('Failed to fetch locations:', error);

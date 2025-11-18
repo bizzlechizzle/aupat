@@ -131,7 +131,7 @@ def get_map_markers():
 
     Query parameters:
         - bounds: Optional bounding box filter (format: "minLat,minLon,maxLat,maxLon")
-        - limit: Maximum number of results (default: unlimited, max 200000)
+        - limit: Maximum number of results (default: 5000, max 200000)
 
     Returns:
         JSON array of locations with GPS data
@@ -142,61 +142,39 @@ def get_map_markers():
 
         # Check for bounding box filter
         bounds = request.args.get('bounds')
-        limit = request.args.get('limit', type=int)
+        limit = request.args.get('limit', default=5000, type=int)
 
         # Validate limit
-        if limit is not None and limit > 200000:
+        if limit > 200000:
             limit = 200000
 
         if bounds:
             try:
                 min_lat, min_lon, max_lat, max_lon = map(float, bounds.split(','))
-                if limit:
-                    cursor.execute(
-                        """
-                        SELECT loc_uuid, loc_name, lat, lon, type, state
-                        FROM locations
-                        WHERE lat IS NOT NULL
-                        AND lon IS NOT NULL
-                        AND lat BETWEEN ? AND ?
-                        AND lon BETWEEN ? AND ?
-                        LIMIT ?
-                        """,
-                        (min_lat, max_lat, min_lon, max_lon, limit)
-                    )
-                else:
-                    cursor.execute(
-                        """
-                        SELECT loc_uuid, loc_name, lat, lon, type, state
-                        FROM locations
-                        WHERE lat IS NOT NULL
-                        AND lon IS NOT NULL
-                        AND lat BETWEEN ? AND ?
-                        AND lon BETWEEN ? AND ?
-                        """,
-                        (min_lat, max_lat, min_lon, max_lon)
-                    )
+                cursor.execute(
+                    """
+                    SELECT loc_uuid, loc_name, lat, lon, type, state
+                    FROM locations
+                    WHERE lat IS NOT NULL
+                    AND lon IS NOT NULL
+                    AND lat BETWEEN ? AND ?
+                    AND lon BETWEEN ? AND ?
+                    LIMIT ?
+                    """,
+                    (min_lat, max_lat, min_lon, max_lon, limit)
+                )
             except ValueError:
                 return jsonify({'error': 'Invalid bounds format'}), 400
         else:
-            if limit:
-                cursor.execute(
-                    """
-                    SELECT loc_uuid, loc_name, lat, lon, type, state
-                    FROM locations
-                    WHERE lat IS NOT NULL AND lon IS NOT NULL
-                    LIMIT ?
-                    """,
-                    (limit,)
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT loc_uuid, loc_name, lat, lon, type, state
-                    FROM locations
-                    WHERE lat IS NOT NULL AND lon IS NOT NULL
-                    """
-                )
+            cursor.execute(
+                """
+                SELECT loc_uuid, loc_name, lat, lon, type, state
+                FROM locations
+                WHERE lat IS NOT NULL AND lon IS NOT NULL
+                LIMIT ?
+                """,
+                (limit,)
+            )
 
         rows = cursor.fetchall()
         conn.close()
@@ -1274,8 +1252,12 @@ def locations_list_create():
     """
     List all locations or create a new location.
 
-    GET: Returns list of all locations
+    GET: Returns list of all locations with pagination
     POST: Creates a new location
+
+    Query parameters (GET):
+        limit: Maximum number of results (default: 100, max: 1000)
+        offset: Pagination offset (default: 0)
 
     Request JSON (POST):
         {
@@ -1293,22 +1275,44 @@ def locations_list_create():
         }
 
     Returns:
-        GET: JSON array of all locations
+        GET: JSON array of locations with pagination metadata
         POST: JSON with created location
     """
     if request.method == 'GET':
         try:
+            # Get pagination parameters
+            limit = min(int(request.args.get('limit', 100)), 1000)
+            offset = int(request.args.get('offset', 0))
+
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            cursor.execute("SELECT * FROM locations ORDER BY loc_name")
+            # Get paginated results with total count
+            cursor.execute("""
+                SELECT *, COUNT(*) OVER() as total_count
+                FROM locations
+                ORDER BY loc_name
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
             rows = cursor.fetchall()
             conn.close()
 
-            locations_list = [dict(row) for row in rows]
+            locations_list = []
+            total_count = 0
+            for row in rows:
+                row_dict = dict(row)
+                total_count = row_dict.pop('total_count', 0)
+                locations_list.append(row_dict)
 
-            return jsonify(locations_list), 200
+            return jsonify({
+                'locations': locations_list,
+                'total': total_count,
+                'limit': limit,
+                'offset': offset
+            }), 200
 
+        except ValueError:
+            return jsonify({'error': 'Invalid limit or offset format'}), 400
         except Exception as e:
             logger.error(f"Failed to list locations: {e}")
             return jsonify({'error': str(e)}), 500
