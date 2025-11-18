@@ -1,76 +1,137 @@
-# AUPAT Quickstart Guide
+# AUPAT Quick Start Guide
 
-## First-Time Setup
+## Starting the API Server
 
-### 1. Start the API Server
+### Automatic Startup (Recommended)
+
+Use the included startup script that handles health checks and dependencies:
 
 ```bash
-# Option A: Using startup script (recommended)
-./start_server.sh
+./start_api.sh
+```
 
-# Option B: Manual start
+This script will:
+- ✅ Check if the API server is already running
+- ✅ Install Python dependencies if needed
+- ✅ Create database if it doesn't exist
+- ✅ Start the API server on port 5002
+- ✅ Verify the server started successfully
+
+### Additional Commands
+
+```bash
+# Check server status
+./start_api.sh --status
+
+# Force restart the server
+./start_api.sh --force
+```
+
+### Manual Startup
+
+If you prefer to start manually:
+
+```bash
+# 1. Install dependencies
+pip3 install -r requirements.txt
+
+# 2. Create user.json (if not exists)
+cp user/user.json.template user/user.json
+# Edit user/user.json with your paths
+
+# 3. Initialize database (if not exists)
+python3 scripts/db_migrate_v012.py
+
+# 4. Start API server
+export DB_PATH=/home/user/aupat/data/aupat.db
 python3 app.py
 ```
 
-The server will start on **http://localhost:5000**
-
-### 2. Initialize the Database (First Run Only)
-
-If you see a "Database not found" warning, initialize it:
-
-```bash
-python3 scripts/db_migrate_v012.py
-```
-
-### 3. Start the Desktop App
+## Starting the Desktop App
 
 ```bash
 cd desktop
-npm install    # First time only
-npm run dev    # Development mode
-# OR
-npm run build  # Production build
-npm start      # Run production build
+npm install
+npm run dev
 ```
 
-## Configuration
+The desktop app will automatically connect to `http://localhost:5002`.
 
-### Environment Variables
+## Health Check
 
-- `DB_PATH` - Database file location (default: `/app/data/aupat.db`)
-- `PORT` - API server port (default: 5000)
+Verify the API server is running:
 
-### Desktop App Settings
+```bash
+curl http://localhost:5002/api/health
+```
 
-Access via Settings menu in the desktop app:
-
-- **API URL**: http://localhost:5000 (default)
-- **Immich URL**: http://localhost:2283 (if using Immich)
-- **ArchiveBox URL**: http://localhost:8001 (if using ArchiveBox)
+Expected response:
+```json
+{
+  "status": "ok",
+  "version": "0.1.2",
+  "database": "connected",
+  "location_count": 0
+}
+```
 
 ## Troubleshooting
 
-### "Cannot connect to backend"
+### "Cannot connect to backend" Error
 
-1. Verify API server is running: `curl http://localhost:5000/api/health`
-2. Check desktop app settings use port **5000** (not 5001)
-3. Check firewall isn't blocking port 5000
+This error occurs when:
+1. API server is not running → Run `./start_api.sh`
+2. Wrong port in desktop app settings → Desktop app defaults to port 5002 (correct)
+3. Database not initialized → Script handles this automatically
 
-### "Database not found"
+### Check Logs
 
-Run: `python3 scripts/db_migrate_v012.py`
+```bash
+# API server logs
+tail -f api_server.log
 
-### Custom States/Types
+# Desktop app logs (when running)
+# Check the console in the Electron DevTools
+```
 
-AUPAT allows custom location states and types based on your folder structure.
-You'll see info-level logs for non-standard values, but they are fully supported.
+## Why the Startup Script?
 
-**Examples:**
-- State: `ny`, `ca`, `tx` (standard) or `custom-region` (custom)
-- Type: `industrial`, `residential` (standard) or `secret-lab` (custom)
+Previously, users had to:
+- Manually check if the server was running
+- Remember to create user.json
+- Manually initialize the database
+- Export environment variables
+
+The `start_api.sh` script automates all of this with health checks built in.
+
+## Architecture
+
+```
+┌─────────────────┐
+│  Desktop App    │  Electron (Svelte)
+│  Port: N/A      │  Connects to API
+└────────┬────────┘
+         │
+         │ HTTP Requests
+         │
+┌────────▼────────┐
+│  API Server     │  Flask
+│  Port: 5002     │  REST API
+└────────┬────────┘
+         │
+         │ SQLite
+         │
+┌────────▼────────┐
+│  Database       │  SQLite
+│  aupat.db       │  Location data
+└─────────────────┘
+```
 
 ## Next Steps
 
-- See `docs/v0.1.2/10_INSTALLATION.md` for detailed setup
-- See `docs/v0.1.2/11_QUICK_REFERENCE.md` for API documentation
-- See `tests/test_troubleshoot_backend_connection.py` for regression tests
+1. Start the API server: `./start_api.sh`
+2. Start the desktop app: `cd desktop && npm run dev`
+3. Import locations via the desktop app
+4. View locations on the map
+
+For full documentation, see the main README.md.
