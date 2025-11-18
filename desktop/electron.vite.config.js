@@ -21,6 +21,10 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/preload/index.js')
+        },
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].js'
         }
       }
     }
