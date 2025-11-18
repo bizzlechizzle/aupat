@@ -21,46 +21,53 @@ from app import app
 
 
 @pytest.fixture
-def client():
-    """Create test client with in-memory database."""
+def client(tmp_path):
+    """Create test client with temporary file database."""
+    test_db = tmp_path / "test_aupat.db"
     app.config['TESTING'] = True
-    app.config['DB_PATH'] = ':memory:'
+    app.config['DB_PATH'] = str(test_db)
+
+    # Initialize test database schema
+    conn = sqlite3.connect(str(test_db))
+    cursor = conn.cursor()
+
+    # Create minimal schema for testing
+    cursor.execute('''
+        CREATE TABLE locations (
+            loc_uuid TEXT PRIMARY KEY,
+            loc_name TEXT NOT NULL,
+            lat REAL,
+            lon REAL,
+            type TEXT NOT NULL,
+            street_address TEXT,
+            city TEXT,
+            state_abbrev TEXT,
+            loc_add TEXT,
+            json_update TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE sync_log (
+            sync_id TEXT PRIMARY KEY,
+            device_id TEXT,
+            sync_type TEXT,
+            timestamp TEXT,
+            items_synced INTEGER,
+            conflicts INTEGER,
+            status TEXT
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
 
     with app.test_client() as client:
-        # Initialize test database
-        with app.app_context():
-            conn = sqlite3.connect(':memory:')
-            cursor = conn.cursor()
-
-            # Create minimal schema for testing
-            cursor.execute('''
-                CREATE TABLE locations (
-                    loc_uuid TEXT PRIMARY KEY,
-                    loc_name TEXT NOT NULL,
-                    lat REAL,
-                    lon REAL,
-                    type TEXT NOT NULL,
-                    loc_add TEXT,
-                    json_update TEXT
-                )
-            ''')
-
-            cursor.execute('''
-                CREATE TABLE sync_log (
-                    sync_id TEXT PRIMARY KEY,
-                    device_id TEXT,
-                    sync_type TEXT,
-                    timestamp TEXT,
-                    items_synced INTEGER,
-                    conflicts INTEGER,
-                    status TEXT
-                )
-            ''')
-
-            conn.commit()
-            conn.close()
-
         yield client
+
+    # Cleanup
+    if test_db.exists():
+        test_db.unlink()
 
 
 def test_sync_push_new_location(client):

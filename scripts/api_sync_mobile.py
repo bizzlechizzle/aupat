@@ -24,6 +24,15 @@ logger = logging.getLogger(__name__)
 api_sync_mobile = Blueprint('api_sync_mobile', __name__, url_prefix='/api/sync')
 
 
+@api_sync_mobile.after_request
+def add_cors_headers(response):
+    """Add CORS headers to all mobile sync API responses."""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
+
 def get_db_connection():
     """Get database connection from Flask app config."""
     db_path = current_app.config.get('DB_PATH')
@@ -72,9 +81,9 @@ def sync_mobile_push():
         return '', 204
 
     try:
-        payload = request.get_json()
+        payload = request.get_json(force=True, silent=True)
         if not payload:
-            return jsonify({'status': 'error', 'error': 'Missing JSON payload'}), 400
+            return jsonify({'status': 'error', 'error': 'Missing or invalid JSON payload'}), 400
 
         device_id = payload.get('device_id')
         new_locations = payload.get('new_locations', [])
@@ -296,12 +305,3 @@ def sync_mobile_pull():
 def register_mobile_sync_routes(app):
     """Register mobile sync routes with Flask app."""
     app.register_blueprint(api_sync_mobile)
-
-    # Enable CORS for mobile sync endpoints
-    @api_sync_mobile.after_request
-    def after_request(response):
-        """Add CORS headers to all mobile sync API responses."""
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        return response
