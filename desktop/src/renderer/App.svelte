@@ -58,7 +58,7 @@
   <aside class="w-64 bg-white shadow-lg flex flex-col">
     <!-- Header -->
     <div class="p-6 border-b border-gray-200 flex flex-col items-center">
-      <img src={logo} alt="Abandoned Upstate" class="w-24 h-24 object-contain mb-3" />
+      <img src={logo} alt="Abandoned Upstate" class="w-40 h-40 object-contain mb-3" />
       <p class="text-sm text-gray-600 font-medium">Archive Tool</p>
     </div>
 
@@ -98,7 +98,7 @@
   </aside>
 
   <!-- Main Content Area -->
-  <main class="flex-1 overflow-hidden">
+  <main class="flex-1 overflow-auto">
     {#if currentView === 'map'}
       <ErrorBoundary fallbackMessage="Map view encountered an error">
         <Map />
