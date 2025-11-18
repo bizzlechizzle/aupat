@@ -17,10 +17,15 @@
 
   import { onMount, createEventDispatcher } from 'svelte';
   import { marked } from 'marked';
+  import LocationForm from './LocationForm.svelte';
 
   export let locationUuid;
 
   const dispatch = createEventDispatcher();
+
+  // Edit/Import state
+  let showEditForm = false;
+  let showImportDialog = false;
 
   // State
   let location = null;
@@ -261,6 +266,29 @@
       default: return 'Location Data';
     }
   }
+
+  async function handleLocationUpdated(event) {
+    showEditForm = false;
+    // Reload location data to show updated information
+    await loadLocationData();
+  }
+
+  function handleEditFormClosed() {
+    showEditForm = false;
+  }
+
+  function handleImportDialogClosed() {
+    showImportDialog = false;
+  }
+
+  async function handleMediaImported() {
+    showImportDialog = false;
+    // Reload images and related data
+    await Promise.all([
+      loadImages(),
+      loadVideos()
+    ]);
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -293,6 +321,14 @@
       <button class="back-button au-btn au-btn-outline" on:click={goBack}>
         &larr; Back to Map
       </button>
+      <div class="action-buttons">
+        <button class="edit-button au-btn au-btn-primary" on:click={() => showEditForm = true}>
+          Edit Location
+        </button>
+        <button class="import-button au-btn au-btn-brown" on:click={() => showImportDialog = true}>
+          Import Media
+        </button>
+      </div>
     </header>
 
     <!-- Main Content -->
@@ -625,6 +661,111 @@
   </div>
 {/if}
 
+<!-- Edit Location Form -->
+<LocationForm
+  isOpen={showEditForm}
+  mode="edit"
+  location={location}
+  on:updated={handleLocationUpdated}
+  on:close={handleEditFormClosed}
+/>
+
+<!-- Import Media Dialog (placeholder for now) -->
+{#if showImportDialog}
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    on:click={handleImportDialogClosed}
+    on:keydown={(e) => e.key === 'Escape' && handleImportDialogClosed()}
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+    >
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Import Media</h2>
+        <button
+          on:click={handleImportDialogClosed}
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Close"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 class="font-semibold text-blue-900 mb-2">Import Workflow</h3>
+          <p class="text-sm text-blue-800 mb-3">
+            The import process follows these steps:
+          </p>
+          <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+            <li>Select source directory with media files</li>
+            <li>Import to staging (with SHA256 deduplication)</li>
+            <li>Extract metadata & categorize by hardware</li>
+            <li>Create organized folder structure</li>
+            <li>Move to archive</li>
+            <li>Verify integrity</li>
+          </ol>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Source Directory
+          </label>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              placeholder="/path/to/media"
+              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled
+            />
+            <button
+              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              disabled
+            >
+              Browse
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p class="text-sm text-yellow-800">
+            <strong>Note:</strong> Full import workflow integration coming soon. For now, use the Python scripts in
+            <code class="bg-yellow-100 px-1 py-0.5 rounded">archive/v0.1.0/scripts/</code>:
+          </p>
+          <ul class="text-sm text-yellow-800 mt-2 space-y-1 list-disc list-inside">
+            <li><code>db_import.py</code> - Import media to staging</li>
+            <li><code>db_organize.py</code> - Extract metadata</li>
+            <li><code>db_folder.py</code> - Create folders</li>
+            <li><code>db_ingest.py</code> - Move to archive</li>
+            <li><code>db_verify.py</code> - Verify integrity</li>
+          </ul>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button
+            on:click={handleImportDialogClosed}
+            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Close
+          </button>
+          <button
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
+            disabled
+          >
+            Start Import (Coming Soon)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   /* === LAYOUT === */
   .location-page {
@@ -710,6 +851,33 @@
 
   .back-button:hover {
     background: var(--au-accent-brown);
+    border-color: var(--au-accent-brown);
+  }
+
+  .action-buttons {
+    position: absolute;
+    top: var(--au-space-6);
+    right: var(--au-space-6);
+    z-index: 10;
+    display: flex;
+    gap: var(--au-space-3);
+  }
+
+  .edit-button,
+  .import-button {
+    background: rgba(0, 0, 0, 0.7);
+    border-color: var(--au-white);
+    color: var(--au-white);
+    backdrop-filter: blur(4px);
+  }
+
+  .edit-button:hover {
+    background: var(--au-accent-brown);
+    border-color: var(--au-accent-brown);
+  }
+
+  .import-button:hover {
+    background: rgba(185, 151, 92, 0.9);
     border-color: var(--au-accent-brown);
   }
 
@@ -1017,6 +1185,13 @@
     .back-button {
       top: var(--au-space-4);
       left: var(--au-space-4);
+    }
+
+    .action-buttons {
+      top: auto;
+      bottom: var(--au-space-4);
+      right: var(--au-space-4);
+      flex-direction: column;
     }
 
     .image-gallery {
