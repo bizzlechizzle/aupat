@@ -57,7 +57,26 @@ contextBridge.exposeInMainWorld('api', {
    * Import API
    */
   import: {
-    uploadFile: (fileData) => ipcRenderer.invoke('import:uploadFile', fileData)
+    uploadFile: (fileData) => ipcRenderer.invoke('import:uploadFile', fileData),
+    bulkImport: (data) => ipcRenderer.invoke('import:bulkImport', data),
+    getBatchStatus: (batchId) => ipcRenderer.invoke('import:getBatchStatus', batchId),
+    getBatchLogs: (batchId, filters) => ipcRenderer.invoke('import:getBatchLogs', batchId, filters),
+    listBatches: (filters) => ipcRenderer.invoke('import:listBatches', filters)
+  },
+
+  /**
+   * Dialog API
+   */
+  dialog: {
+    selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory')
+  },
+
+  /**
+   * Configuration API
+   */
+  config: {
+    get: () => ipcRenderer.invoke('config:get'),
+    update: (configData) => ipcRenderer.invoke('config:update', configData)
   },
 
   /**

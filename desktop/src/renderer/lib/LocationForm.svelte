@@ -44,17 +44,64 @@
   let authorOptions = [];
   let cityOptions = [];
 
-  // US States
+  // US States - comprehensive list for autocomplete
   const states = [
-    { code: 'ny', name: 'New York' },
-    { code: 'pa', name: 'Pennsylvania' },
-    { code: 'vt', name: 'Vermont' },
-    { code: 'ma', name: 'Massachusetts' },
+    { code: 'al', name: 'Alabama' },
+    { code: 'ak', name: 'Alaska' },
+    { code: 'az', name: 'Arizona' },
+    { code: 'ar', name: 'Arkansas' },
+    { code: 'ca', name: 'California' },
+    { code: 'co', name: 'Colorado' },
     { code: 'ct', name: 'Connecticut' },
-    { code: 'nj', name: 'New Jersey' },
+    { code: 'de', name: 'Delaware' },
+    { code: 'fl', name: 'Florida' },
+    { code: 'ga', name: 'Georgia' },
+    { code: 'hi', name: 'Hawaii' },
+    { code: 'id', name: 'Idaho' },
+    { code: 'il', name: 'Illinois' },
+    { code: 'in', name: 'Indiana' },
+    { code: 'ia', name: 'Iowa' },
+    { code: 'ks', name: 'Kansas' },
+    { code: 'ky', name: 'Kentucky' },
+    { code: 'la', name: 'Louisiana' },
     { code: 'me', name: 'Maine' },
+    { code: 'md', name: 'Maryland' },
+    { code: 'ma', name: 'Massachusetts' },
+    { code: 'mi', name: 'Michigan' },
+    { code: 'mn', name: 'Minnesota' },
+    { code: 'ms', name: 'Mississippi' },
+    { code: 'mo', name: 'Missouri' },
+    { code: 'mt', name: 'Montana' },
+    { code: 'ne', name: 'Nebraska' },
+    { code: 'nv', name: 'Nevada' },
     { code: 'nh', name: 'New Hampshire' },
-    { code: 'ri', name: 'Rhode Island' }
+    { code: 'nj', name: 'New Jersey' },
+    { code: 'nm', name: 'New Mexico' },
+    { code: 'ny', name: 'New York' },
+    { code: 'nc', name: 'North Carolina' },
+    { code: 'nd', name: 'North Dakota' },
+    { code: 'oh', name: 'Ohio' },
+    { code: 'ok', name: 'Oklahoma' },
+    { code: 'or', name: 'Oregon' },
+    { code: 'pa', name: 'Pennsylvania' },
+    { code: 'ri', name: 'Rhode Island' },
+    { code: 'sc', name: 'South Carolina' },
+    { code: 'sd', name: 'South Dakota' },
+    { code: 'tn', name: 'Tennessee' },
+    { code: 'tx', name: 'Texas' },
+    { code: 'ut', name: 'Utah' },
+    { code: 'vt', name: 'Vermont' },
+    { code: 'va', name: 'Virginia' },
+    { code: 'wa', name: 'Washington' },
+    { code: 'wv', name: 'West Virginia' },
+    { code: 'wi', name: 'Wisconsin' },
+    { code: 'wy', name: 'Wyoming' },
+    { code: 'dc', name: 'District of Columbia' },
+    { code: 'pr', name: 'Puerto Rico' },
+    { code: 'vi', name: 'US Virgin Islands' },
+    { code: 'gu', name: 'Guam' },
+    { code: 'as', name: 'American Samoa' },
+    { code: 'mp', name: 'Northern Mariana Islands' }
   ];
 
   // Location types
@@ -365,32 +412,59 @@
               <label for="state" class="block text-sm font-medium text-gray-700 mb-1">
                 State <span class="text-red-500">*</span>
               </label>
-              <select
+              <input
                 id="state"
+                type="text"
                 bind:value={formData.state}
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                list="state_datalist"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.state ? 'border-red-500' : ''}"
+                placeholder="e.g., ny, ca, tx"
+                maxlength="2"
                 required
-              >
+              />
+              <datalist id="state_datalist">
                 {#each states as state}
                   <option value={state.code}>{state.name}</option>
                 {/each}
-              </select>
+                {#each stateOptions as option}
+                  <option value={option.value}>{option.value} ({option.count})</option>
+                {/each}
+              </datalist>
+              <p class="mt-1 text-xs text-gray-500">
+                Enter 2-letter state code (e.g., ny, ca, tx) or type to search
+              </p>
+              {#if errors.state}
+                <p class="mt-1 text-sm text-red-600">{errors.state}</p>
+              {/if}
             </div>
 
             <div>
               <label for="type" class="block text-sm font-medium text-gray-700 mb-1">
                 Type <span class="text-red-500">*</span>
               </label>
-              <select
+              <input
                 id="type"
+                type="text"
                 bind:value={formData.type}
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                list="type_datalist"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {errors.type ? 'border-red-500' : ''}"
+                placeholder="e.g., industrial, residential"
                 required
-              >
+              />
+              <datalist id="type_datalist">
                 {#each types as type}
                   <option value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
                 {/each}
-              </select>
+                {#each typeOptions as option}
+                  <option value={option.value}>{option.value} ({option.count})</option>
+                {/each}
+              </datalist>
+              <p class="mt-1 text-xs text-gray-500">
+                Enter location type or select from suggestions
+              </p>
+              {#if errors.type}
+                <p class="mt-1 text-sm text-red-600">{errors.type}</p>
+              {/if}
             </div>
           </div>
 

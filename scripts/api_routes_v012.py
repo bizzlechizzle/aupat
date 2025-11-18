@@ -803,6 +803,472 @@ def import_file_to_location(loc_uuid):
                 logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
 
 
+@api_v012.route('/locations/<loc_uuid>/import/bulk', methods=['POST'])
+def bulk_import_media_to_location(loc_uuid):
+    """
+    Bulk import media from a source directory using archive scripts workflow.
+
+    This implements the EXACT workflow from archive/v0.1.0/scripts:
+    1. Backup database (backup.py)
+    2. Import to staging with SHA256 deduplication (db_import_v012.py)
+    3. Extract metadata & categorize by hardware (db_organize.py)
+    4. Create organized folder structure (db_folder.py)
+    5. Move to archive with hardlinks (db_ingest.py)
+    6. Verify integrity with SHA256 checks (db_verify.py)
+
+    Args:
+        loc_uuid: Location UUID
+
+    Request JSON:
+        {
+            "source_path": "/path/to/media/directory",
+            "author": "Optional import author name"
+        }
+
+    Returns:
+        JSON with import statistics and batch ID for tracking
+    """
+    import json
+    import subprocess
+    import sys
+    import os
+    import tempfile
+    from pathlib import Path
+    from scripts.import_helpers import (
+        load_user_config,
+        create_backup_for_import,
+        create_import_batch,
+        update_import_batch,
+        complete_import_batch
+    )
+
+    batch_id = None
+
+    try:
+        # Validate request
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        source_path = data.get('source_path', '').strip()
+        author = data.get('author', '').strip() or 'web-import'
+
+        if not source_path:
+            return jsonify({'error': 'source_path is required'}), 400
+
+        # Validate source directory exists
+        source_dir = Path(source_path)
+        if not source_dir.exists():
+            return jsonify({'error': f'Source directory not found: {source_path}'}), 404
+
+        if not source_dir.is_dir():
+            return jsonify({'error': f'Path is not a directory: {source_path}'}), 400
+
+        # Validate location exists
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        loc_row = cursor.fetchone()
+        if not loc_row:
+            conn.close()
+            return jsonify({'error': 'Location not found'}), 404
+
+        loc_name = loc_row[0]
+        conn.close()
+
+        logger.info(f"Starting 6-step bulk import for location {loc_uuid} ({loc_name})")
+        logger.info(f"Source: {source_path}")
+        logger.info(f"Author: {author}")
+
+        # Load user config
+        try:
+            user_config = load_user_config()
+        except Exception as e:
+            return jsonify({
+                'error': 'Configuration error',
+                'message': str(e)
+            }), 500
+
+        db_path = user_config.get('db_loc')
+        staging_dir = user_config.get('db_ingest')
+        archive_dir = user_config.get('arch_loc')
+
+        if not all([db_path, staging_dir, archive_dir]):
+            return jsonify({
+                'error': 'Configuration incomplete',
+                'message': 'user.json must specify db_loc, db_ingest, and arch_loc'
+            }), 500
+
+        # STEP 0: Create backup
+        logger.info("STEP 0: Creating database backup...")
+        backup_success, backup_path, backup_error = create_backup_for_import(user_config)
+
+        if not backup_success:
+            logger.warning(f"Backup failed: {backup_error}")
+            # Continue anyway - backup failure shouldn't block import
+
+        # STEP 1: Create import batch record
+        logger.info("STEP 1: Creating import batch record...")
+        batch_id = create_import_batch(db_path, loc_uuid, source_path, backup_path)
+        logger.info(f"Import batch created: {batch_id}")
+
+        # Prepare metadata for import scripts
+        metadata = {
+            'loc_uuid': loc_uuid,
+            'loc_name': loc_name,
+            'imp_author': author,
+            'batch_id': batch_id
+        }
+
+        # Create metadata file
+        metadata_fd, metadata_path = tempfile.mkstemp(suffix='.json', prefix='aupat_import_meta_')
+        config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+
+        try:
+            with os.fdopen(metadata_fd, 'w') as f:
+                json.dump(metadata, f)
+
+            scripts_dir = Path(__file__).parent
+            workflow_steps = [
+                ('STEP 2: Import to staging', 'db_import_v012.py', ['--source', str(source_path), '--metadata', metadata_path, '--config', str(config_path)]),
+                ('STEP 3: Organize and categorize', 'db_organize.py', ['--loc-uuid', loc_uuid, '--config', str(config_path)]),
+                ('STEP 4: Create archive folders', 'db_folder.py', ['--loc-uuid', loc_uuid, '--config', str(config_path)]),
+                ('STEP 5: Ingest to archive', 'db_ingest.py', ['--loc-uuid', loc_uuid, '--config', str(config_path)]),
+                ('STEP 6: Verify integrity', 'db_verify.py', ['--loc-uuid', loc_uuid, '--config', str(config_path)])
+            ]
+
+            workflow_results = []
+
+            for step_name, script_name, script_args in workflow_steps:
+                logger.info(f"{step_name}...")
+
+                script_path = scripts_dir / script_name
+                if not script_path.exists():
+                    logger.warning(f"Script not found: {script_path} - skipping")
+                    workflow_results.append({
+                        'step': step_name,
+                        'status': 'skipped',
+                        'reason': 'script not found'
+                    })
+                    continue
+
+                # Run the workflow step
+                result = subprocess.run(
+                    [sys.executable, str(script_path)] + script_args,
+                    capture_output=True,
+                    text=True,
+                    timeout=3600  # 1 hour timeout per step
+                )
+
+                if result.returncode == 0:
+                    logger.info(f"{step_name} completed successfully")
+                    workflow_results.append({
+                        'step': step_name,
+                        'status': 'success',
+                        'output': result.stdout[-500:] if len(result.stdout) > 500 else result.stdout
+                    })
+                else:
+                    logger.error(f"{step_name} failed")
+                    logger.error(f"STDERR: {result.stderr}")
+                    workflow_results.append({
+                        'step': step_name,
+                        'status': 'error',
+                        'error': result.stderr,
+                        'output': result.stdout
+                    })
+
+                    # Update batch with partial status
+                    error_log = f"{step_name} failed: {result.stderr}"
+                    complete_import_batch(db_path, batch_id, status='partial', error_log=error_log)
+
+                    return jsonify({
+                        'status': 'partial',
+                        'message': f'{step_name} failed - import partially completed',
+                        'batch_id': batch_id,
+                        'location_uuid': loc_uuid,
+                        'source_path': source_path,
+                        'backup_path': backup_path,
+                        'workflow_results': workflow_results
+                    }), 500
+
+            # All steps completed successfully
+            logger.info(f"All 6 workflow steps completed successfully for {loc_uuid}")
+            complete_import_batch(db_path, batch_id, status='completed')
+
+            return jsonify({
+                'status': 'success',
+                'message': 'All 6 workflow steps completed successfully',
+                'batch_id': batch_id,
+                'location_uuid': loc_uuid,
+                'source_path': source_path,
+                'backup_path': backup_path,
+                'workflow_results': workflow_results
+            }), 200
+
+        finally:
+            # Clean up metadata file
+            if os.path.exists(metadata_path):
+                try:
+                    os.unlink(metadata_path)
+                except Exception as e:
+                    logger.warning(f"Failed to clean up metadata file: {e}")
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Bulk import timed out after 1 hour for {loc_uuid}")
+        if batch_id:
+            from scripts.import_helpers import complete_import_batch
+            db_path = current_app.config.get('DB_PATH')
+            complete_import_batch(db_path, batch_id, status='failed', error_log='Import timed out after 1 hour')
+        return jsonify({
+            'status': 'error',
+            'message': 'Import timed out after 1 hour',
+            'batch_id': batch_id
+        }), 500
+
+    except Exception as e:
+        logger.error(f"Bulk import failed: {e}")
+        if batch_id:
+            from scripts.import_helpers import complete_import_batch
+            db_path = current_app.config.get('DB_PATH')
+            complete_import_batch(db_path, batch_id, status='failed', error_log=str(e))
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'batch_id': batch_id
+        }), 500
+
+
+@api_v012.route('/config', methods=['GET'])
+def get_config():
+    """
+    Get user configuration paths.
+
+    Returns:
+        JSON with configuration paths (staging, archive, backup)
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+
+        if not config_path.exists():
+            return jsonify({
+                'configured': False,
+                'message': 'user.json not found. Please create configuration file.',
+                'template_path': str(Path(__file__).parent.parent / 'user' / 'user.json.template')
+            }), 404
+
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+
+        return jsonify({
+            'configured': True,
+            'db_path': config.get('db_loc'),
+            'staging_path': config.get('db_ingest'),
+            'archive_path': config.get('arch_loc'),
+            'backup_path': config.get('db_backup')
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/config', methods=['PUT'])
+def update_config():
+    """
+    Update user configuration paths.
+
+    Request JSON:
+        {
+            "db_path": "/path/to/aupat.db",
+            "staging_path": "/path/to/staging",
+            "archive_path": "/path/to/archive",
+            "backup_path": "/path/to/backups"
+        }
+
+    Returns:
+        JSON with updated configuration
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+
+        # Load existing config
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        else:
+            config = {
+                'db_name': 'aupat.db'
+            }
+
+        # Update paths if provided
+        if 'db_path' in data:
+            config['db_loc'] = data['db_path']
+
+        if 'staging_path' in data:
+            config['db_ingest'] = data['staging_path']
+
+        if 'archive_path' in data:
+            config['arch_loc'] = data['archive_path']
+
+        if 'backup_path' in data:
+            config['db_backup'] = data['backup_path']
+
+        # Validate paths exist (create if they don't)
+        for key in ['db_ingest', 'arch_loc', 'db_backup']:
+            if key in config and config[key]:
+                path = Path(config[key])
+                if not path.exists():
+                    path.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created directory: {path}")
+
+        # Save updated config
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        logger.info(f"Configuration updated: {config_path}")
+
+        return jsonify({
+            'success': True,
+            'configured': True,
+            'db_path': config.get('db_loc'),
+            'staging_path': config.get('db_ingest'),
+            'archive_path': config.get('arch_loc'),
+            'backup_path': config.get('db_backup')
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to update config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/import/batches', methods=['GET'])
+def list_import_batches():
+    """
+    List all import batches with optional filtering.
+
+    Query parameters:
+        loc_uuid: Filter by location UUID
+        status: Filter by status (running/completed/failed/partial)
+        limit: Maximum number of results (default 50)
+        offset: Result offset for pagination (default 0)
+
+    Returns:
+        JSON with list of import batches
+    """
+    try:
+        loc_uuid = request.args.get('loc_uuid')
+        status = request.args.get('status')
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Build query with filters
+        query = "SELECT * FROM import_batches WHERE 1=1"
+        params = []
+
+        if loc_uuid:
+            query += " AND loc_uuid = ?"
+            params.append(loc_uuid)
+
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+
+        query += " ORDER BY batch_start DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        batches = [dict(row) for row in rows]
+        conn.close()
+
+        return jsonify({
+            'batches': batches,
+            'count': len(batches),
+            'limit': limit,
+            'offset': offset
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to list import batches: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/import/batches/<batch_id>', methods=['GET'])
+def get_import_batch_status(batch_id):
+    """
+    Get detailed status for a specific import batch.
+
+    Args:
+        batch_id: Import batch UUID
+
+    Returns:
+        JSON with batch details and statistics
+    """
+    from scripts.import_helpers import get_import_batch_status
+
+    try:
+        db_path = current_app.config.get('DB_PATH')
+        batch = get_import_batch_status(db_path, batch_id)
+
+        if not batch:
+            return jsonify({'error': 'Import batch not found'}), 404
+
+        return jsonify(batch), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get batch status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/import/batches/<batch_id>/logs', methods=['GET'])
+def get_import_batch_logs(batch_id):
+    """
+    Get import logs for a specific batch.
+
+    Args:
+        batch_id: Import batch UUID
+
+    Query parameters:
+        stage: Filter by stage (staging/organize/folder/ingest/verify)
+        status: Filter by status (success/failed/skipped/duplicate)
+
+    Returns:
+        JSON with list of import log entries
+    """
+    from scripts.import_helpers import get_import_log_for_batch
+
+    try:
+        db_path = current_app.config.get('DB_PATH')
+        stage = request.args.get('stage')
+        status = request.args.get('status')
+
+        logs = get_import_log_for_batch(db_path, batch_id, stage, status)
+
+        return jsonify({
+            'batch_id': batch_id,
+            'logs': logs,
+            'count': len(logs)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get batch logs: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @api_v012.route('/locations', methods=['GET', 'POST'])
 def locations_list_create():
     """

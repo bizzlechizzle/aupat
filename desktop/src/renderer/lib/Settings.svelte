@@ -18,16 +18,37 @@
     mapZoom: 10
   };
 
+  let archiveConfig = {
+    configured: false,
+    db_path: '',
+    staging_path: '',
+    archive_path: '',
+    backup_path: ''
+  };
+
   let saveStatus = null; // null, 'saving', 'success', 'error'
+  let configSaveStatus = null; // null, 'saving', 'success', 'error'
   let showMapImport = false;
 
   onMount(async () => {
     await settings.load();
+    await loadArchiveConfig();
   });
 
   settings.subscribe(s => {
     currentSettings = { ...s };
   });
+
+  async function loadArchiveConfig() {
+    try {
+      const result = await window.api.config.get();
+      if (result.success) {
+        archiveConfig = { ...result.data };
+      }
+    } catch (error) {
+      console.error('Failed to load archive config:', error);
+    }
+  }
 
   async function handleSave(key, value) {
     try {
@@ -61,6 +82,44 @@
     // Refresh locations if in full import mode
     if (mode === 'full' && count > 0) {
       locations.fetchAll();
+    }
+  }
+
+  async function handleBrowseDirectory(field) {
+    try {
+      const result = await window.api.dialog.selectDirectory();
+
+      if (result.success && result.path) {
+        archiveConfig[field] = result.path;
+      }
+    } catch (error) {
+      console.error('Failed to browse directory:', error);
+    }
+  }
+
+  async function handleSaveArchiveConfig() {
+    try {
+      configSaveStatus = 'saving';
+
+      const result = await window.api.config.update({
+        db_path: archiveConfig.db_path,
+        staging_path: archiveConfig.staging_path,
+        archive_path: archiveConfig.archive_path,
+        backup_path: archiveConfig.backup_path
+      });
+
+      if (result.success) {
+        archiveConfig = { ...result.data };
+        configSaveStatus = 'success';
+        setTimeout(() => { configSaveStatus = null; }, 2000);
+      } else {
+        configSaveStatus = 'error';
+        setTimeout(() => { configSaveStatus = null; }, 3000);
+      }
+    } catch (error) {
+      console.error('Failed to save archive config:', error);
+      configSaveStatus = 'error';
+      setTimeout(() => { configSaveStatus = null; }, 3000);
     }
   }
 </script>
@@ -168,6 +227,124 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+      </div>
+    </div>
+
+    <!-- Archive Paths Configuration -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Archive Paths</h3>
+      <p class="text-sm text-gray-600 mb-4">
+        Configure where media files are staged, archived, and backed up during the import workflow.
+      </p>
+
+      <div class="space-y-4">
+        <!-- Database Path -->
+        <div>
+          <label for="dbPath" class="block text-sm font-medium text-gray-700 mb-1">
+            Database Path
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="dbPath"
+              type="text"
+              bind:value={archiveConfig.db_path}
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              placeholder="/home/user/aupat/data/aupat.db"
+            />
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Path to SQLite database file</p>
+        </div>
+
+        <!-- Staging Path -->
+        <div>
+          <label for="stagingPath" class="block text-sm font-medium text-gray-700 mb-1">
+            Staging Directory
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="stagingPath"
+              type="text"
+              bind:value={archiveConfig.staging_path}
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              placeholder="/home/user/aupat/data/ingest"
+            />
+            <button
+              type="button"
+              on:click={() => handleBrowseDirectory('staging_path')}
+              class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Browse
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Temporary staging area for imports (STEP 2)</p>
+        </div>
+
+        <!-- Archive Path -->
+        <div>
+          <label for="archivePath" class="block text-sm font-medium text-gray-700 mb-1">
+            Archive Directory
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="archivePath"
+              type="text"
+              bind:value={archiveConfig.archive_path}
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              placeholder="/home/user/aupat/data/archive"
+            />
+            <button
+              type="button"
+              on:click={() => handleBrowseDirectory('archive_path')}
+              class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Browse
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Final archive location (STEP 5)</p>
+        </div>
+
+        <!-- Backup Path -->
+        <div>
+          <label for="backupPath" class="block text-sm font-medium text-gray-700 mb-1">
+            Backup Directory
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="backupPath"
+              type="text"
+              bind:value={archiveConfig.backup_path}
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              placeholder="/home/user/aupat/data/backups"
+            />
+            <button
+              type="button"
+              on:click={() => handleBrowseDirectory('backup_path')}
+              class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Browse
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Database backups before imports (STEP 0)</p>
+        </div>
+      </div>
+
+      <!-- Save Archive Config Button -->
+      <div class="flex items-center gap-4 mt-6 pt-4 border-t border-gray-200">
+        <button
+          type="button"
+          on:click={handleSaveArchiveConfig}
+          class="px-6 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:ring-offset-2"
+        >
+          Save Archive Paths
+        </button>
+
+        {#if configSaveStatus === 'saving'}
+          <span class="text-sm text-gray-600">Saving...</span>
+        {:else if configSaveStatus === 'success'}
+          <span class="text-sm text-green-600">Archive paths saved successfully</span>
+        {:else if configSaveStatus === 'error'}
+          <span class="text-sm text-red-600">Failed to save archive paths</span>
+        {/if}
       </div>
     </div>
 

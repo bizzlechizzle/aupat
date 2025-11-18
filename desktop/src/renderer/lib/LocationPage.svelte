@@ -17,10 +17,21 @@
 
   import { onMount, createEventDispatcher } from 'svelte';
   import { marked } from 'marked';
+  import LocationForm from './LocationForm.svelte';
 
   export let locationUuid;
 
   const dispatch = createEventDispatcher();
+
+  // Edit/Import state
+  let showEditForm = false;
+  let showImportDialog = false;
+  let importSourcePath = '';
+  let importInProgress = false;
+  let importError = null;
+  let importBatchId = null;
+  let importWorkflowResults = [];
+  let importCompleted = false;
 
   // State
   let location = null;
@@ -261,6 +272,103 @@
       default: return 'Location Data';
     }
   }
+
+  async function handleLocationUpdated(event) {
+    showEditForm = false;
+    // Reload location data to show updated information
+    await loadLocationData();
+  }
+
+  function handleEditFormClosed() {
+    showEditForm = false;
+  }
+
+  function handleImportDialogClosed() {
+    // Reset import state when closing
+    showImportDialog = false;
+    importSourcePath = '';
+    importInProgress = false;
+    importError = null;
+    importBatchId = null;
+    importWorkflowResults = [];
+    importCompleted = false;
+  }
+
+  async function handleBrowseDirectory() {
+    try {
+      const result = await window.api.dialog.selectDirectory();
+
+      if (result.success && result.path) {
+        importSourcePath = result.path;
+        importError = null;
+      } else if (!result.canceled) {
+        importError = result.error || 'Failed to select directory';
+      }
+    } catch (err) {
+      console.error('Failed to browse directory:', err);
+      importError = err.message || 'Failed to open directory picker';
+    }
+  }
+
+  async function handleStartImport() {
+    if (!importSourcePath) {
+      importError = 'Please select a source directory';
+      return;
+    }
+
+    importInProgress = true;
+    importError = null;
+    importWorkflowResults = [];
+    importCompleted = false;
+
+    try {
+      const result = await window.api.import.bulkImport({
+        locationId: locationUuid,
+        sourcePath: importSourcePath,
+        author: 'desktop-app'
+      });
+
+      if (result.success) {
+        importBatchId = result.data.batch_id;
+        importWorkflowResults = result.data.workflow_results || [];
+        importCompleted = true;
+
+        // Reload images and videos to show newly imported media
+        await Promise.all([
+          loadImages(),
+          loadVideos()
+        ]);
+      } else {
+        importError = result.error || 'Import failed';
+      }
+    } catch (err) {
+      console.error('Import failed:', err);
+      importError = err.message || 'Import failed';
+    } finally {
+      importInProgress = false;
+    }
+  }
+
+  function getStepStatus(stepName) {
+    const result = importWorkflowResults.find(r => r.step === stepName);
+    return result?.status || 'pending';
+  }
+
+  function getStepIcon(stepName) {
+    const status = getStepStatus(stepName);
+    if (status === 'success') return '✓';
+    if (status === 'error') return '✗';
+    if (status === 'skipped') return '○';
+    return '○';
+  }
+
+  function getStepClass(stepName) {
+    const status = getStepStatus(stepName);
+    if (status === 'success') return 'text-green-600';
+    if (status === 'error') return 'text-red-600';
+    if (status === 'skipped') return 'text-gray-400';
+    return 'text-gray-400';
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -293,6 +401,14 @@
       <button class="back-button au-btn au-btn-outline" on:click={goBack}>
         &larr; Back to Map
       </button>
+      <div class="action-buttons">
+        <button class="edit-button au-btn au-btn-primary" on:click={() => showEditForm = true}>
+          Edit Location
+        </button>
+        <button class="import-button au-btn au-btn-brown" on:click={() => showImportDialog = true}>
+          Import Media
+        </button>
+      </div>
     </header>
 
     <!-- Main Content -->
@@ -625,6 +741,168 @@
   </div>
 {/if}
 
+<!-- Edit Location Form -->
+<LocationForm
+  isOpen={showEditForm}
+  mode="edit"
+  location={location}
+  on:updated={handleLocationUpdated}
+  on:close={handleEditFormClosed}
+/>
+
+<!-- Import Media Dialog (placeholder for now) -->
+{#if showImportDialog}
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    on:click={handleImportDialogClosed}
+    on:keydown={(e) => e.key === 'Escape' && handleImportDialogClosed()}
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+    >
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Import Media</h2>
+        <button
+          on:click={handleImportDialogClosed}
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Close"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Directory Selection -->
+        {#if !importCompleted}
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Source Directory
+            </label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                bind:value={importSourcePath}
+                placeholder="/path/to/media"
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={importInProgress}
+              />
+              <button
+                on:click={handleBrowseDirectory}
+                class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-400"
+                disabled={importInProgress}
+              >
+                Browse
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Workflow Steps Progress -->
+        {#if importInProgress || importCompleted}
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h3 class="font-semibold text-gray-900 mb-3">Import Workflow Progress</h3>
+            <div class="space-y-2">
+              {#each [
+                'STEP 2: Import to staging',
+                'STEP 3: Organize and categorize',
+                'STEP 4: Create archive folders',
+                'STEP 5: Ingest to archive',
+                'STEP 6: Verify integrity'
+              ] as step}
+                <div class="flex items-center gap-2">
+                  <span class="{getStepClass(step)} font-bold text-lg w-6">
+                    {getStepIcon(step)}
+                  </span>
+                  <span class="text-sm {getStepClass(step)}">
+                    {step}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Success Message -->
+        {#if importCompleted && !importError}
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <span class="text-green-600 text-xl">✓</span>
+              <div class="flex-1">
+                <h3 class="font-semibold text-green-900 mb-1">Import Completed Successfully</h3>
+                <p class="text-sm text-green-800">
+                  All 6 workflow steps completed. Media files have been imported, organized, and archived.
+                </p>
+                {#if importBatchId}
+                  <p class="text-xs text-green-700 mt-2 font-mono">
+                    Batch ID: {importBatchId}
+                  </p>
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Error Message -->
+        {#if importError}
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <span class="text-red-600 text-xl">✗</span>
+              <div class="flex-1">
+                <h3 class="font-semibold text-red-900 mb-1">Import Failed</h3>
+                <p class="text-sm text-red-800">{importError}</p>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Info Box -->
+        {#if !importInProgress && !importCompleted}
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="font-semibold text-blue-900 mb-2">6-Step Archive Workflow</h3>
+            <p class="text-sm text-blue-800 mb-3">
+              This import process follows the exact workflow from the archive scripts:
+            </p>
+            <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Database backup</li>
+              <li>Import to staging (SHA256 deduplication)</li>
+              <li>Extract EXIF & categorize hardware (phone/DSLR/drone)</li>
+              <li>Create archive folder structure</li>
+              <li>Hardlink staging → archive</li>
+              <li>Verify SHA256 integrity</li>
+            </ol>
+          </div>
+        {/if}
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button
+            on:click={handleImportDialogClosed}
+            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:bg-gray-200"
+            disabled={importInProgress}
+          >
+            {importCompleted ? 'Close' : 'Cancel'}
+          </button>
+          {#if !importCompleted}
+            <button
+              on:click={handleStartImport}
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
+              disabled={importInProgress || !importSourcePath}
+            >
+              {importInProgress ? 'Importing...' : 'Start Import'}
+            </button>
+          {/if}
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   /* === LAYOUT === */
   .location-page {
@@ -710,6 +988,33 @@
 
   .back-button:hover {
     background: var(--au-accent-brown);
+    border-color: var(--au-accent-brown);
+  }
+
+  .action-buttons {
+    position: absolute;
+    top: var(--au-space-6);
+    right: var(--au-space-6);
+    z-index: 10;
+    display: flex;
+    gap: var(--au-space-3);
+  }
+
+  .edit-button,
+  .import-button {
+    background: rgba(0, 0, 0, 0.7);
+    border-color: var(--au-white);
+    color: var(--au-white);
+    backdrop-filter: blur(4px);
+  }
+
+  .edit-button:hover {
+    background: var(--au-accent-brown);
+    border-color: var(--au-accent-brown);
+  }
+
+  .import-button:hover {
+    background: rgba(185, 151, 92, 0.9);
     border-color: var(--au-accent-brown);
   }
 
@@ -1017,6 +1322,13 @@
     .back-button {
       top: var(--au-space-4);
       left: var(--au-space-4);
+    }
+
+    .action-buttons {
+      top: auto;
+      bottom: var(--au-space-4);
+      right: var(--au-space-4);
+      flex-direction: column;
     }
 
     .image-gallery {
