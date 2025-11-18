@@ -35,7 +35,10 @@ export function initAutoUpdater(mainWindow) {
   autoUpdater.autoInstallOnAppQuit = false;
 
   log.info('Auto-updater initialized');
-  log.info(`Current version: ${autoUpdater.currentVersion.version}`);
+
+  // Get version safely (currentVersion may be undefined in dev/unsigned builds)
+  const currentVersion = autoUpdater.currentVersion?.version || require('../../../package.json').version;
+  log.info(`Current version: ${currentVersion}`);
 
   // Check for updates every 4 hours
   setInterval(() => {
@@ -180,10 +183,11 @@ export function registerUpdateHandlers(ipcMain) {
    * Get current version info
    */
   ipcMain.handle('update:version', async () => {
+    const packageVersion = require('../../../package.json').version;
     return {
       success: true,
-      currentVersion: autoUpdater.currentVersion.version,
-      appVersion: require('../../../package.json').version
+      currentVersion: autoUpdater.currentVersion?.version || packageVersion,
+      appVersion: packageVersion
     };
   });
 

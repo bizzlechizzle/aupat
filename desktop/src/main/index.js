@@ -762,9 +762,13 @@ app.whenReady().then(async () => {
 
   createWindow();
 
-  // Initialize auto-updater
-  initAutoUpdater(mainWindow);
-  registerUpdateHandlers(ipcMain);
+  // Initialize auto-updater (production only - requires signed builds)
+  if (app.isPackaged) {
+    initAutoUpdater(mainWindow);
+    registerUpdateHandlers(ipcMain);
+  } else {
+    log.info('Auto-updater disabled in development mode');
+  }
 
   app.on('activate', function () {
     // On macOS re-create window when dock icon is clicked
