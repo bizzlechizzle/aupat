@@ -33,8 +33,13 @@ source venv/bin/activate
 
 ### Starting the App
 
+**NEW: Unified Launch Script** (Recommended)
+
 ```bash
-# Start both backend and frontend
+# Start development environment (API + Desktop)
+./launch.sh --dev
+
+# Or use legacy script
 ./start_aupat.sh
 ```
 
@@ -42,6 +47,16 @@ The app will automatically:
 - Start the Flask API server on port 5002
 - Launch the Electron desktop app
 - Open the map interface
+
+**Other launch options:**
+```bash
+./launch.sh --api      # API server only
+./launch.sh --docker   # Full stack with Docker
+./launch.sh --status   # Check running services
+./launch.sh --stop     # Stop all services
+./launch.sh --health   # Run health checks
+./launch.sh --help     # Show all options
+```
 
 ### Updating After Git Pull
 
@@ -463,12 +478,25 @@ curl http://localhost:5002/api/health
 
 ## Documentation
 
-- `UPDATE_WORKFLOW.md` - How to update after git pull
+### Core Documentation (Start Here)
+- **`README.md`** - This file - project overview and quick start
+- **`claude.md`** - Development rules and 10-step process (READ THIS FIRST for development)
+- **`techguide.md`** - Complete technical reference and architecture
+- **`lilbits.md`** - All scripts documented with examples
+- **`todo.md`** - Current tasks, gaps, and roadmap
+
+### Additional Documentation
 - `QUICKSTART.md` - Quick reference guide
+- `UPDATE_WORKFLOW.md` - How to update after git pull
 - `BRANDING_PLAN.md` - Visual identity and design system
 - `IMPLEMENTATION_STATUS.md` - Feature status tracker
 - `REVAMP_PLAN.md` - UI redesign specifications
 - `BROWSER_INTEGRATION_WWYDD.md` - Browser bookmarks integration
+
+### Technical Documentation
+- `docs/dependency_map.md` - Complete file dependency analysis
+- `CODEBASE_AUDIT_COMPLETE.md` - Comprehensive codebase audit
+- `docs/v0.1.2/` - Versioned documentation (18 files)
 
 ---
 
