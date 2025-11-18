@@ -18,11 +18,26 @@ echo "Abandoned Upstate Icon Generator"
 echo "=================================="
 echo ""
 
+# Verify we're in the desktop directory
+if [ ! -f "package.json" ] || ! grep -q '"name": "abandoned-upstate"' package.json 2>/dev/null; then
+    echo "ERROR: This script must be run from the desktop/ directory"
+    echo ""
+    echo "Usage:"
+    echo "  cd desktop"
+    echo "  ./generate-icons.sh"
+    echo ""
+    exit 1
+fi
+
 # Check if source image exists
 SOURCE_IMAGE="../Abandoned Upstate.png"
 if [ ! -f "$SOURCE_IMAGE" ]; then
     echo "ERROR: Source image not found: $SOURCE_IMAGE"
     echo "Please ensure 'Abandoned Upstate.png' exists in the project root."
+    echo ""
+    echo "Current working directory: $(pwd)"
+    echo "Expected image path: $(cd .. && pwd)/Abandoned Upstate.png"
+    echo ""
     exit 1
 fi
 
