@@ -1,24 +1,8 @@
-# AUPAT v0.1.2
+# Abandoned Upstate
 
-**Abandoned Upstate Project Archive Tool**
+**Digital archive for abandoned and historical locations across Upstate New York**
 
-Digital asset management system for location-based media archives with Immich photo storage and ArchiveBox web archiving integration.
-
-**Current Version**: v0.1.2 (Microservices Architecture)
-
----
-
-## What It Does
-
-AUPAT organizes photos, videos, and web content by geographic location with automatic metadata extraction, hardware categorization, and external service integration.
-
-**v0.1.2 Architecture**:
-- Docker Compose orchestration (6 services)
-- Immich for photo storage and facial recognition
-- ArchiveBox for web page archiving
-- REST API for desktop/mobile app integration
-- GPS coordinate extraction and map visualization
-- Bulletproof data integrity with SHA256 deduplication
+A desktop application for documenting, organizing, and exploring abandoned places through photos, maps, and rich metadata.
 
 ---
 
@@ -27,212 +11,255 @@ AUPAT organizes photos, videos, and web content by geographic location with auto
 ### Prerequisites
 
 - macOS or Linux
-- Docker Desktop (for macOS) or Docker Engine (for Linux)
-- 4GB+ RAM recommended
+- Python 3.8+
+- Node.js 16+ and npm
+- 4GB+ RAM
 - 10GB+ free disk space
 
 ### Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/aupat.git
+git clone https://github.com/bizzlechizzle/aupat.git
 cd aupat
 
-# Run install script (macOS or Linux)
+# Run installation script
 chmod +x install.sh
 ./install.sh
 
 # Activate virtual environment
 source venv/bin/activate
-
-# Configure environment (copy and edit .env.example)
-cp .env.example .env
-# Edit .env with your settings
-
-# Start services
-docker-compose up -d
-
-# Run database migration
-python scripts/db_migrate_v012.py
-
-# Check service health
-curl http://localhost:5000/api/health
 ```
 
-### First Import
+### Starting the App
 
 ```bash
-# Import a location with photos
-python scripts/db_import_v012.py
-
-# Check map markers
-curl http://localhost:5000/api/map/markers
-
-# View in Immich
-open http://localhost:2283
+# Start both backend and frontend
+./start_aupat.sh
 ```
 
----
+The app will automatically:
+- Start the Flask API server on port 5002
+- Launch the Electron desktop app
+- Open the map interface
 
-## Architecture
+### Updating After Git Pull
 
-### Service Stack
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| AUPAT Core | 5000 | Flask REST API |
-| Immich Server | 2283 | Photo storage and ML |
-| Immich ML | - | Facial recognition, object detection |
-| PostgreSQL | 5432 | Immich database |
-| Redis | 6379 | Immich cache |
-| ArchiveBox | 8001 | Web archiving |
-
-### Directory Structure
-
-```
-aupat/
-├── scripts/                # v0.1.2 Python modules
-│   ├── adapters/           # Service adapters (Immich, ArchiveBox)
-│   ├── db_migrate_v012.py  # Database migration
-│   ├── db_import_v012.py   # Import pipeline
-│   ├── api_routes_v012.py  # REST API endpoints
-│   └── immich_integration.py  # Immich upload + GPS extraction
-├── tests/                  # Comprehensive test suite
-├── docs/v0.1.2/            # Complete documentation
-├── data/                   # JSON configuration files
-├── user/                   # User configuration (gitignored)
-├── docker-compose.yml      # Service orchestration
-├── Dockerfile              # AUPAT Core container
-├── requirements.txt        # Python dependencies
-└── archive/                # Historical versions (v0.1.0)
-```
-
----
-
-## API Endpoints
-
-### Health Check
+**Important**: After pulling updates, always run:
 
 ```bash
-GET /api/health
-GET /api/health/services
+# Quick way (recommended)
+./update_and_start.sh
+
+# Manual way
+cd desktop && npm install && cd ..
+./start_aupat.sh
 ```
 
-### Map Data
-
-```bash
-# Get all locations with GPS coordinates
-GET /api/map/markers?limit=1000
-
-# Filter by bounding box
-GET /api/map/markers?bounds=minLat,minLon,maxLat,maxLon
-```
-
-### Location Details
-
-```bash
-# Get location with media counts
-GET /api/locations/{loc_uuid}
-
-# Get images for location
-GET /api/locations/{loc_uuid}/images?limit=100&offset=0
-
-# Get videos for location
-GET /api/locations/{loc_uuid}/videos
-
-# Get archived URLs
-GET /api/locations/{loc_uuid}/archives
-```
-
-### Search
-
-```bash
-# Search locations by name, state, or type
-GET /api/search?q=hospital&state=ny&type=hospital&limit=50
-```
+See `UPDATE_WORKFLOW.md` for detailed update instructions.
 
 ---
 
 ## Features
 
-### Phase 1 (Current)
+### Core Features
 
-- **Docker Compose orchestration** - 6-service stack with health checks
-- **Immich integration** - Photo upload, GPS extraction, thumbnail URLs
-- **ArchiveBox integration** - Web page archiving with media extraction
-- **REST API** - 10+ endpoints for desktop app
-- **Database migration** - v0.1.2 schema with GPS, addresses, service IDs
-- **Comprehensive testing** - 72 test cases with 88% coverage
-- **Graceful degradation** - Works even if Immich/ArchiveBox unavailable
+- **Interactive Map** - Leaflet-based map showing all documented locations
+- **Location Pages** - Blog-style dedicated pages for each location with rich content
+- **Photo Management** - Import, organize, and view photos with EXIF data extraction
+- **Metadata Tracking** - GPS coordinates, addresses, location types, visit dates
+- **Import Tools** - CSV, GeoJSON import support (KML/KMZ planned)
+- **Search & Filter** - Find locations by name, type, state, city, or author
 
-### Future Phases
+### Desktop App
 
-- **Phase 2**: Desktop app with map interface (Electron + React)
-- **Phase 3**: Enhanced Dockerization with automated backups
-- **Phase 4**: Mobile app with offline mode
+Built with Electron + Svelte + Vite for a modern, responsive interface:
+
+- **Map View** - Interactive map with location markers and clustering
+- **Locations List** - Sortable, filterable table of all locations
+- **Location Pages** - Dedicated view for each location with:
+  - Photo galleries with lightbox
+  - Rich metadata display
+  - Clickable hyperlinks
+  - Markdown support for descriptions
+  - Navigation between related locations
+- **Import** - Drag-and-drop map file import
+- **Settings** - Configure API URLs, map defaults, and preferences
+
+### Backend API
+
+Flask-based REST API with SQLite database:
+
+- **Locations API** - CRUD operations for locations
+- **Images API** - Photo upload, metadata, thumbnails
+- **Map API** - GeoJSON markers with clustering support
+- **Search API** - Full-text search across locations
+- **Archives API** - Archived URL management (ArchiveBox integration)
+- **Bookmarks API** - Browser bookmark integration (backend only, UI pending)
 
 ---
 
-## Configuration
+## Architecture
 
-### Environment Variables (.env)
+### Technology Stack
+
+**Frontend (Desktop App)**
+- Electron 28+
+- Svelte 4
+- Vite 5
+- Leaflet (maps)
+- Marked (markdown rendering)
+- TailwindCSS (styling)
+
+**Backend (API Server)**
+- Python 3.8+
+- Flask 3.0
+- SQLite 3
+- PIL/Pillow (image processing)
+- ExifTool integration (GPS extraction)
+
+**Optional Integrations**
+- Immich (photo management)
+- ArchiveBox (web archiving)
+
+### Project Structure
+
+```
+aupat/
+├── desktop/                    # Electron desktop app
+│   ├── src/
+│   │   ├── main/              # Electron main process
+│   │   ├── renderer/          # Svelte frontend
+│   │   │   ├── lib/           # Svelte components
+│   │   │   ├── stores/        # State management
+│   │   │   ├── styles/        # CSS and themes
+│   │   │   └── assets/        # Images, icons
+│   │   └── preload/           # IPC bridge
+│   └── package.json
+├── scripts/                    # Backend Python modules
+│   ├── api_routes_v012.py     # Main API routes
+│   ├── api_routes_bookmarks.py # Browser bookmarks API
+│   ├── immich_integration.py  # Immich adapter
+│   ├── archivebox_adapter.py  # ArchiveBox adapter
+│   └── migrations/            # Database migrations
+├── data/                      # SQLite database
+├── tests/                     # Test suite
+├── app.py                     # Flask application
+├── start_aupat.sh            # Startup script
+├── update_and_start.sh       # Update helper
+└── README.md                  # This file
+```
+
+---
+
+## API Reference
+
+### Base URL
+
+```
+http://localhost:5002/api
+```
+
+### Health Check
 
 ```bash
-# Immich Configuration
-IMMICH_URL=http://immich-server:3001
-IMMICH_API_KEY=your-api-key-here
-
-# ArchiveBox Configuration
-ARCHIVEBOX_URL=http://archivebox:8000
-ARCHIVEBOX_USERNAME=admin
-ARCHIVEBOX_PASSWORD=your-password-here
-
-# Database Configuration
-DB_PATH=/app/data/aupat.db
+GET /api/health
 ```
 
-### User Configuration (user/user.json)
+### Locations
 
-```json
-{
-  "db_name": "aupat.db",
-  "db_loc": "/path/to/aupat/data/aupat.db",
-  "db_backup": "/path/to/aupat/data/backups/",
-  "db_ingest": "/path/to/aupat/data/ingest/",
-  "arch_loc": "/path/to/aupat/data/archive/"
-}
+```bash
+# List all locations
+GET /api/locations
+
+# Get specific location
+GET /api/locations/{uuid}
+
+# Create location
+POST /api/locations
+
+# Update location
+PUT /api/locations/{uuid}
+
+# Delete location
+DELETE /api/locations/{uuid}
 ```
 
-**Note**: Created automatically by `install.sh` with absolute paths.
+### Images
+
+```bash
+# Get images for location
+GET /api/locations/{uuid}/images?limit=50&offset=0
+
+# Upload image
+POST /api/locations/{uuid}/import
+
+# Get image file
+GET /api/images/{uuid}/file
+```
+
+### Map Data
+
+```bash
+# Get map markers (GeoJSON)
+GET /api/map/markers?limit=1000
+```
+
+### Search
+
+```bash
+# Search locations
+GET /api/search?q=hospital&state=ny&type=abandoned
+```
+
+### Autocomplete
+
+```bash
+# Get autocomplete suggestions
+GET /api/locations/autocomplete/type
+GET /api/locations/autocomplete/state
+GET /api/locations/autocomplete/city
+GET /api/locations/autocomplete/sub_type?type=industrial
+```
 
 ---
 
-## Database Schema (v0.1.2)
+## Database Schema
 
-### Enhanced Tables
+### Core Tables
 
-**locations**
-- Added: `lat`, `lon`, `gps_source`, `gps_confidence`
-- Added: `street_address`, `city`, `state_abbrev`, `zip_code`, `country`, `address_source`
+**locations** - Main location records
+- `loc_uuid` - Unique identifier
+- `loc_name` - Location name
+- `aka_name` - Alternate names
+- `type` - Location type (industrial, commercial, residential, etc.)
+- `sub_type` - Subcategory
+- `state`, `city`, `street_address`, `zip_code` - Address
+- `lat`, `lon` - GPS coordinates
+- `gps_source` - How coordinates were obtained
+- `imp_author` - Who added the location
+- `loc_add`, `loc_update` - Timestamps
 
-**images**
-- Added: `immich_asset_id` (unique)
-- Added: `img_width`, `img_height`, `img_size_bytes`
-- Added: `gps_lat`, `gps_lon` (per-image GPS)
+**images** - Photo metadata
+- `img_uuid` - Unique identifier
+- `loc_uuid` - Associated location
+- `img_fn` - Original filename
+- `img_loc` - File path
+- `img_sha256` - Content hash (deduplication)
+- `img_width`, `img_height`, `img_size_bytes` - Dimensions
+- `gps_lat`, `gps_lon` - Per-image GPS
+- `immich_asset_id` - Immich integration
 
-**videos**
-- Added: `immich_asset_id` (unique)
-- Added: `vid_width`, `vid_height`, `vid_duration_sec`, `vid_size_bytes`
-- Added: `gps_lat`, `gps_lon` (per-video GPS)
+**urls** - Archived web pages
+- `url_uuid` - Unique identifier
+- `loc_uuid` - Associated location
+- `url_title` - Page title
+- `url_link` - URL
+- `archivebox_snapshot_id` - ArchiveBox integration
 
-**urls**
-- Added: `archivebox_snapshot_id`
-- Added: `archive_status`, `archive_date`, `media_extracted`
-
-### New Tables
-
-**google_maps_exports** - Track Google Maps imports
-**sync_log** - Mobile sync tracking (Phase 4)
+**bookmarks** - Browser bookmarks (backend only)
+- Integration with Chrome/Firefox/Safari bookmarks
+- Auto-associate bookmarks with locations
 
 ---
 
@@ -248,150 +275,212 @@ source venv/bin/activate
 pytest -v
 
 # Run with coverage
-pytest -v --cov=scripts --cov-report=term-missing
+pytest --cov=scripts --cov-report=term-missing
 
 # Run specific test file
-pytest tests/test_adapters.py -v
-
-# Run Docker integration tests (requires docker-compose up)
-pytest -v -m requires_docker
+pytest tests/test_api_routes.py -v
 ```
 
-### Code Quality
+### Frontend Development
 
 ```bash
-# Type checking (if mypy installed)
-mypy scripts/
+cd desktop
 
-# Linting (if ruff installed)
-ruff check scripts/
+# Install dependencies
+npm install
 
-# Format code (if black installed)
-black scripts/ tests/
+# Run dev server (hot reload)
+npm run dev
+
+# Build for production
+npm run build
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
 ```
 
-### Database Migration
+### Backend Development
 
 ```bash
-# Run v0.1.2 migration
+# Activate virtual environment
+source venv/bin/activate
+
+# Run Flask in debug mode
+FLASK_ENV=development python app.py
+
+# Run database migration
 python scripts/db_migrate_v012.py
 
-# Migration creates backup automatically
-# Idempotent: safe to run multiple times
+# Run import script
+python scripts/db_import_v012.py
 ```
+
+---
+
+## Configuration
+
+### Database Location
+
+Default: `data/aupat.db`
+
+Override with environment variable:
+```bash
+export DB_PATH=/custom/path/aupat.db
+```
+
+### API Settings
+
+Configure in the desktop app Settings page:
+- AUPAT Core API URL (default: `http://localhost:5002`)
+- Immich API URL
+- ArchiveBox API URL
+- Map defaults (center coordinates, zoom level)
+
+### Optional: Immich Integration
+
+For advanced photo management:
+
+```bash
+# Set Immich URL and API key
+IMMICH_URL=http://localhost:2283
+IMMICH_API_KEY=your-api-key-here
+```
+
+Features:
+- Automatic photo upload to Immich
+- GPS coordinate extraction from EXIF
+- Thumbnail generation
+- Duplicate detection
+
+### Optional: ArchiveBox Integration
+
+For web page archiving:
+
+```bash
+# Set ArchiveBox URL and credentials
+ARCHIVEBOX_URL=http://localhost:8000
+ARCHIVEBOX_USERNAME=admin
+ARCHIVEBOX_PASSWORD=your-password
+```
+
+---
+
+## Branding
+
+**Visual Identity**: Inspired by the original [abandonedupstate.com](https://abandonedupstate.com) aesthetic
+
+- **Colors**: Cream background, dark gray text, warm brown accents
+- **Typography**: Roboto Mono (headings), Lora (body text)
+- **Design**: Moody, exploration-focused, information-rich
+- **Theme**: Available in `desktop/src/renderer/styles/theme.css`
+
+See `BRANDING_PLAN.md` for complete brand guidelines.
+
+---
+
+## Roadmap
+
+### Current (v0.1.2)
+- ✅ Desktop app with map interface
+- ✅ Location pages with blog-style layout
+- ✅ Photo import and management
+- ✅ CSV/GeoJSON map import
+- ✅ REST API with autocomplete
+- ✅ Browser bookmarks backend
+
+### Planned Features
+- 🔲 KML/KMZ import support
+- 🔲 Browser bookmarks UI
+- 🔲 Advanced search filters
+- 🔲 Location relationship mapping
+- 🔲 Visit history tracking
+- 🔲 Export to various formats
+- 🔲 Mobile companion app
+
+See `IMPLEMENTATION_STATUS.md` for detailed status.
 
 ---
 
 ## Troubleshooting
 
-### Services Won't Start
+### Port Already in Use
 
 ```bash
-# Check Docker is running
-docker ps
+# Kill existing Flask process
+pkill -f "python.*app.py"
 
-# Check service logs
-docker-compose logs aupat-core
-docker-compose logs immich-server
-
-# Restart services
-docker-compose restart
-
-# Full rebuild
-docker-compose down
-docker-compose up -d --build
+# Then restart
+./start_aupat.sh
 ```
 
-### Health Check Fails
+### Blank White Screen
+
+**Cause**: Missing npm dependencies after git pull
+
+**Fix**:
+```bash
+cd desktop && npm install && cd ..
+./start_aupat.sh
+```
+
+### Database Errors
 
 ```bash
-# Check if services are up
-curl http://localhost:5000/api/health
-curl http://localhost:2283/api/server-info/ping
+# Run migration
+python scripts/db_migrate_v012.py
 
-# Check service logs
-docker-compose logs -f aupat-core
+# Check database exists
+ls -la data/aupat.db
+
+# If corrupted, restore from backup
+cp data/backups/aupat_backup_*.db data/aupat.db
 ```
 
 ### Import Fails
 
 ```bash
-# Check Immich is healthy
-curl http://localhost:2283/api/server-info/ping
-
-# Check database exists
-ls -la data/aupat.db
-
-# Run migration
-python scripts/db_migrate_v012.py
-
 # Check logs
 tail -f logs/aupat.log
+
+# Verify file permissions
+ls -la data/ingest/
+
+# Test API health
+curl http://localhost:5002/api/health
 ```
 
-### GPS Extraction Fails
+### Map Not Loading
 
-```bash
-# Verify exiftool installed
-exiftool -ver
-
-# Check if image has GPS data
-exiftool -GPSLatitude -GPSLongitude /path/to/image.jpg
-
-# Manual test
-python -c "from scripts.immich_integration import extract_gps_from_exif; print(extract_gps_from_exif('/path/to/image.jpg'))"
-```
+1. Check browser console (View > Developer > Developer Tools)
+2. Verify API is running: `curl http://localhost:5002/api/health`
+3. Check map markers endpoint: `curl http://localhost:5002/api/map/markers`
+4. Restart app: Ctrl+C then `./start_aupat.sh`
 
 ---
 
 ## Documentation
 
-Full technical documentation in `docs/v0.1.2/`:
-
-- **01_OVERVIEW.md** - Project overview and goals
-- **02_ARCHITECTURE.md** - System architecture and design
-- **03_MODULES.md** - Module specifications
-- **04_BUILD_PLAN.md** - Implementation plan
-- **05_TESTING.md** - Testing strategy
-- **PHASE1_TEST_REPORT.md** - Comprehensive test results
-- **PHASE1_WWYDD.md** - Improvement recommendations
-
----
-
-## Archived Versions
-
-Previous versions have been archived for reference:
-
-- **archive/v0.1.0/** - Original CLI pipeline and web interface
-  - Monolithic Flask app with local processing
-  - No external service integration
-  - See `archive/v0.1.0/README.md` for details
-
-**Not recommended for new deployments. Use v0.1.2 instead.**
-
----
-
-## Engineering Principles
-
-This project follows strict engineering principles:
-
-- **KISS** - Keep It Simple, Stupid (no over-engineering)
-- **BPL** - Bulletproof Long-term (3-10+ year reliability)
-- **BPA** - Best Practices Always (industry standards)
-- **DRETW** - Don't Reinvent The Wheel (use proven libraries)
-- **NME** - No Emojis Ever (professional documentation)
+- `UPDATE_WORKFLOW.md` - How to update after git pull
+- `QUICKSTART.md` - Quick reference guide
+- `BRANDING_PLAN.md` - Visual identity and design system
+- `IMPLEMENTATION_STATUS.md` - Feature status tracker
+- `REVAMP_PLAN.md` - UI redesign specifications
+- `BROWSER_INTEGRATION_WWYDD.md` - Browser bookmarks integration
 
 ---
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Follow engineering principles (KISS, BPL, BPA)
-4. Write tests for new code
-5. Ensure all tests pass (`pytest -v`)
-6. Commit changes (`git commit -m 'Add amazing feature'`)
-7. Push to branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes
+4. Write or update tests
+5. Ensure tests pass: `pytest -v`
+6. Commit: `git commit -m 'Add amazing feature'`
+7. Push: `git push origin feature/amazing-feature`
 8. Open a Pull Request
 
 ---
@@ -404,10 +493,15 @@ See LICENSE file.
 
 ## Credits
 
-**Built with**: Python, Docker, Flask, Immich, ArchiveBox, SQLite, PostgreSQL, Redis
+**Project**: Abandoned Upstate Photo & Archive Tracker (AUPAT)
 
-**Principles**: KISS, BPL, BPA, DRETW, NME
+**Built With**:
+- Electron, Svelte, Vite, Leaflet
+- Python, Flask, SQLite
+- Marked, TailwindCSS
 
-**Version**: v0.1.2 (Phase 1 Foundation)
+**Inspired By**: [abandonedupstate.com](https://abandonedupstate.com)
 
-**Last Updated**: November 2025
+**Version**: v0.1.2
+
+**Last Updated**: November 2024

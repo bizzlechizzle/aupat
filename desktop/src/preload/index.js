@@ -70,6 +70,18 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Bookmarks API
+   */
+  bookmarks: {
+    getAll: (filters) => ipcRenderer.invoke('bookmarks:getAll', filters),
+    getById: (bookmarkUuid) => ipcRenderer.invoke('bookmarks:getById', bookmarkUuid),
+    create: (bookmarkData) => ipcRenderer.invoke('bookmarks:create', bookmarkData),
+    update: (bookmarkUuid, bookmarkData) => ipcRenderer.invoke('bookmarks:update', bookmarkUuid, bookmarkData),
+    delete: (bookmarkUuid) => ipcRenderer.invoke('bookmarks:delete', bookmarkUuid),
+    getFolders: () => ipcRenderer.invoke('bookmarks:getFolders')
+  },
+
+  /**
    * Health check
    */
   health: {
