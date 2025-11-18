@@ -241,15 +241,21 @@ def list_bookmarks():
             search_pattern = f"%{search}%"
             params.extend([search_pattern, search_pattern, search_pattern])
 
-        query += f" ORDER BY {order_clause} LIMIT ? OFFSET ?"
+        # Use window function to get total count in single query
+        query_with_count = query.replace("SELECT *", "SELECT *, COUNT(*) OVER() as total_count", 1)
+        query_with_count += f" ORDER BY {order_clause} LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
-        cursor.execute(query, params)
+        cursor.execute(query_with_count, params)
         rows = cursor.fetchall()
 
         bookmarks = []
+        total = 0
         for row in rows:
             bookmark = dict(row)
+            # Extract total count from first row
+            total = bookmark.pop('total_count', 0)
+
             # Parse tags JSON
             if bookmark.get('tags'):
                 try:
@@ -260,26 +266,6 @@ def list_bookmarks():
                 bookmark['tags'] = []
 
             bookmarks.append(bookmark)
-
-        # Get total count for pagination
-        count_query = "SELECT COUNT(*) as total FROM bookmarks WHERE 1=1"
-        count_params = []
-
-        if folder:
-            count_query += " AND folder = ?"
-            count_params.append(folder)
-
-        if loc_uuid:
-            count_query += " AND loc_uuid = ?"
-            count_params.append(loc_uuid)
-
-        if search:
-            count_query += " AND (title LIKE ? OR description LIKE ? OR url LIKE ?)"
-            search_pattern = f"%{search}%"
-            count_params.extend([search_pattern, search_pattern, search_pattern])
-
-        cursor.execute(count_query, count_params)
-        total = cursor.fetchone()['total']
 
         conn.close()
 
