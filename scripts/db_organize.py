@@ -179,6 +179,8 @@ def organize_images(db_path: str) -> int:
     processed_count = 0
 
     try:
+        conn.execute("BEGIN")
+
         # Get all images without hardware categorization
         cursor.execute(
             "SELECT img_sha256, img_loc, img_loco FROM images WHERE camera IS NULL"
@@ -240,6 +242,10 @@ def organize_images(db_path: str) -> int:
         conn.commit()
         logger.info(f"Processed {processed_count} images")
 
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Transaction failed during image organization: {e}")
+        raise
     finally:
         conn.close()
 
@@ -265,6 +271,8 @@ def organize_videos(db_path: str) -> int:
     processed_count = 0
 
     try:
+        conn.execute("BEGIN")
+
         # Get all videos without hardware categorization
         cursor.execute(
             "SELECT vid_sha256, vid_loc, vid_nameo FROM videos WHERE camera IS NULL"
@@ -356,6 +364,10 @@ def organize_videos(db_path: str) -> int:
         conn.commit()
         logger.info(f"Processed {processed_count} videos")
 
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Transaction failed during video organization: {e}")
+        raise
     finally:
         conn.close()
 

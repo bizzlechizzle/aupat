@@ -170,6 +170,8 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     ingested_count = 0
 
     try:
+        conn.execute("BEGIN")
+
         # Get images that need ingesting (img_loc points to staging, not archive)
         # Images in staging will have img_loc starting with ingest_dir path
         cursor.execute(
@@ -265,6 +267,10 @@ def ingest_images(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
         conn.commit()
         logger.info(f"Ingested {ingested_count} images")
 
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Transaction failed during image ingest: {e}")
+        raise
     finally:
         conn.close()
 
@@ -295,6 +301,8 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
     ingested_count = 0
 
     try:
+        conn.execute("BEGIN")
+
         # Get videos that need ingesting (vid_loc points to staging, not archive)
         # Videos in staging will have vid_loc starting with ingest_dir path
         cursor.execute(
@@ -390,6 +398,10 @@ def ingest_videos(db_path: str, arch_loc: str, ingest_dir: str = None) -> int:
         conn.commit()
         logger.info(f"Ingested {ingested_count} videos")
 
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Transaction failed during video ingest: {e}")
+        raise
     finally:
         conn.close()
 

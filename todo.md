@@ -292,7 +292,7 @@ Create template file and generation script:
 
 ### 7. Add Transaction Boundaries
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** High
 **Complexity:** Medium
 **Estimated Time:** 4 hours
@@ -824,6 +824,7 @@ Move to separate repository or document clearly:
 - Created unified launch.sh script (consolidates 4 different startup methods)
 - Created comprehensive health_check.py script (database, filesystem, tools, services)
 - Fixed hardcoded macOS paths by creating template system (com.aupat.worker.plist.template + generate_plist.py)
+- Added transaction boundaries to all multi-step database operations (db_import_v012.py, db_organize.py, db_ingest.py, map_import.py, api_routes_v012.py)
 
 ---
 
