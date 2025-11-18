@@ -11,9 +11,57 @@
   import LocationForm from './LocationForm.svelte';
 
   // Allowed file extensions
+  // Comprehensive list based on exiftool (images) and ffmpeg (videos) support
   const ALLOWED_EXTENSIONS = {
-    images: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'dng', 'cr2', 'nef', 'arw'],
-    videos: ['mp4', 'mov', 'avi', 'mkv', 'mts', 'm2ts'],
+    images: [
+      // Common formats
+      'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff', 'webp',
+      // Apple formats
+      'heic', 'heif',
+      // RAW formats (Canon)
+      'cr2', 'cr3', 'crw',
+      // RAW formats (Nikon)
+      'nef', 'nrw',
+      // RAW formats (Sony)
+      'arw', 'srf', 'sr2',
+      // RAW formats (Other manufacturers)
+      'orf', 'orf',      // Olympus
+      'rw2', 'raw',      // Panasonic
+      'raf',             // Fuji
+      'pef', 'ptx',      // Pentax
+      'srw',             // Samsung
+      '3fr', 'fff',      // Hasselblad
+      'iiq',             // Phase One
+      'erf',             // Epson
+      'mef',             // Mamiya
+      'mrw',             // Minolta
+      'rwl',             // Leica
+      'dng',             // Adobe Digital Negative
+      // Advanced formats
+      'jp2', 'j2k', 'jpf', 'jxl',  // JPEG 2000 / JPEG XL
+      'exr',             // High dynamic range
+      'psd', 'psb',      // Photoshop
+      'svg',             // Vector
+      'ico', 'cur'       // Icons
+    ],
+    videos: [
+      // Common formats
+      'mp4', 'm4v', 'mov', 'avi', 'mkv', 'webm',
+      // MPEG formats
+      'mpg', 'mpeg', 'm2v', 'mp2', 'mpe', 'mpv',
+      // Broadcast/camera formats
+      'mts', 'm2ts', 'ts', 'mxf', 'dv',
+      // Mobile formats
+      '3gp', '3g2',
+      // Streaming formats
+      'flv', 'f4v',
+      // Windows formats
+      'wmv', 'asf', 'dvr-ms',
+      // Other formats
+      'ogv', 'ogg', 'vob', 'rm', 'rmvb', 'divx', 'xvid',
+      // Alternate/legacy
+      'qt', 'movie', 'amv'
+    ],
     documents: ['pdf', 'txt', 'doc', 'docx']
   };
 
