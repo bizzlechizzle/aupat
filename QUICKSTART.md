@@ -1,122 +1,81 @@
 # AUPAT Quick Start Guide
 
-## Starting the API Server
-
-### Automatic Startup (Recommended)
-
-Use the included startup script that handles health checks and dependencies:
-
-```bash
-./start_api.sh
-```
-
-This script will:
-- ✅ Check if the API server is already running
-- ✅ Install Python dependencies if needed
-- ✅ Create database if it doesn't exist
-- ✅ Start the API server on port 5002
-- ✅ Verify the server started successfully
-
-### Additional Commands
-
-```bash
-# Check server status
-./start_api.sh --status
-
-# Force restart the server
-./start_api.sh --force
-```
-
-### Manual Startup
-
-If you prefer to start manually:
-
-```bash
-# 1. Install dependencies
-pip3 install -r requirements.txt
-
-# 2. Create user.json (if not exists)
-cp user/user.json.template user/user.json
-# Edit user/user.json with your paths
-
-# 3. Initialize database (if not exists)
-python3 scripts/db_migrate_v012.py
-
-# 4. Start API server
-export DB_PATH=/home/user/aupat/data/aupat.db
-python3 app.py
-```
-
 ## Starting the Desktop App
 
-```bash
-cd desktop
-npm install
-npm run dev
-```
-
-The desktop app will automatically connect to `http://localhost:5002`.
-
-## Health Check
-
-Verify the API server is running:
+### ONE COMMAND TO RULE THEM ALL
 
 ```bash
-curl http://localhost:5002/api/health
+./start_aupat.sh
 ```
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "version": "0.1.2",
-  "database": "connected",
-  "location_count": 0
-}
-```
+That's it. This script starts:
+- Backend API server on port 5002
+- Desktop Electron app with live reload
+
+Press `Ctrl+C` to stop both when you're done.
+
+## What This Script Does
+
+The `start_aupat.sh` script automatically:
+- ✅ Activates Python virtual environment
+- ✅ Starts the Flask API server on port 5002
+- ✅ Starts the Electron desktop app
+- ✅ Handles shutdown gracefully when you press Ctrl+C
 
 ## Troubleshooting
 
-### "Cannot connect to backend" Error
+### "Port 5002 is already in use"
 
-This error occurs when:
-1. API server is not running → Run `./start_api.sh`
-2. Wrong port in desktop app settings → Desktop app defaults to port 5002 (correct)
-3. Database not initialized → Script handles this automatically
-
-### Check Logs
+Something is already running on port 5002. Kill it:
 
 ```bash
-# API server logs
-tail -f api_server.log
+# Kill any processes on port 5002
+pkill -f "python.*app.py"
 
-# Desktop app logs (when running)
-# Check the console in the Electron DevTools
+# Or find and kill manually
+lsof -ti:5002 | xargs kill
+
+# Then try again
+./start_aupat.sh
 ```
 
-## Why the Startup Script?
+### "Cannot connect to backend" in the app
 
-Previously, users had to:
-- Manually check if the server was running
-- Remember to create user.json
-- Manually initialize the database
-- Export environment variables
+This means the API server isn't running:
 
-The `start_api.sh` script automates all of this with health checks built in.
+```bash
+# Stop everything
+pkill -f "python.*app.py"
+pkill -f electron
+
+# Start fresh
+./start_aupat.sh
+```
+
+### Still having issues?
+
+Check the console output when you run `./start_aupat.sh`. You should see:
+```
+=========================================
+AUPAT is running!
+=========================================
+Backend:  http://localhost:5002
+Frontend: Check npm output above
+```
 
 ## Architecture
 
 ```
 ┌─────────────────┐
-│  Desktop App    │  Electron (Svelte)
-│  Port: N/A      │  Connects to API
+│  Desktop App    │  Electron (Svelte) - Port 5173 (dev server)
+│                 │  Connects to API at localhost:5002
 └────────┬────────┘
          │
          │ HTTP Requests
          │
 ┌────────▼────────┐
-│  API Server     │  Flask
-│  Port: 5002     │  REST API
+│  API Server     │  Flask - Port 5002
+│                 │  REST API
 └────────┬────────┘
          │
          │ SQLite
@@ -129,9 +88,36 @@ The `start_api.sh` script automates all of this with health checks built in.
 
 ## Next Steps
 
-1. Start the API server: `./start_api.sh`
-2. Start the desktop app: `cd desktop && npm run dev`
-3. Import locations via the desktop app
-4. View locations on the map
+1. Run `./start_aupat.sh`
+2. Import locations via the desktop app
+3. View locations on the map
+
+## Advanced Usage
+
+### Start only the API server in background
+
+If you need to run the API server separately (e.g., for production testing):
+
+```bash
+./scripts/advanced/start_api.sh
+```
+
+This is NOT needed for normal development. Use `./start_aupat.sh` instead.
+
+### Manual startup (not recommended)
+
+If you want to start components separately:
+
+```bash
+# Terminal 1 - Backend
+source venv/bin/activate
+python3 app.py
+
+# Terminal 2 - Frontend
+cd desktop
+npm run dev
+```
+
+But seriously, just use `./start_aupat.sh` - it's easier.
 
 For full documentation, see the main README.md.
