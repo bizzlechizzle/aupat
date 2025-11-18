@@ -15,6 +15,8 @@
 
   const dispatch = createEventDispatcher();
 
+  let nameInput; // Reference to the name input for autofocus
+
   // Form state
   let formData = {
     loc_name: '',
@@ -86,9 +88,15 @@
     };
   }
 
-  // Load autocomplete options when form opens
+  // Load autocomplete options when form opens and focus first input
   $: if (isOpen) {
     loadAutocompleteOptions();
+    // Focus the name input after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      if (nameInput) {
+        nameInput.focus();
+      }
+    }, 100);
   }
 
   // Update sub_type options when type changes
@@ -265,25 +273,33 @@
     errors = {};
   }
 
-  function handleKeydown(event) {
+  function handleOverlayKeydown(event) {
+    // Only handle Escape key, and only when not focused on an input
     if (event.key === 'Escape' && isOpen) {
+      // Don't close if user is typing in an input field
+      const target = event.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) {
+        // Let input handle Escape (e.g., clearing autocomplete)
+        return;
+      }
       close();
     }
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 {#if isOpen}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <div
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     on:click={close}
+    on:keydown={handleOverlayKeydown}
     role="dialog"
     aria-modal="true"
   >
     <div
       class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       on:click|stopPropagation
+      on:keydown|stopPropagation
     >
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
@@ -313,6 +329,7 @@
               Location Name <span class="text-red-500">*</span>
             </label>
             <input
+              bind:this={nameInput}
               id="loc_name"
               type="text"
               bind:value={formData.loc_name}
