@@ -22,11 +22,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# Add scripts directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
-from utils import generate_filename
-from normalize import normalize_datetime, normalize_extension
+from scripts.utils import generate_filename
+from scripts.normalize import normalize_datetime, normalize_extension
 
 # Configure logging
 logging.basicConfig(

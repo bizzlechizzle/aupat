@@ -21,10 +21,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# Add scripts directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
-from normalize import normalize_location_type
+from scripts.normalize import normalize_location_type
 
 # Configure logging
 logging.basicConfig(
