@@ -45,6 +45,54 @@ def get_db_connection():
     return conn
 
 
+def _process_location_photos(cursor, loc_uuid, photos):
+    """
+    Process and save photos from mobile sync.
+
+    For v0.1.2: Saves photos to temp directory for manual processing.
+    Future: Can integrate with Immich upload or local storage.
+
+    Args:
+        cursor: SQLite cursor
+        loc_uuid: Location UUID
+        photos: List of photo dicts with 'filename' and 'data' (base64)
+    """
+    import base64
+    import os
+    from pathlib import Path
+
+    try:
+        # Create temp directory for mobile photos
+        photos_dir = Path('/app/data/mobile_photos')
+        photos_dir.mkdir(parents=True, exist_ok=True)
+
+        loc_dir = photos_dir / loc_uuid
+        loc_dir.mkdir(exist_ok=True)
+
+        for photo in photos:
+            filename = photo.get('filename', f'photo_{uuid4()}.jpg')
+            base64_data = photo.get('data', '')
+
+            if not base64_data:
+                continue
+
+            # Decode base64 and save to file
+            photo_bytes = base64.b64decode(base64_data)
+            photo_path = loc_dir / filename
+
+            with open(photo_path, 'wb') as f:
+                f.write(photo_bytes)
+
+            logger.info(f"Saved photo {filename} for location {loc_uuid} ({len(photo_bytes)} bytes)")
+
+            # TODO: Upload to Immich and link to location
+            # For now, photos are saved to /app/data/mobile_photos/{loc_uuid}/
+            # Manual upload process: python scripts/map_import.py can be adapted
+
+    except Exception as e:
+        logger.error(f"Failed to process photos for location {loc_uuid}: {e}")
+
+
 @api_sync_mobile.route('/mobile', methods=['POST', 'OPTIONS'])
 def sync_mobile_push():
     """
@@ -139,11 +187,11 @@ def sync_mobile_push():
                 synced_count += 1
                 logger.info(f"Inserted location {loc_data['loc_uuid']}: {loc_data['loc_name']}")
 
-                # TODO: Process photos
-                # For each photo in loc_data['photos']:
-                # 1. Upload to Immich via immich_adapter
-                # 2. Insert to images table with immich_asset_id
-                # This is deferred to Phase 8
+                # Process photos (Phase 8)
+                photos = loc_data.get('photos', [])
+                if photos:
+                    logger.info(f"Processing {len(photos)} photos for location {loc_data['loc_uuid']}")
+                    _process_location_photos(cursor, loc_data['loc_uuid'], photos)
 
             except Exception as e:
                 logger.error(f"Failed to sync location {loc_data.get('loc_uuid')}: {e}")
