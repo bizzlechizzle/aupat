@@ -67,8 +67,9 @@ def parse_map_file():
     Request JSON:
         {
             "filename": "my_map.csv",
-            "format": "csv" | "geojson",
-            "content": "file content as string"
+            "format": "csv" | "geojson" | "kml" | "kmz",
+            "content": "file content as string",
+            "isBase64": true (for binary KMZ files)
         }
 
     Returns:
@@ -86,6 +87,7 @@ def parse_map_file():
         filename = data.get('filename', '')
         file_format = data.get('format', '').lower()
         content = data.get('content', '')
+        is_base64 = data.get('isBase64', False)
 
         if not content:
             return jsonify({'error': 'No file content provided'}), 400
@@ -109,12 +111,16 @@ def parse_map_file():
         elif file_format in ['geojson', 'json']:
             locations, errors = parse_geojson_map(content)
         elif file_format == 'kml':
-            # KML/KMZ requires bytes, not string
+            # KML is text-based XML
             content_bytes = content.encode('utf-8') if isinstance(content, str) else content
             locations, errors = parse_kml_map(content_bytes, is_kmz=False)
         elif file_format == 'kmz':
-            # KMZ is binary, ensure we have bytes
-            content_bytes = content if isinstance(content, bytes) else content.encode('utf-8')
+            # KMZ is binary ZIP - decode from base64 if needed
+            if is_base64:
+                import base64
+                content_bytes = base64.b64decode(content)
+            else:
+                content_bytes = content if isinstance(content, bytes) else content.encode('utf-8')
             locations, errors = parse_kml_map(content_bytes, is_kmz=True)
         else:
             return jsonify({'error': f'Unsupported format: {file_format}'}), 400
@@ -242,6 +248,7 @@ def import_map():
         file_format = data.get('format', '').lower()
         import_mode = data.get('mode', 'full').lower()
         content = data.get('content', '')
+        is_base64 = data.get('isBase64', False)
         description = data.get('description', '')
         skip_duplicates = data.get('skip_duplicates', True)
 
@@ -255,10 +262,16 @@ def import_map():
         elif file_format in ['geojson', 'json']:
             locations, parse_errors = parse_geojson_map(content)
         elif file_format == 'kml':
+            # KML is text-based XML
             content_bytes = content.encode('utf-8') if isinstance(content, str) else content
             locations, parse_errors = parse_kml_map(content_bytes, is_kmz=False)
         elif file_format == 'kmz':
-            content_bytes = content if isinstance(content, bytes) else content.encode('utf-8')
+            # KMZ is binary ZIP - decode from base64 if needed
+            if is_base64:
+                import base64
+                content_bytes = base64.b64decode(content)
+            else:
+                content_bytes = content if isinstance(content, bytes) else content.encode('utf-8')
             locations, parse_errors = parse_kml_map(content_bytes, is_kmz=True)
         else:
             return jsonify({'error': f'Unsupported format: {file_format}. Use csv, geojson, kml, or kmz'}), 400

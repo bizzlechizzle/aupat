@@ -17,10 +17,11 @@ import log from 'electron-log';
 import Store from 'electron-store';
 import { createAPIClient } from './api-client.js';
 import { BrowserManager } from './browser-manager.js';
+import { initAutoUpdater, registerUpdateHandlers } from './updater.js';
 
 // Configure logging
 log.transports.file.level = 'info';
-log.info('AUPAT Desktop starting...');
+log.info('Abandoned Upstate starting...');
 
 // Initialize settings store
 const store = new Store({
@@ -32,6 +33,23 @@ const store = new Store({
     mapZoom: 10
   }
 });
+
+// Migrate settings from old AUPAT Desktop to Abandoned Upstate (v0.2.0)
+try {
+  const oldStore = new Store({ name: 'aupat-desktop' });
+  if (oldStore.size > 0 && store.size <= Object.keys(store.defaults).length) {
+    log.info('Migrating settings from AUPAT Desktop to Abandoned Upstate...');
+    // Copy all old settings to new store
+    for (const [key, value] of Object.entries(oldStore.store)) {
+      if (!store.has(key)) {
+        store.set(key, value);
+      }
+    }
+    log.info('Settings migration complete');
+  }
+} catch (error) {
+  log.warn('Settings migration skipped:', error.message);
+}
 
 // Migrate settings from old ports to current version (v0.1.2+)
 // Fixes: "Cannot read properties of undefined (reading 'locations')" error
@@ -88,6 +106,7 @@ async function clearAppCache() {
  */
 function createWindow() {
   mainWindow = new BrowserWindow({
+    title: 'Abandoned Upstate',
     width: 1400,
     height: 900,
     show: false,
@@ -736,12 +755,16 @@ ipcMain.handle('bookmarks:getFolders', async () => {
 
 app.whenReady().then(async () => {
   // Set app user model id for Windows
-  app.setAppUserModelId('com.aupat.desktop');
+  app.setAppUserModelId('com.abandonedupstate.app');
 
   // Clear cache to prevent stale code issues
   await clearAppCache();
 
   createWindow();
+
+  // Initialize auto-updater
+  initAutoUpdater(mainWindow);
+  registerUpdateHandlers(ipcMain);
 
   app.on('activate', function () {
     // On macOS re-create window when dock icon is clicked
