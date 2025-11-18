@@ -1476,16 +1476,45 @@ def locations_list_create():
             limit = min(int(request.args.get('limit', 50)), 500)
             offset = int(request.args.get('offset', 0))
 
+            # Get filter parameters (v0.1.5)
+            favorite = request.args.get('favorite')  # 'true' or 'false'
+            historical = request.args.get('historical')
+            undocumented = request.args.get('undocumented')
+
             conn = get_db_connection()
             cursor = conn.cursor()
 
+            # Build query with filters
+            where_clauses = []
+            params = []
+
+            if favorite is not None:
+                where_clauses.append("is_favorite = ?")
+                params.append(1 if favorite.lower() == 'true' else 0)
+
+            if historical is not None:
+                where_clauses.append("is_historical = ?")
+                params.append(1 if historical.lower() == 'true' else 0)
+
+            if undocumented is not None:
+                where_clauses.append("is_undocumented = ?")
+                params.append(1 if undocumented.lower() == 'true' else 0)
+
+            where_clause = ""
+            if where_clauses:
+                where_clause = "WHERE " + " AND ".join(where_clauses)
+
             # Get paginated results with total count
-            cursor.execute("""
+            query = f"""
                 SELECT *, COUNT(*) OVER() as total_count
                 FROM locations
+                {where_clause}
                 ORDER BY loc_name
                 LIMIT ? OFFSET ?
-            """, (limit, offset))
+            """
+
+            params.extend([limit, offset])
+            cursor.execute(query, tuple(params))
             rows = cursor.fetchall()
             conn.close()
 
@@ -1951,6 +1980,395 @@ def search_locations():
     except Exception as e:
         logger.error(f"Search failed: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# NOTES ENDPOINTS (v0.1.5) - User notes for locations
+# ============================================================================
+
+@api_v012.route('/locations/<loc_uuid>/notes', methods=['GET'])
+def get_location_notes(loc_uuid):
+    """
+    Get all notes for a location.
+
+    Args:
+        loc_uuid: Location UUID
+
+    Returns:
+        JSON array of notes
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT note_uuid, loc_uuid, title, content, created_at, updated_at
+            FROM notes
+            WHERE loc_uuid = ?
+            ORDER BY updated_at DESC
+        """, (loc_uuid,))
+
+        notes = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({'success': True, 'data': notes}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get notes: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_v012.route('/locations/<loc_uuid>/notes', methods=['POST'])
+def create_note(loc_uuid):
+    """
+    Create a new note for a location.
+
+    Args:
+        loc_uuid: Location UUID
+
+    Request JSON:
+        {
+            "title": "Note title",
+            "content": "Note content"
+        }
+
+    Returns:
+        JSON with created note
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        title = data.get('title', '')
+        content = data.get('content', '')
+
+        # Generate UUID for note
+        import uuid
+        from datetime import datetime
+
+        note_uuid = str(uuid.uuid4())[:12]  # 12-char UUID following AUPAT standard
+        now = datetime.now().isoformat()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verify location exists
+        cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Location not found'}), 404
+
+        # Create note
+        cursor.execute("""
+            INSERT INTO notes (note_uuid, loc_uuid, title, content, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (note_uuid, loc_uuid, title, content, now, now))
+
+        conn.commit()
+
+        # Return created note
+        note = {
+            'note_uuid': note_uuid,
+            'loc_uuid': loc_uuid,
+            'title': title,
+            'content': content,
+            'created_at': now,
+            'updated_at': now
+        }
+
+        conn.close()
+        return jsonify({'success': True, 'data': note}), 201
+
+    except Exception as e:
+        logger.error(f"Failed to create note: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_v012.route('/notes/<note_uuid>', methods=['PUT'])
+def update_note(note_uuid):
+    """
+    Update an existing note.
+
+    Args:
+        note_uuid: Note UUID
+
+    Request JSON:
+        {
+            "title": "Updated title",
+            "content": "Updated content"
+        }
+
+    Returns:
+        JSON with updated note
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        from datetime import datetime
+        now = datetime.now().isoformat()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check note exists
+        cursor.execute("SELECT * FROM notes WHERE note_uuid = ?", (note_uuid,))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Note not found'}), 404
+
+        # Update note
+        title = data.get('title', existing['title'])
+        content = data.get('content', existing['content'])
+
+        cursor.execute("""
+            UPDATE notes
+            SET title = ?, content = ?, updated_at = ?
+            WHERE note_uuid = ?
+        """, (title, content, now, note_uuid))
+
+        conn.commit()
+
+        # Return updated note
+        cursor.execute("SELECT * FROM notes WHERE note_uuid = ?", (note_uuid,))
+        note = dict(cursor.fetchone())
+
+        conn.close()
+        return jsonify({'success': True, 'data': note}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to update note: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_v012.route('/notes/<note_uuid>', methods=['DELETE'])
+def delete_note(note_uuid):
+    """
+    Delete a note.
+
+    Args:
+        note_uuid: Note UUID
+
+    Returns:
+        JSON success response
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check note exists
+        cursor.execute("SELECT note_uuid FROM notes WHERE note_uuid = ?", (note_uuid,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Note not found'}), 404
+
+        # Delete note
+        cursor.execute("DELETE FROM notes WHERE note_uuid = ?", (note_uuid,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Note deleted'}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to delete note: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# STATS ENDPOINT (v0.1.5) - Nerd Stats for locations
+# ============================================================================
+
+@api_v012.route('/locations/<loc_uuid>/stats', methods=['GET'])
+def get_location_stats(loc_uuid):
+    """
+    Get detailed statistics for a location (Nerd Stats).
+
+    Returns counts, file sizes, camera models, date ranges, and hashes.
+
+    Args:
+        loc_uuid: Location UUID
+
+    Returns:
+        JSON with stats
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        stats = {}
+
+        # Image stats
+        cursor.execute("""
+            SELECT
+                COUNT(*) as count,
+                SUM(img_size_bytes) as total_size,
+                MIN(img_taken) as earliest,
+                MAX(img_taken) as latest,
+                COUNT(DISTINCT camera) as camera_count
+            FROM images
+            WHERE loc_uuid = ?
+        """, (loc_uuid,))
+        img_row = cursor.fetchone()
+        stats['images'] = {
+            'count': img_row['count'] or 0,
+            'total_size_bytes': img_row['total_size'] or 0,
+            'earliest_date': img_row['earliest'],
+            'latest_date': img_row['latest'],
+            'unique_cameras': img_row['camera_count'] or 0
+        }
+
+        # Camera models
+        cursor.execute("""
+            SELECT camera, COUNT(*) as count
+            FROM images
+            WHERE loc_uuid = ? AND camera IS NOT NULL
+            GROUP BY camera
+            ORDER BY count DESC
+        """, (loc_uuid,))
+        stats['cameras'] = [dict(row) for row in cursor.fetchall()]
+
+        # Video stats
+        cursor.execute("""
+            SELECT
+                COUNT(*) as count,
+                SUM(vid_size_bytes) as total_size,
+                SUM(vid_duration) as total_duration
+            FROM videos
+            WHERE loc_uuid = ?
+        """, (loc_uuid,))
+        vid_row = cursor.fetchone()
+        stats['videos'] = {
+            'count': vid_row['count'] or 0,
+            'total_size_bytes': vid_row['total_size'] or 0,
+            'total_duration_seconds': vid_row['total_duration'] or 0
+        }
+
+        # Document stats (if documents table exists)
+        try:
+            cursor.execute("""
+                SELECT COUNT(*) as count, SUM(doc_size_bytes) as total_size
+                FROM documents
+                WHERE loc_uuid = ?
+            """, (loc_uuid,))
+            doc_row = cursor.fetchone()
+            stats['documents'] = {
+                'count': doc_row['count'] or 0,
+                'total_size_bytes': doc_row['total_size'] or 0
+            }
+        except sqlite3.OperationalError:
+            # documents table doesn't exist yet
+            stats['documents'] = {'count': 0, 'total_size_bytes': 0}
+
+        # URL stats
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM urls
+            WHERE loc_uuid = ?
+        """, (loc_uuid,))
+        stats['urls'] = {'count': cursor.fetchone()['count'] or 0}
+
+        # Notes stats
+        try:
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM notes
+                WHERE loc_uuid = ?
+            """, (loc_uuid,))
+            stats['notes'] = {'count': cursor.fetchone()['count'] or 0}
+        except sqlite3.OperationalError:
+            # notes table doesn't exist yet
+            stats['notes'] = {'count': 0}
+
+        # Total size
+        stats['total_size_bytes'] = (
+            stats['images']['total_size_bytes'] +
+            stats['videos']['total_size_bytes'] +
+            stats['documents']['total_size_bytes']
+        )
+
+        conn.close()
+        return jsonify({'success': True, 'data': stats}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get location stats: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# FILTER ENDPOINTS (v0.1.5) - Favorites, historical, etc.
+# ============================================================================
+
+@api_v012.route('/locations/<loc_uuid>/favorite', methods=['PUT'])
+def toggle_favorite(loc_uuid):
+    """
+    Toggle favorite status for a location.
+
+    Args:
+        loc_uuid: Location UUID
+
+    Request JSON:
+        {
+            "is_favorite": true/false
+        }
+
+    Returns:
+        JSON success response
+    """
+    try:
+        data = request.get_json()
+        is_favorite = 1 if data.get('is_favorite') else 0
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE locations
+            SET is_favorite = ?
+            WHERE loc_uuid = ?
+        """, (is_favorite, loc_uuid))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'is_favorite': bool(is_favorite)}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to toggle favorite: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_v012.route('/locations/random', methods=['GET'])
+def get_random_location():
+    """
+    Get a random location from the database.
+
+    Returns:
+        JSON with random location
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM locations
+            ORDER BY RANDOM()
+            LIMIT 1
+        """)
+
+        location = cursor.fetchone()
+        conn.close()
+
+        if not location:
+            return jsonify({'success': False, 'error': 'No locations found'}), 404
+
+        return jsonify({'success': True, 'data': dict(location)}), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get random location: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def register_api_routes(app):

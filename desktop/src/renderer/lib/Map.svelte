@@ -28,6 +28,13 @@
   let markers = [];
   let selectedLocation = null;
 
+  // Filter state (v0.1.5)
+  let activeFilters = {
+    favorites: false,
+    historical: false,
+    undocumented: false
+  };
+
   // Subscribe to settings for map defaults
   let mapCenter;
   let mapZoom;
@@ -197,10 +204,68 @@
   function closeDetail() {
     selectedLocation = null;
   }
+
+  /**
+   * Toggle filter and reload markers (v0.1.5)
+   */
+  function toggleFilter(filterName) {
+    activeFilters[filterName] = !activeFilters[filterName];
+    loadMarkers(); // Reload with new filters
+  }
+
+  /**
+   * Go to random location (v0.1.5)
+   */
+  async function goToRandomLocation() {
+    try {
+      const response = await fetch('/api/locations/random');
+      const result = await response.json();
+      if (result.success && result.data) {
+        const loc = result.data;
+        if (loc.lat && loc.lon) {
+          map.setView([loc.lat, loc.lon], 16);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to go to random location:', err);
+    }
+  }
 </script>
 
 <div class="relative w-full h-full">
   <!-- Map Container -->
+  <!-- Filter Toolbar -->
+  <div class="filter-toolbar">
+    <button
+      on:click={() => toggleFilter('favorites')}
+      class="filter-btn {activeFilters.favorites ? 'active' : ''}"
+      title="Show favorites only"
+    >
+      Favorites
+    </button>
+    <button
+      on:click={() => toggleFilter('historical')}
+      class="filter-btn {activeFilters.historical ? 'active' : ''}"
+      title="Show historical locations only"
+    >
+      Historical
+    </button>
+    <button
+      on:click={() => toggleFilter('undocumented')}
+      class="filter-btn {activeFilters.undocumented ? 'active' : ''}"
+      title="Show undocumented locations only"
+    >
+      Undocumented
+    </button>
+    <button
+      on:click={goToRandomLocation}
+      class="filter-btn random-btn"
+      title="Go to random location"
+    >
+      Random
+    </button>
+  </div>
+
   <div bind:this={mapContainer} class="map-container" />
 
   <!-- Location Detail Sidebar (when marker clicked) -->
@@ -277,5 +342,47 @@
     background: var(--au-accent-brown, #b9975c);
     transform: scale(1.3);
     cursor: pointer;
+  }
+
+  /* Filter Toolbar (v0.1.5) */
+  .filter-toolbar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
+  }
+
+  .filter-btn {
+    background: white;
+    border: 2px solid #ddd;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+  }
+
+  .filter-btn:hover {
+    background: #f0f0f0;
+    border-color: #999;
+  }
+
+  .filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+  }
+
+  .random-btn {
+    background: #28a745;
+    color: white;
+    border-color: #1e7e34;
+  }
+
+  .random-btn:hover {
+    background: #218838;
   }
 </style>

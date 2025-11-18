@@ -27,20 +27,38 @@ Last Updated: 2025-11-18
 
 **AUPAT: Abandoned Upstate Project Archive Tool**
 
-**Purpose:** Desktop app for archiving abandoned locations with photos, videos, documents, maps
+**Purpose:** Desktop GUI application for archiving abandoned locations with photos, videos, documents, maps
 
-**Current State:** v0.1.2+ (production-ready, 10k LOC Python, 70% test coverage)
+**IMPORTANT: THIS IS A GUI DESKTOP APP, NOT A CLI TOOL**
+
+**Current State:** v0.1.0 Desktop App (95% complete, ready for final features)
+
+**Application Type:**
+- **v0.1.0-v0.5.0:** Desktop GUI only (Electron + Svelte)
+- **v0.2.0+:** Website export (static HTML generator)
+- **v0.3.0+:** Mobile apps (offline sync with desktop)
+
+**Architecture:**
+```
+Desktop GUI (Electron + Svelte)
+    ↓ HTTP REST API
+Flask Backend (Python)
+    ↓ SQLite
+Database (millions of records)
+```
 
 **Tech Stack:**
-- Python 3.11+ (backend)
-- Flask REST API
-- SQLite database (WAL mode, handles millions of records)
-- Electron + Svelte (desktop UI)
-- ExifTool, FFmpeg (external tools for metadata)
+- **Frontend:** Electron 33.0.0 + Svelte 4 (2,500+ lines GUI code)
+- **Backend:** Python 3.11+ Flask REST API (10,500 lines)
+- **Database:** SQLite with WAL mode (handles millions of records)
+- **Map:** Leaflet.js with clustering (200k+ markers)
+- **External Tools:** ExifTool, FFmpeg (metadata extraction)
 
 **Scale:**
-- Current: 70k photos
+- Current: 70k photos NOW (this is real, not theoretical)
 - Target: Millions of files (design for scale, build for today)
+
+**Docker:** OPTIONAL for external services (Immich, ArchiveBox). Core app runs standalone.
 
 ---
 
