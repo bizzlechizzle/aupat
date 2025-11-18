@@ -35,6 +35,7 @@
 
   let errors = {};
   let isSubmitting = false;
+  let lastLoadedLocationId = null; // Track which location we've loaded to prevent re-initialization
 
   // Autocomplete data
   let typeOptions = [];
@@ -70,8 +71,9 @@
     'other'
   ];
 
-  // Load data for edit mode
-  $: if (mode === 'edit' && location) {
+  // Load data for edit mode - only when location ID changes to prevent overwriting user input
+  $: if (mode === 'edit' && location && location.loc_uuid !== lastLoadedLocationId) {
+    lastLoadedLocationId = location.loc_uuid;
     formData = {
       loc_name: location.loc_name || '',
       aka_name: location.aka_name || '',
@@ -271,6 +273,7 @@
       imp_author: ''
     };
     errors = {};
+    lastLoadedLocationId = null; // Reset so next edit loads fresh data
   }
 
   function handleOverlayKeydown(event) {

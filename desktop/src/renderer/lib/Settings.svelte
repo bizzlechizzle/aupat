@@ -7,6 +7,8 @@
 
   import { onMount } from 'svelte';
   import { settings } from '../stores/settings.js';
+  import { locations } from '../stores/locations.js';
+  import MapImportDialog from './MapImportDialog.svelte';
 
   let currentSettings = {
     apiUrl: '',
@@ -17,6 +19,7 @@
   };
 
   let saveStatus = null; // null, 'saving', 'success', 'error'
+  let showMapImport = false;
 
   onMount(async () => {
     await settings.load();
@@ -45,6 +48,20 @@
     handleSave('apiUrl', currentSettings.apiUrl);
     handleSave('immichUrl', currentSettings.immichUrl);
     handleSave('archiveboxUrl', currentSettings.archiveboxUrl);
+  }
+
+  function openMapImport() {
+    showMapImport = true;
+  }
+
+  function handleMapImported(event) {
+    showMapImport = false;
+    const { mode, count } = event.detail;
+
+    // Refresh locations if in full import mode
+    if (mode === 'full' && count > 0) {
+      locations.fetchAll();
+    }
   }
 </script>
 
@@ -154,6 +171,22 @@
       </div>
     </div>
 
+    <!-- Map Import -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Map Import</h3>
+      <p class="text-sm text-gray-600 mb-4">
+        Import locations from CSV, JSON, GeoJSON, KML, or KMZ files
+      </p>
+
+      <button
+        type="button"
+        on:click={openMapImport}
+        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+      >
+        Import Map File
+      </button>
+    </div>
+
     <!-- Save Button -->
     <div class="flex items-center gap-4">
       <button
@@ -173,3 +206,10 @@
     </div>
   </form>
 </div>
+
+<!-- Map Import Dialog -->
+<MapImportDialog
+  bind:isOpen={showMapImport}
+  on:close={() => showMapImport = false}
+  on:imported={handleMapImported}
+/>
