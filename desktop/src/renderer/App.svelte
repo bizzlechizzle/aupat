@@ -13,6 +13,7 @@
   import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
   import Bookmarks from './lib/Bookmarks.svelte';
+  import UpdateNotification from './lib/UpdateNotification.svelte';
   import { locations } from './stores/locations.js';
   import logo from './assets/logo.png';
   import './styles/theme.css';
@@ -83,6 +84,9 @@
     // Could send to error reporting service here
   }
 </script>
+
+<!-- Auto-Update Notification -->
+<UpdateNotification />
 
 <ErrorBoundary on:error={handleError}>
 <div class="flex h-screen bg-gray-50">

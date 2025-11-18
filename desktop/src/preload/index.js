@@ -86,5 +86,23 @@ contextBridge.exposeInMainWorld('api', {
    */
   health: {
     check: () => ipcRenderer.invoke('api:health')
+  },
+
+  /**
+   * Auto-Update API
+   */
+  updates: {
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    version: () => ipcRenderer.invoke('update:version'),
+    onAvailable: (callback) => ipcRenderer.on('update-available', (_, data) => callback(data)),
+    onDownloaded: (callback) => ipcRenderer.on('update-downloaded', (_, data) => callback(data)),
+    onProgress: (callback) => ipcRenderer.on('update-progress', (_, data) => callback(data)),
+    onError: (callback) => ipcRenderer.on('update-error', (_, data) => callback(data)),
+    removeAvailableListener: (callback) => ipcRenderer.removeListener('update-available', callback),
+    removeDownloadedListener: (callback) => ipcRenderer.removeListener('update-downloaded', callback),
+    removeProgressListener: (callback) => ipcRenderer.removeListener('update-progress', callback),
+    removeErrorListener: (callback) => ipcRenderer.removeListener('update-error', callback)
   }
 });

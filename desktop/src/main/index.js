@@ -17,6 +17,7 @@ import log from 'electron-log';
 import Store from 'electron-store';
 import { createAPIClient } from './api-client.js';
 import { BrowserManager } from './browser-manager.js';
+import { initAutoUpdater, registerUpdateHandlers } from './updater.js';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -754,12 +755,16 @@ ipcMain.handle('bookmarks:getFolders', async () => {
 
 app.whenReady().then(async () => {
   // Set app user model id for Windows
-  app.setAppUserModelId('com.aupat.desktop');
+  app.setAppUserModelId('com.abandonedupstate.app');
 
   // Clear cache to prevent stale code issues
   await clearAppCache();
 
   createWindow();
+
+  // Initialize auto-updater
+  initAutoUpdater(mainWindow);
+  registerUpdateHandlers(ipcMain);
 
   app.on('activate', function () {
     // On macOS re-create window when dock icon is clicked
