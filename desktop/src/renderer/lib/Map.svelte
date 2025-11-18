@@ -12,12 +12,14 @@
    * - Performance optimized for 200k+ markers
    */
 
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import L from 'leaflet';
   import Supercluster from 'supercluster';
   import { settings } from '../stores/settings.js';
   import { locations } from '../stores/locations.js';
   import LocationDetail from './LocationDetail.svelte';
+
+  const dispatch = createEventDispatcher();
 
   let mapContainer;
   let map;
@@ -171,14 +173,18 @@
   }
 
   /**
-   * Handle marker click - show location details
+   * Handle marker click - dispatch event to parent or show sidebar
    */
   async function handleMarkerClick(locationId) {
     try {
       const response = await window.api.locations.getById(locationId);
 
       if (response.success) {
-        selectedLocation = response.data;
+        // Dispatch event to parent (App.svelte) to navigate to location page
+        dispatch('locationClick', { location: response.data });
+
+        // Also set selectedLocation for sidebar preview (optional fallback)
+        // selectedLocation = response.data;
       }
     } catch (error) {
       console.error('Failed to load location details:', error);
@@ -216,20 +222,21 @@
     height: 100%;
   }
 
-  /* Cluster marker styles */
+  /* Cluster marker styles - Abandoned Upstate branding */
   :global(.cluster-marker-wrapper) {
     background: none;
     border: none;
   }
 
   :global(.cluster-marker) {
-    background: #1e40af;
+    background: var(--au-accent-brown, #b9975c);
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    font-family: var(--au-font-mono, monospace);
     font-size: 12px;
     width: 40px;
     height: 40px;
@@ -238,27 +245,27 @@
   }
 
   :global(.cluster-marker.cluster-medium) {
-    background: #0ea5e9;
+    background: var(--au-accent-gold, #d4af37);
     width: 50px;
     height: 50px;
     font-size: 14px;
   }
 
   :global(.cluster-marker.cluster-large) {
-    background: #dc2626;
+    background: var(--au-accent-rust, #a0522d);
     width: 60px;
     height: 60px;
     font-size: 16px;
   }
 
-  /* Individual location marker */
+  /* Individual location marker - Abandoned Upstate branding */
   :global(.location-marker-wrapper) {
     background: none;
     border: none;
   }
 
   :global(.location-marker) {
-    background: #1e40af;
+    background: var(--au-black, #000000);
     border-radius: 50%;
     width: 12px;
     height: 12px;
@@ -267,7 +274,7 @@
   }
 
   :global(.location-marker:hover) {
-    background: #0ea5e9;
+    background: var(--au-accent-brown, #b9975c);
     transform: scale(1.3);
     cursor: pointer;
   }

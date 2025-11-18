@@ -6,10 +6,12 @@
    * Click on a location row to view details.
    */
 
-  import { onMount } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte';
   import { locations } from '../stores/locations.js';
   import LocationForm from './LocationForm.svelte';
   import LocationDetail from './LocationDetail.svelte';
+
+  const dispatch = createEventDispatcher();
 
   let locationItems = [];
   let loading = false;
@@ -81,7 +83,11 @@
   }
 
   function handleRowClick(location) {
-    openDetailView(location);
+    // Dispatch event to parent (App.svelte) to navigate to location page
+    dispatch('locationClick', { location });
+
+    // Optional: Also open detail view for sidebar preview
+    // openDetailView(location);
   }
 </script>
 
