@@ -803,6 +803,217 @@ def import_file_to_location(loc_uuid):
                 logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
 
 
+@api_v012.route('/locations/<loc_uuid>/import/bulk', methods=['POST'])
+def bulk_import_media_to_location(loc_uuid):
+    """
+    Bulk import media from a source directory using archive scripts workflow.
+
+    This implements the EXACT workflow from archive/v0.1.0/scripts:
+    1. Import to staging (with SHA256 deduplication)
+    2. Extract metadata & categorize by hardware
+    3. Create organized folder structure
+    4. Move to archive
+    5. Verify integrity
+
+    Args:
+        loc_uuid: Location UUID
+
+    Request JSON:
+        {
+            "source_path": "/path/to/media/directory",
+            "author": "Optional import author name"
+        }
+
+    Returns:
+        JSON with import statistics and results
+    """
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    try:
+        # Validate request
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        source_path = data.get('source_path', '').strip()
+        author = data.get('author', '').strip() or 'web-import'
+
+        if not source_path:
+            return jsonify({'error': 'source_path is required'}), 400
+
+        # Validate source directory exists
+        source_dir = Path(source_path)
+        if not source_dir.exists():
+            return jsonify({'error': f'Source directory not found: {source_path}'}), 404
+
+        if not source_dir.is_dir():
+            return jsonify({'error': f'Path is not a directory: {source_path}'}), 400
+
+        # Validate location exists
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        loc_row = cursor.fetchone()
+        if not loc_row:
+            conn.close()
+            return jsonify({'error': 'Location not found'}), 404
+
+        loc_name = loc_row[0]
+        conn.close()
+
+        logger.info(f"Starting bulk import for location {loc_uuid} ({loc_name})")
+        logger.info(f"Source: {source_path}")
+        logger.info(f"Author: {author}")
+
+        # Load user config
+        config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+        if not config_path.exists():
+            return jsonify({
+                'error': 'Configuration not found',
+                'message': 'user.json file is missing. Please configure paths for staging and archive directories.'
+            }), 500
+
+        with open(config_path, 'r') as f:
+            user_config = json.load(f)
+
+        db_path = user_config.get('db_loc')
+        staging_dir = user_config.get('db_ingest')
+        archive_dir = user_config.get('arch_loc')
+
+        if not all([db_path, staging_dir, archive_dir]):
+            return jsonify({
+                'error': 'Configuration incomplete',
+                'message': 'user.json must specify db_loc, db_ingest, and arch_loc'
+            }), 500
+
+        # Prepare metadata for import script
+        metadata = {
+            'loc_uuid': loc_uuid,
+            'loc_name': loc_name,
+            'imp_author': author
+        }
+
+        # Create metadata file
+        import tempfile
+        metadata_fd, metadata_path = tempfile.mkstemp(suffix='.json', prefix='aupat_import_meta_')
+        try:
+            with os.fdopen(metadata_fd, 'w') as f:
+                json.dump(metadata, f)
+
+            # Call db_import_v012.py script
+            import_script = Path(__file__).parent / 'db_import_v012.py'
+
+            if not import_script.exists():
+                return jsonify({
+                    'error': 'Import script not found',
+                    'message': f'db_import_v012.py not found at {import_script}'
+                }), 500
+
+            logger.info(f"Calling import script: {import_script}")
+
+            # Run import script
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(import_script),
+                    '--source', str(source_path),
+                    '--metadata', metadata_path,
+                    '--config', str(config_path)
+                ],
+                capture_output=True,
+                text=True,
+                timeout=3600  # 1 hour timeout
+            )
+
+            if result.returncode == 0:
+                logger.info(f"Bulk import completed successfully for {loc_uuid}")
+
+                # Parse output for statistics
+                output_lines = result.stdout.strip().split('\n')
+                stats = {
+                    'status': 'success',
+                    'message': 'Bulk import completed successfully',
+                    'location_uuid': loc_uuid,
+                    'source_path': source_path,
+                    'output': output_lines[-50:] if len(output_lines) > 50 else output_lines  # Last 50 lines
+                }
+
+                return jsonify(stats), 200
+            else:
+                logger.error(f"Bulk import failed for {loc_uuid}")
+                logger.error(f"STDOUT: {result.stdout}")
+                logger.error(f"STDERR: {result.stderr}")
+
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Bulk import failed',
+                    'error': result.stderr,
+                    'output': result.stdout
+                }), 500
+
+        finally:
+            # Clean up metadata file
+            if os.path.exists(metadata_path):
+                try:
+                    os.unlink(metadata_path)
+                except Exception as e:
+                    logger.warning(f"Failed to clean up metadata file: {e}")
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Bulk import timed out after 1 hour for {loc_uuid}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Import timed out after 1 hour'
+        }), 500
+
+    except Exception as e:
+        logger.error(f"Bulk import failed: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@api_v012.route('/config', methods=['GET'])
+def get_config():
+    """
+    Get user configuration paths.
+
+    Returns:
+        JSON with configuration paths (staging, archive, backup)
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+
+        if not config_path.exists():
+            return jsonify({
+                'configured': False,
+                'message': 'user.json not found. Please create configuration file.',
+                'template_path': str(Path(__file__).parent.parent / 'user' / 'user.json.template')
+            }), 404
+
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+
+        return jsonify({
+            'configured': True,
+            'db_path': config.get('db_loc'),
+            'staging_path': config.get('db_ingest'),
+            'archive_path': config.get('arch_loc'),
+            'backup_path': config.get('db_backup')
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @api_v012.route('/locations', methods=['GET', 'POST'])
 def locations_list_create():
     """
