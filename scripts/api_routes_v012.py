@@ -46,13 +46,73 @@ def get_db_connection():
     return conn
 
 
+def create_pagination_response(data, total, limit, offset, data_key='data'):
+    """
+    Create standardized pagination response.
+
+    Args:
+        data: List of items
+        total: Total count of items
+        limit: Limit per page
+        offset: Current offset
+        data_key: Key name for data array (default: 'data')
+
+    Returns:
+        dict: Standardized response with pagination metadata
+    """
+    return {
+        data_key: data,
+        'pagination': {
+            'limit': limit,
+            'offset': offset,
+            'total': total,
+            'has_more': offset + limit < total
+        }
+    }
+
+
 @api_v012.route('/health', methods=['GET'])
 def health_check():
     """
     Health check endpoint.
-
-    Returns:
-        JSON with service status
+    ---
+    tags:
+      - health
+    summary: Check API and database health
+    description: Returns the service status, version, and database connectivity information
+    responses:
+      200:
+        description: Service is healthy
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+            version:
+              type: string
+              example: 0.1.2
+            database:
+              type: string
+              example: connected
+            location_count:
+              type: integer
+              example: 42
+      500:
+        description: Service is unhealthy
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: error
+            version:
+              type: string
+            database:
+              type: string
+              example: disconnected
+            error:
+              type: string
     """
     try:
         # Check database connection
@@ -128,13 +188,49 @@ def health_check_services():
 def get_map_markers():
     """
     Get all locations with GPS coordinates for map display.
-
-    Query parameters:
-        - bounds: Optional bounding box filter (format: "minLat,minLon,maxLat,maxLon")
-        - limit: Maximum number of results (default: 5000, max 200000)
-
-    Returns:
-        JSON array of locations with GPS data
+    ---
+    tags:
+      - map
+    summary: Get location markers for map
+    description: Returns all locations with GPS coordinates for map display with optional bounding box filtering
+    parameters:
+      - name: bounds
+        in: query
+        type: string
+        required: false
+        description: Bounding box filter (format minLat,minLon,maxLat,maxLon)
+        example: "42.5,-75.0,43.5,-74.0"
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 5000
+        maximum: 200000
+        description: Maximum number of results
+    responses:
+      200:
+        description: List of location markers
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              loc_uuid:
+                type: string
+              loc_name:
+                type: string
+              lat:
+                type: number
+              lon:
+                type: number
+              type:
+                type: string
+              state:
+                type: string
+      400:
+        description: Invalid bounds format
+      500:
+        description: Server error
     """
     try:
         conn = get_db_connection()
@@ -267,14 +363,14 @@ def get_location_images(loc_uuid):
         loc_uuid: Location UUID
 
     Query parameters:
-        - limit: Maximum number of results (default: 100)
+        - limit: Maximum number of results (default: 50, max: 500)
         - offset: Offset for pagination (default: 0)
 
     Returns:
         JSON array of image records with Immich asset IDs
     """
     try:
-        limit = int(request.args.get('limit', 100))
+        limit = min(int(request.args.get('limit', 50)), 500)
         offset = int(request.args.get('offset', 0))
 
         conn = get_db_connection()
@@ -287,7 +383,8 @@ def get_location_images(loc_uuid):
                 immich_asset_id, img_width, img_height,
                 img_size_bytes, gps_lat, gps_lon,
                 camera_make, camera_model, camera_type,
-                img_taken, img_add, img_update
+                img_taken, img_add, img_update,
+                COUNT(*) OVER() as total_count
             FROM images
             WHERE loc_uuid = ?
             ORDER BY img_add DESC
@@ -299,9 +396,19 @@ def get_location_images(loc_uuid):
         rows = cursor.fetchall()
         conn.close()
 
-        images = [dict(row) for row in rows]
+        images = []
+        total = 0
+        for row in rows:
+            row_dict = dict(row)
+            total = row_dict.pop('total_count', 0)
+            images.append(row_dict)
 
-        return jsonify(images), 200
+        return jsonify(create_pagination_response(
+            data=images,
+            total=total,
+            limit=limit,
+            offset=offset
+        )), 200
 
     except Exception as e:
         logger.error(f"Failed to get location images: {e}")
@@ -435,32 +542,41 @@ def archive_url(loc_uuid):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify location exists
-        cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-        if not cursor.fetchone():
+        try:
+            conn.execute("BEGIN")
+
+            # Verify location exists
+            cursor.execute("SELECT loc_uuid FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+            if not cursor.fetchone():
+                conn.close()
+                return jsonify({'error': 'Location not found'}), 404
+
+            # Generate UUID and timestamp
+            from scripts.utils import generate_uuid
+            from scripts.normalize import normalize_datetime
+
+            url_uuid = generate_uuid(cursor, 'urls', 'url_uuid')
+            timestamp = normalize_datetime(None)
+
+            # Insert URL record
+            cursor.execute(
+                """
+                INSERT INTO urls (
+                    url_uuid, loc_uuid, url, url_title, url_desc,
+                    archive_status, url_add, url_update
+                ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+                """,
+                (url_uuid, loc_uuid, url, title, description, timestamp, timestamp)
+            )
+
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to save URL to database: {e}")
             conn.close()
-            return jsonify({'error': 'Location not found'}), 404
-
-        # Generate UUID and timestamp
-        from scripts.utils import generate_uuid
-        from scripts.normalize import normalize_datetime
-
-        url_uuid = generate_uuid(cursor, 'urls', 'url_uuid')
-        timestamp = normalize_datetime(None)
-
-        # Insert URL record
-        cursor.execute(
-            """
-            INSERT INTO urls (
-                url_uuid, loc_uuid, url, url_title, url_desc,
-                archive_status, url_add, url_update
-            ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
-            """,
-            (url_uuid, loc_uuid, url, title, description, timestamp, timestamp)
-        )
-
-        conn.commit()
-        conn.close()
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
+        finally:
+            conn.close()
 
         # Phase B: Attempt to archive URL via ArchiveBox
         # Database connection closed before network call to prevent blocking
@@ -473,19 +589,25 @@ def archive_url(loc_uuid):
                 # Reopen database to update with snapshot ID
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    UPDATE urls
-                    SET archivebox_snapshot_id = ?,
-                        archive_status = 'archiving',
-                        url_update = ?
-                    WHERE url_uuid = ?
-                    """,
-                    (snapshot_id, timestamp, url_uuid)
-                )
-                conn.commit()
-                conn.close()
-                logger.info(f"ArchiveBox snapshot created: {snapshot_id}")
+                try:
+                    conn.execute("BEGIN")
+                    cursor.execute(
+                        """
+                        UPDATE urls
+                        SET archivebox_snapshot_id = ?,
+                            archive_status = 'archiving',
+                            url_update = ?
+                        WHERE url_uuid = ?
+                        """,
+                        (snapshot_id, timestamp, url_uuid)
+                    )
+                    conn.commit()
+                    logger.info(f"ArchiveBox snapshot created: {snapshot_id}")
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"Failed to update URL with snapshot ID: {e}")
+                finally:
+                    conn.close()
             else:
                 logger.warning(f"ArchiveBox returned no snapshot ID for {url}")
 
@@ -677,95 +799,104 @@ def import_file_to_location(loc_uuid):
         gps_lat = gps_coords[0] if gps_coords else None
         gps_lon = gps_coords[1] if gps_coords else None
 
-        if category == 'image':
-            # Image-specific metadata
-            dimensions = get_image_dimensions(temp_path)
-            width = dimensions[0] if dimensions else None
-            height = dimensions[1] if dimensions else None
+        try:
+            conn.execute("BEGIN")
 
-            # Generate UUID
-            img_uuid = generate_uuid(cursor, 'images', 'img_uuid')
+            if category == 'image':
+                # Image-specific metadata
+                dimensions = get_image_dimensions(temp_path)
+                width = dimensions[0] if dimensions else None
+                height = dimensions[1] if dimensions else None
 
-            # Insert into images table
-            cursor.execute(
-                """
-                INSERT INTO images (
-                    img_uuid, loc_uuid, img_sha, img_name, img_ext,
-                    img_add, img_update, immich_asset_id,
-                    img_width, img_height, img_size_bytes,
-                    gps_lat, gps_lon
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    img_uuid, loc_uuid, sha256_full, filename, file_ext,
-                    timestamp, timestamp, immich_asset_id,
-                    width, height, file_size,
-                    gps_lat, gps_lon
+                # Generate UUID
+                img_uuid = generate_uuid(cursor, 'images', 'img_uuid')
+
+                # Insert into images table
+                cursor.execute(
+                    """
+                    INSERT INTO images (
+                        img_uuid, loc_uuid, img_sha, img_name, img_ext,
+                        img_add, img_update, immich_asset_id,
+                        img_width, img_height, img_size_bytes,
+                        gps_lat, gps_lon
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        img_uuid, loc_uuid, sha256_full, filename, file_ext,
+                        timestamp, timestamp, immich_asset_id,
+                        width, height, file_size,
+                        gps_lat, gps_lon
+                    )
                 )
-            )
 
-            conn.commit()
-            conn.close()
+                conn.commit()
+                conn.close()
 
-            logger.info(f"Image imported: {filename} -> {img_uuid} (SHA256: {sha256_short})")
+                logger.info(f"Image imported: {filename} -> {img_uuid} (SHA256: {sha256_short})")
 
-            return jsonify({
-                'success': True,
-                'category': 'image',
-                'uuid': img_uuid,
-                'sha256': sha256_short,
-                'immich_asset_id': immich_asset_id,
-                'width': width,
-                'height': height,
-                'size_bytes': file_size,
-                'gps': {'lat': gps_lat, 'lon': gps_lon} if gps_coords else None
-            }), 201
+                return jsonify({
+                    'success': True,
+                    'category': 'image',
+                    'uuid': img_uuid,
+                    'sha256': sha256_short,
+                    'immich_asset_id': immich_asset_id,
+                    'width': width,
+                    'height': height,
+                    'size_bytes': file_size,
+                    'gps': {'lat': gps_lat, 'lon': gps_lon} if gps_coords else None
+                }), 201
 
-        else:  # category == 'video'
-            # Video-specific metadata
-            vid_data = get_video_dimensions(temp_path)
-            width = vid_data[0] if vid_data else None
-            height = vid_data[1] if vid_data else None
-            duration = vid_data[2] if vid_data else None
+            else:  # category == 'video'
+                # Video-specific metadata
+                vid_data = get_video_dimensions(temp_path)
+                width = vid_data[0] if vid_data else None
+                height = vid_data[1] if vid_data else None
+                duration = vid_data[2] if vid_data else None
 
-            # Generate UUID
-            vid_uuid = generate_uuid(cursor, 'videos', 'vid_uuid')
+                # Generate UUID
+                vid_uuid = generate_uuid(cursor, 'videos', 'vid_uuid')
 
-            # Insert into videos table
-            cursor.execute(
-                """
-                INSERT INTO videos (
-                    vid_uuid, loc_uuid, vid_sha, vid_name, vid_ext,
-                    vid_add, vid_update, immich_asset_id,
-                    vid_width, vid_height, vid_duration_sec, vid_size_bytes,
-                    gps_lat, gps_lon
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    vid_uuid, loc_uuid, sha256_full, filename, file_ext,
-                    timestamp, timestamp, immich_asset_id,
-                    width, height, duration, file_size,
-                    gps_lat, gps_lon
+                # Insert into videos table
+                cursor.execute(
+                    """
+                    INSERT INTO videos (
+                        vid_uuid, loc_uuid, vid_sha, vid_name, vid_ext,
+                        vid_add, vid_update, immich_asset_id,
+                        vid_width, vid_height, vid_duration_sec, vid_size_bytes,
+                        gps_lat, gps_lon
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        vid_uuid, loc_uuid, sha256_full, filename, file_ext,
+                        timestamp, timestamp, immich_asset_id,
+                        width, height, duration, file_size,
+                        gps_lat, gps_lon
+                    )
                 )
-            )
 
-            conn.commit()
+                conn.commit()
+                conn.close()
+
+                logger.info(f"Video imported: {filename} -> {vid_uuid} (SHA256: {sha256_short})")
+
+                return jsonify({
+                    'success': True,
+                    'category': 'video',
+                    'uuid': vid_uuid,
+                    'sha256': sha256_short,
+                    'immich_asset_id': immich_asset_id,
+                    'width': width,
+                    'height': height,
+                    'duration_sec': duration,
+                    'size_bytes': file_size,
+                    'gps': {'lat': gps_lat, 'lon': gps_lon} if gps_coords else None
+                }), 201
+
+        except Exception as db_error:
+            conn.rollback()
             conn.close()
-
-            logger.info(f"Video imported: {filename} -> {vid_uuid} (SHA256: {sha256_short})")
-
-            return jsonify({
-                'success': True,
-                'category': 'video',
-                'uuid': vid_uuid,
-                'sha256': sha256_short,
-                'immich_asset_id': immich_asset_id,
-                'width': width,
-                'height': height,
-                'duration_sec': duration,
-                'size_bytes': file_size,
-                'gps': {'lat': gps_lat, 'lon': gps_lon} if gps_coords else None
-            }), 201
+            logger.error(f"Database transaction failed for {filename}: {db_error}")
+            raise
 
     except Exception as e:
         logger.error(f"Import failed for {filename}: {e}")
@@ -1251,37 +1382,98 @@ def get_import_batch_logs(batch_id):
 def locations_list_create():
     """
     List all locations or create a new location.
-
-    GET: Returns list of all locations with pagination
-    POST: Creates a new location
-
-    Query parameters (GET):
-        limit: Maximum number of results (default: 100, max: 1000)
-        offset: Pagination offset (default: 0)
-
-    Request JSON (POST):
-        {
-            "loc_name": "Location Name",
-            "aka_name": "Optional alternate name",
-            "state": "ny",
-            "type": "industrial",
-            "sub_type": "Optional sub type",
-            "street_address": "Optional address",
-            "city": "Optional city",
-            "zip_code": "Optional ZIP",
-            "lat": 42.6526,
-            "lon": -73.7562,
-            "gps_source": "manual"
-        }
-
-    Returns:
-        GET: JSON array of locations with pagination metadata
-        POST: JSON with created location
+    ---
+    tags:
+      - locations
+    summary: List all locations or create new location
+    description: GET returns paginated list of locations, POST creates a new location
+    parameters:
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 50
+        maximum: 500
+        description: Maximum number of results (GET only)
+      - name: offset
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: Pagination offset (GET only)
+      - name: body
+        in: body
+        required: false
+        description: Location data (POST only)
+        schema:
+          type: object
+          required:
+            - loc_name
+            - state
+            - type
+          properties:
+            loc_name:
+              type: string
+              example: "Abandoned Factory"
+            aka_name:
+              type: string
+              example: "Old Textile Mill"
+            state:
+              type: string
+              example: "ny"
+            type:
+              type: string
+              example: "industrial"
+            sub_type:
+              type: string
+              example: "textile"
+            street_address:
+              type: string
+            city:
+              type: string
+            zip_code:
+              type: string
+            lat:
+              type: number
+              example: 42.6526
+            lon:
+              type: number
+              example: -73.7562
+            gps_source:
+              type: string
+              example: "manual"
+    responses:
+      200:
+        description: Successful response
+        schema:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+            pagination:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+                total:
+                  type: integer
+                has_more:
+                  type: boolean
+      201:
+        description: Location created successfully (POST)
+      400:
+        description: Invalid request
+      500:
+        description: Server error
     """
     if request.method == 'GET':
         try:
             # Get pagination parameters
-            limit = min(int(request.args.get('limit', 100)), 1000)
+            limit = min(int(request.args.get('limit', 50)), 500)
             offset = int(request.args.get('offset', 0))
 
             conn = get_db_connection()
@@ -1304,12 +1496,12 @@ def locations_list_create():
                 total_count = row_dict.pop('total_count', 0)
                 locations_list.append(row_dict)
 
-            return jsonify({
-                'locations': locations_list,
-                'total': total_count,
-                'limit': limit,
-                'offset': offset
-            }), 200
+            return jsonify(create_pagination_response(
+                data=locations_list,
+                total=total_count,
+                limit=limit,
+                offset=offset
+            )), 200
 
         except ValueError:
             return jsonify({'error': 'Invalid limit or offset format'}), 400
@@ -1339,59 +1531,68 @@ def locations_list_create():
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Generate UUID
-            loc_uuid = generate_uuid(cursor, 'locations', 'loc_uuid')
-            timestamp = normalize_datetime(None)
+            try:
+                conn.execute("BEGIN")
 
-            # Extract fields
-            loc_name = data['loc_name'].strip()
-            aka_name = (data.get('aka_name') or '').strip() or None
-            state = data['state'].strip().lower()
-            loc_type = data['type'].strip().lower()
-            sub_type = (data.get('sub_type') or '').strip() or None
-            street_address = (data.get('street_address') or '').strip() or None
-            city = (data.get('city') or '').strip() or None
-            zip_code = (data.get('zip_code') or '').strip() or None
-            lat = data.get('lat')
-            lon = data.get('lon')
-            gps_source = data.get('gps_source', 'manual') if (lat and lon) else None
-            imp_author = (data.get('imp_author') or '').strip() or None
+                # Generate UUID
+                loc_uuid = generate_uuid(cursor, 'locations', 'loc_uuid')
+                timestamp = normalize_datetime(None)
 
-            # Check for name collision
-            cursor.execute("SELECT loc_uuid FROM locations WHERE LOWER(loc_name) = LOWER(?)", (loc_name,))
-            existing = cursor.fetchone()
-            if existing:
-                conn.close()
-                return jsonify({'error': 'A location with this name already exists', 'collision': True}), 409
+                # Extract fields
+                loc_name = data['loc_name'].strip()
+                aka_name = (data.get('aka_name') or '').strip() or None
+                state = data['state'].strip().lower()
+                loc_type = data['type'].strip().lower()
+                sub_type = (data.get('sub_type') or '').strip() or None
+                street_address = (data.get('street_address') or '').strip() or None
+                city = (data.get('city') or '').strip() or None
+                zip_code = (data.get('zip_code') or '').strip() or None
+                lat = data.get('lat')
+                lon = data.get('lon')
+                gps_source = data.get('gps_source', 'manual') if (lat and lon) else None
+                imp_author = (data.get('imp_author') or '').strip() or None
 
-            # Insert location
-            cursor.execute(
-                """
-                INSERT INTO locations (
-                    loc_uuid, loc_name, aka_name, state, type, sub_type,
-                    street_address, city, zip_code,
-                    lat, lon, gps_source, imp_author,
-                    loc_add, loc_update
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    loc_uuid, loc_name, aka_name, state, loc_type, sub_type,
-                    street_address, city, zip_code,
-                    lat, lon, gps_source, imp_author,
-                    timestamp, timestamp
+                # Check for name collision
+                cursor.execute("SELECT loc_uuid FROM locations WHERE LOWER(loc_name) = LOWER(?)", (loc_name,))
+                existing = cursor.fetchone()
+                if existing:
+                    conn.close()
+                    return jsonify({'error': 'A location with this name already exists', 'collision': True}), 409
+
+                # Insert location
+                cursor.execute(
+                    """
+                    INSERT INTO locations (
+                        loc_uuid, loc_name, aka_name, state, type, sub_type,
+                        street_address, city, zip_code,
+                        lat, lon, gps_source, imp_author,
+                        loc_add, loc_update
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        loc_uuid, loc_name, aka_name, state, loc_type, sub_type,
+                        street_address, city, zip_code,
+                        lat, lon, gps_source, imp_author,
+                        timestamp, timestamp
+                    )
                 )
-            )
 
-            conn.commit()
+                conn.commit()
 
-            # Fetch created location
-            cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-            result = dict(cursor.fetchone())
-            conn.close()
+                # Fetch created location
+                cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+                result = dict(cursor.fetchone())
 
-            logger.info(f"Created location: {loc_name} ({loc_uuid})")
+                logger.info(f"Created location: {loc_name} ({loc_uuid})")
 
-            return jsonify(result), 201
+                return jsonify(result), 201
+
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Failed to create location: {e}")
+                raise
+            finally:
+                conn.close()
 
         except Exception as e:
             logger.error(f"Failed to create location: {e}")
@@ -1432,84 +1633,93 @@ def location_update_delete(loc_uuid):
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Verify location exists
-            logger.debug(f"[API] Verifying location exists: {loc_uuid}")
-            cursor.execute("SELECT loc_uuid, loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-            existing = cursor.fetchone()
-            if not existing:
-                logger.warning(f"[API] Location not found: {loc_uuid}")
+            try:
+                conn.execute("BEGIN")
+
+                # Verify location exists
+                logger.debug(f"[API] Verifying location exists: {loc_uuid}")
+                cursor.execute("SELECT loc_uuid, loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+                existing = cursor.fetchone()
+                if not existing:
+                    logger.warning(f"[API] Location not found: {loc_uuid}")
+                    conn.close()
+                    return jsonify({'error': 'Location not found'}), 404
+
+                logger.info(f"[API] Updating location: {existing['loc_name']} ({loc_uuid})")
+
+                # Build update query dynamically
+                allowed_fields = [
+                    'loc_name', 'aka_name', 'state', 'type', 'sub_type',
+                    'street_address', 'city', 'zip_code',
+                    'lat', 'lon', 'gps_source', 'imp_author'
+                ]
+
+                update_fields = []
+                update_values = []
+
+                for field in allowed_fields:
+                    if field in data:
+                        value = data[field]
+                        if isinstance(value, str):
+                            value = value.strip() if value else None
+                        update_fields.append(f"{field} = ?")
+                        update_values.append(value)
+
+                logger.debug(f"[API] Fields to update: {update_fields}")
+
+                if not update_fields:
+                    logger.warning("[API] No fields to update in request")
+                    conn.close()
+                    return jsonify({'error': 'No fields to update'}), 400
+
+                # Validate required fields if they're being updated
+                if 'loc_name' in data:
+                    if not data['loc_name'] or not data['loc_name'].strip():
+                        logger.warning("[API] Invalid update: loc_name cannot be empty")
+                        conn.close()
+                        return jsonify({'error': 'loc_name cannot be empty'}), 400
+
+                if 'state' in data:
+                    if not data['state'] or not data['state'].strip():
+                        logger.warning("[API] Invalid update: state cannot be empty")
+                        conn.close()
+                        return jsonify({'error': 'state cannot be empty'}), 400
+
+                if 'type' in data:
+                    if not data['type'] or not data['type'].strip():
+                        logger.warning("[API] Invalid update: type cannot be empty")
+                        conn.close()
+                        return jsonify({'error': 'type cannot be empty'}), 400
+
+                # Add timestamp
+                timestamp = normalize_datetime(None)
+                update_fields.append("loc_update = ?")
+                update_values.append(timestamp)
+                update_values.append(loc_uuid)
+
+                # Execute update
+                sql = f"UPDATE locations SET {', '.join(update_fields)} WHERE loc_uuid = ?"
+                logger.debug(f"[API] Executing SQL: {sql}")
+                logger.debug(f"[API] With values: {update_values}")
+
+                cursor.execute(sql, update_values)
+                conn.commit()
+                logger.info(f"[API] Database update committed")
+
+                # Fetch updated location
+                cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+                result = dict(cursor.fetchone())
+
+                logger.info(f"[API] Successfully updated location: {loc_uuid}")
+
+                return jsonify(result), 200
+
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"[API] Transaction failed for location update: {e}")
+                raise
+            finally:
                 conn.close()
-                return jsonify({'error': 'Location not found'}), 404
-
-            logger.info(f"[API] Updating location: {existing['loc_name']} ({loc_uuid})")
-
-            # Build update query dynamically
-            allowed_fields = [
-                'loc_name', 'aka_name', 'state', 'type', 'sub_type',
-                'street_address', 'city', 'zip_code',
-                'lat', 'lon', 'gps_source', 'imp_author'
-            ]
-
-            update_fields = []
-            update_values = []
-
-            for field in allowed_fields:
-                if field in data:
-                    value = data[field]
-                    if isinstance(value, str):
-                        value = value.strip() if value else None
-                    update_fields.append(f"{field} = ?")
-                    update_values.append(value)
-
-            logger.debug(f"[API] Fields to update: {update_fields}")
-
-            if not update_fields:
-                logger.warning("[API] No fields to update in request")
-                conn.close()
-                return jsonify({'error': 'No fields to update'}), 400
-
-            # Validate required fields if they're being updated
-            if 'loc_name' in data:
-                if not data['loc_name'] or not data['loc_name'].strip():
-                    logger.warning("[API] Invalid update: loc_name cannot be empty")
-                    conn.close()
-                    return jsonify({'error': 'loc_name cannot be empty'}), 400
-
-            if 'state' in data:
-                if not data['state'] or not data['state'].strip():
-                    logger.warning("[API] Invalid update: state cannot be empty")
-                    conn.close()
-                    return jsonify({'error': 'state cannot be empty'}), 400
-
-            if 'type' in data:
-                if not data['type'] or not data['type'].strip():
-                    logger.warning("[API] Invalid update: type cannot be empty")
-                    conn.close()
-                    return jsonify({'error': 'type cannot be empty'}), 400
-
-            # Add timestamp
-            timestamp = normalize_datetime(None)
-            update_fields.append("loc_update = ?")
-            update_values.append(timestamp)
-            update_values.append(loc_uuid)
-
-            # Execute update
-            sql = f"UPDATE locations SET {', '.join(update_fields)} WHERE loc_uuid = ?"
-            logger.debug(f"[API] Executing SQL: {sql}")
-            logger.debug(f"[API] With values: {update_values}")
-
-            cursor.execute(sql, update_values)
-            conn.commit()
-            logger.info(f"[API] Database update committed")
-
-            # Fetch updated location
-            cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-            result = dict(cursor.fetchone())
-            conn.close()
-
-            logger.info(f"[API] Successfully updated location: {loc_uuid}")
-
-            return jsonify(result), 200
 
         except Exception as e:
             logger.error(f"[API] Failed to update location {loc_uuid}: {str(e)}")
@@ -1524,23 +1734,32 @@ def location_update_delete(loc_uuid):
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Verify location exists
-            cursor.execute("SELECT loc_uuid, loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-            location = cursor.fetchone()
-            if not location:
+            try:
+                conn.execute("BEGIN")
+
+                # Verify location exists
+                cursor.execute("SELECT loc_uuid, loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+                location = cursor.fetchone()
+                if not location:
+                    conn.close()
+                    return jsonify({'error': 'Location not found'}), 404
+
+                loc_name = location['loc_name']
+
+                # Delete location (cascades to images, videos, documents, urls)
+                cursor.execute("DELETE FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+                conn.commit()
+
+                logger.info(f"Deleted location: {loc_name} ({loc_uuid})")
+
+                return jsonify({'success': True, 'message': f'Deleted location: {loc_name}'}), 200
+
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Transaction failed for location delete: {e}")
+                raise
+            finally:
                 conn.close()
-                return jsonify({'error': 'Location not found'}), 404
-
-            loc_name = location['loc_name']
-
-            # Delete location (cascades to images, videos, documents, urls)
-            cursor.execute("DELETE FROM locations WHERE loc_uuid = ?", (loc_uuid,))
-            conn.commit()
-            conn.close()
-
-            logger.info(f"Deleted location: {loc_name} ({loc_uuid})")
-
-            return jsonify({'success': True, 'message': f'Deleted location: {loc_name}'}), 200
 
         except Exception as e:
             logger.error(f"Failed to delete location: {e}")
@@ -1621,27 +1840,79 @@ def location_autocomplete(field):
 def search_locations():
     """
     Search locations by name or other criteria.
-
-    Query parameters:
-        - q: Search query (matches location name)
-        - state: Filter by state code
-        - type: Filter by location type
-        - limit: Maximum results (default: 50)
-
-    Returns:
-        JSON array of matching locations
+    ---
+    tags:
+      - search
+    summary: Search locations
+    description: Search locations by name with optional filtering by state and type
+    parameters:
+      - name: q
+        in: query
+        type: string
+        required: false
+        description: Search query (matches location name)
+        example: "hospital"
+      - name: state
+        in: query
+        type: string
+        required: false
+        description: Filter by state code
+        example: "ny"
+      - name: type
+        in: query
+        type: string
+        required: false
+        description: Filter by location type
+        example: "industrial"
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 50
+        maximum: 500
+        description: Maximum number of results
+      - name: offset
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: Pagination offset
+    responses:
+      200:
+        description: Search results with pagination
+        schema:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+            pagination:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+                total:
+                  type: integer
+                has_more:
+                  type: boolean
+      500:
+        description: Server error
     """
     try:
         query = request.args.get('q', '')
         state = request.args.get('state')
         loc_type = request.args.get('type')
-        limit = int(request.args.get('limit', 50))
+        limit = min(int(request.args.get('limit', 50)), 500)
+        offset = int(request.args.get('offset', 0))
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Build query dynamically
-        sql = "SELECT * FROM locations WHERE 1=1"
+        # Build query dynamically with window function for total count
+        sql = "SELECT *, COUNT(*) OVER() as total_count FROM locations WHERE 1=1"
         params = []
 
         if query:
@@ -1656,16 +1927,26 @@ def search_locations():
             sql += " AND type = ?"
             params.append(loc_type)
 
-        sql += " ORDER BY loc_name LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY loc_name LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
         conn.close()
 
-        results = [dict(row) for row in rows]
+        results = []
+        total = 0
+        for row in rows:
+            row_dict = dict(row)
+            total = row_dict.pop('total_count', 0)
+            results.append(row_dict)
 
-        return jsonify(results), 200
+        return jsonify(create_pagination_response(
+            data=results,
+            total=total,
+            limit=limit,
+            offset=offset
+        )), 200
 
     except Exception as e:
         logger.error(f"Search failed: {e}")

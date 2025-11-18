@@ -16,7 +16,7 @@ import logging
 import os
 import requests
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -53,7 +53,7 @@ class ArchiveBoxAdapter:
     - Extract media from archives
     """
 
-    def __init__(self, base_url: str, username: Optional[str] = None, password: Optional[str] = None):
+    def __init__(self, base_url: str, username: Optional[str] = None, password: Optional[str] = None) -> None:
         """
         Initialize ArchiveBox adapter.
 
@@ -410,9 +410,9 @@ class ArchiveBoxAdapter:
 
 
 def create_archivebox_adapter(
-    url: str = None,
-    username: str = None,
-    password: str = None
+    url: Optional[str] = None,
+    username: Optional[str] = None,
+    password: Optional[str] = None
 ) -> ArchiveBoxAdapter:
     """
     Factory function to create ArchiveBox adapter from environment or parameters.

@@ -32,7 +32,7 @@ except ImportError:
 
 # Import Immich adapter
 try:
-    from adapters.immich_adapter import create_immich_adapter, ImmichError
+    from scripts.adapters.immich_adapter import create_immich_adapter, ImmichError
     IMMICH_AVAILABLE = True
 except ImportError:
     logger.warning("Immich adapter not available - imports will skip Immich upload")

@@ -33,8 +33,13 @@ source venv/bin/activate
 
 ### Starting the App
 
+**NEW: Unified Launch Script** (Recommended)
+
 ```bash
-# Start both backend and frontend
+# Start development environment (API + Desktop)
+./launch.sh --dev
+
+# Or use legacy script
 ./start_aupat.sh
 ```
 
@@ -42,6 +47,43 @@ The app will automatically:
 - Start the Flask API server on port 5002
 - Launch the Electron desktop app
 - Open the map interface
+
+**Other launch options:**
+```bash
+./launch.sh --api      # API server only
+./launch.sh --docker   # Full stack with Docker
+./launch.sh --status   # Check running services
+./launch.sh --stop     # Stop all services
+./launch.sh --health   # Run health checks
+./launch.sh --help     # Show all options
+```
+
+### Database Migrations
+
+**NEW: Migration Orchestrator** (2025-11-18)
+
+After pulling updates that include database changes, use the migration orchestrator:
+
+```bash
+# Check migration status
+python scripts/migrate.py --status
+
+# List all available migrations
+python scripts/migrate.py --list
+
+# Upgrade to latest version
+python scripts/migrate.py --upgrade
+
+# Upgrade to specific version
+python scripts/migrate.py --upgrade 0.1.4
+```
+
+The migration orchestrator:
+- Automatically detects which migrations are needed
+- Runs migrations in the correct order
+- Backs up your database before each migration
+- Tracks which migrations have been applied
+- Is safe to re-run (idempotent)
 
 ### Updating After Git Pull
 
@@ -159,6 +201,22 @@ aupat/
 ```
 http://localhost:5002/api
 ```
+
+### Interactive API Documentation
+
+**NEW: Swagger/OpenAPI Documentation** (v0.1.6)
+
+Explore and test the API interactively using the built-in Swagger UI:
+
+```
+http://localhost:5002/api/docs
+```
+
+Features:
+- Interactive API explorer with "Try it out" functionality
+- Complete endpoint documentation with parameters and responses
+- OpenAPI 2.0 specification available at `/api/apispec.json`
+- Organized by tags (health, locations, map, search, media, etc.)
 
 ### Health Check
 
@@ -318,6 +376,31 @@ python scripts/db_migrate_v012.py
 python scripts/db_import_v012.py
 ```
 
+### Type Checking
+
+**NEW: Python Type Hints** (v0.1.6)
+
+High-priority modules now have comprehensive type hints for better IDE support and code quality:
+
+```bash
+# Install mypy (optional)
+pip install mypy
+
+# Run type checking on all modules
+mypy scripts/ app.py
+
+# Run type checking on specific module
+mypy scripts/utils.py
+```
+
+**Fully Typed Modules:**
+- `scripts/utils.py` - UUID generation, SHA256 hashing, filename generation
+- `scripts/normalize.py` - Text and data normalization functions
+- `scripts/adapters/immich_adapter.py` - Immich photo storage adapter
+- `scripts/adapters/archivebox_adapter.py` - ArchiveBox web archiving adapter
+
+Configuration in `mypy.ini` with strict checking enabled for fully-typed modules.
+
 ---
 
 ## Configuration
@@ -463,12 +546,26 @@ curl http://localhost:5002/api/health
 
 ## Documentation
 
-- `UPDATE_WORKFLOW.md` - How to update after git pull
+### Core Documentation (Start Here)
+- **`README.md`** - This file - project overview and quick start
+- **`claude.md`** - Development rules and 10-step process (READ THIS FIRST for development)
+- **`techguide.md`** - Complete technical reference and architecture
+- **`lilbits.md`** - All scripts documented with examples
+- **`todo.md`** - Current tasks, gaps, and roadmap
+
+### Additional Documentation
 - `QUICKSTART.md` - Quick reference guide
+- `UPDATE_WORKFLOW.md` - How to update after git pull
 - `BRANDING_PLAN.md` - Visual identity and design system
 - `IMPLEMENTATION_STATUS.md` - Feature status tracker
 - `REVAMP_PLAN.md` - UI redesign specifications
 - `BROWSER_INTEGRATION_WWYDD.md` - Browser bookmarks integration
+
+### Technical Documentation
+- `docs/dependency_map.md` - Complete file dependency analysis
+- `CODEBASE_AUDIT_COMPLETE.md` - Comprehensive codebase audit
+- `docs/PRODUCTION_DEPLOYMENT.md` - Production deployment guide with security, SSL, monitoring
+- `docs/v0.1.2/` - Versioned documentation (18 files)
 
 ---
 

@@ -625,8 +625,13 @@ def import_locations_to_db(
     """
     Import locations into database.
 
+    IMPORTANT: This function does NOT manage transactions. The caller MUST:
+    1. Call conn.execute("BEGIN") before calling this function
+    2. Call conn.commit() after this function returns successfully
+    3. Call conn.rollback() if this function raises an exception
+
     Args:
-        cursor: Database cursor
+        cursor: Database cursor (from connection with active transaction)
         locations: List of location dicts
         map_id: Map import ID
         import_mode: 'full' (import to locations) or 'reference' (import to map_locations)

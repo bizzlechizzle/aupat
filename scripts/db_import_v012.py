@@ -362,16 +362,24 @@ def main():
         cursor = conn.cursor()
         timestamp = normalize_datetime(datetime.now())
 
-        cursor.execute(
-            """
-            INSERT INTO locations (
-                loc_uuid, loc_name, state, type, loc_add, loc_update, imp_author
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (loc_uuid, loc_name, state, loc_type, timestamp, timestamp, args.author)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("BEGIN")
+            cursor.execute(
+                """
+                INSERT INTO locations (
+                    loc_uuid, loc_name, state, type, loc_add, loc_update, imp_author
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (loc_uuid, loc_name, state, loc_type, timestamp, timestamp, args.author)
+            )
+            conn.commit()
+            logger.info("Location created successfully")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to create location: {e}")
+            raise
+        finally:
+            conn.close()
 
         # Import media
         stats = import_with_immich(

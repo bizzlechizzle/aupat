@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +35,36 @@ def get_db_connection():
     Returns:
         sqlite3.Connection with row_factory configured
     """
-    conn = sqlite3.connect('data/aupat.db')
+    db_path = current_app.config.get('DB_PATH', 'data/aupat.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def create_pagination_response(data, total, limit, offset, data_key='data'):
+    """
+    Create standardized pagination response.
+
+    Args:
+        data: List of items
+        total: Total count of items
+        limit: Limit per page
+        offset: Current offset
+        data_key: Key name for data array (default: 'data')
+
+    Returns:
+        dict: Standardized response with pagination metadata
+    """
+    return {
+        data_key: data,
+        'pagination': {
+            'limit': limit,
+            'offset': offset,
+            'total': total,
+            'has_more': offset + limit < total
+        }
+    }
 
 
 def validate_url(url: str) -> bool:
@@ -186,7 +212,7 @@ def list_bookmarks():
         folder: Filter by folder (exact match)
         loc_uuid: Filter by location UUID
         search: Search in title/description/URL
-        limit: Max results (default 100, max 1000)
+        limit: Max results (default 50, max 500)
         offset: Pagination offset (default 0)
         order: Sort order: 'created' (default), 'updated', 'title', 'visits'
 
@@ -199,7 +225,7 @@ def list_bookmarks():
         folder = request.args.get('folder')
         loc_uuid = request.args.get('loc_uuid')
         search = request.args.get('search')
-        limit = min(int(request.args.get('limit', 100)), 1000)
+        limit = min(int(request.args.get('limit', 50)), 500)
         offset = int(request.args.get('offset', 0))
         order = request.args.get('order', 'created')
 
@@ -269,12 +295,12 @@ def list_bookmarks():
 
         conn.close()
 
-        return jsonify({
-            'bookmarks': bookmarks,
-            'total': total,
-            'limit': limit,
-            'offset': offset
-        }), 200
+        return jsonify(create_pagination_response(
+            data=bookmarks,
+            total=total,
+            limit=limit,
+            offset=offset
+        )), 200
 
     except ValueError:
         return jsonify({'error': 'Invalid limit or offset format'}), 400

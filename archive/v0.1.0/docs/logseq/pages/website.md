@@ -1,3 +1,0 @@
-- home page
-	- import
-	- dashboard

@@ -1,0 +1,211 @@
+================================================================================
+                    AUPAT DEPENDENCY MAP - QUICK REFERENCE
+================================================================================
+
+TOTAL PYTHON FILES ANALYZED: 27
+- Main application: 1 (app.py)
+- API routes: 4 (api_routes_v012.py, api_routes_bookmarks.py, api_maps.py, api_sync_mobile.py)
+- Database migrations: 3 (db_migrate_v012.py, db_migrate_v013.py, db_migrate_v014.py)
+- Database operations: 6 (db_import_v012.py, db_organize.py, db_folder.py, db_ingest.py, db_verify.py, backup.py)
+- Worker daemons: 2 (archive_worker.py, media_extractor.py)
+- Utility modules: 5 (utils.py, normalize.py, import_helpers.py, immich_integration.py, map_import.py)
+- Adapters: 2 (immich_adapter.py, archivebox_adapter.py)
+- Advanced migrations: 2 (add_browser_tables.py, add_performance_indexes.py)
+- Tests: 1 (test_map_api.py)
+
+================================================================================
+                              FILE IMPORT CHAINS
+================================================================================
+
+LONGEST IMPORT CHAINS:
+1. app.py -> api_routes_v012 -> adapters.archivebox_adapter
+2. db_import_v012 -> immich_integration -> adapters.immich_adapter
+3. api_maps -> map_import (data file operations)
+
+MOST IMPORTED MODULES:
+1. normalize.py - imported by 13 files
+2. utils.py - imported by 5 files
+3. adapters/* - imported by multiple API routes
+
+================================================================================
+                            DATABASE TABLE ACCESS
+================================================================================
+
+MOST ACCESSED TABLES:
+1. locations - READ/WRITE by: api_routes_v012, api_maps, api_sync_mobile, db_import_v012, map_import
+2. images - READ/WRITE by: api_routes_v012, db_ingest, db_organize, db_verify, media_extractor
+3. videos - READ/WRITE by: api_routes_v012, db_ingest, db_organize, db_verify, media_extractor
+4. urls - READ/WRITE by: api_routes_v012, archive_worker, media_extractor
+5. google_maps_exports - READ/WRITE by: api_maps, api_routes_v012
+
+TABLE CREATION ORDER:
+1. db_migrate_v012: locations, images, videos, documents, urls, google_maps_exports, sync_log, map_locations
+2. db_migrate_v013: map_reference_cache + ALTER statements
+3. db_migrate_v014: import_batches, import_log + ALTER statements
+4. migrations/add_browser_tables: bookmarks table
+
+================================================================================
+                          DATA FILE DEPENDENCIES
+================================================================================
+
+ESSENTIAL FILES:
+- user/user.json (user configuration) - REQUIRED by all scripts
+
+TEMPLATE FILES:
+- data/folder.json (folder structure template)
+- data/camera_hardware.json (EXIF-based hardware classification)
+- data/location_type_mapping.json (type normalization suggestions)
+
+DYNAMIC FILES:
+- metadata.json (import metadata, parameter to db_import_v012)
+- Map files: *.csv, *.geojson, *.kml, *.kmz (import sources)
+
+================================================================================
+                        EXTERNAL SERVICE INTEGRATION
+================================================================================
+
+IMMICH (Photo Storage):
+- Health check: api_routes_v012
+- Upload during import: db_import_v012 -> immich_integration
+- Media extraction: media_extractor
+- Modules: immich_adapter, immich_integration
+
+ARCHIVEBOX (Web Archiving):
+- Health check: api_routes_v012
+- URL archiving: api_routes_v012
+- Background processing: archive_worker (subprocess CLI)
+- Media extraction: media_extractor
+- Modules: archivebox_adapter
+
+EXTERNAL TOOLS:
+- exiftool: db_organize (EXIF extraction)
+- ffprobe: db_organize (video metadata)
+- ArchiveBox CLI: archive_worker (URL archiving)
+
+================================================================================
+                         CRITICAL ISSUES FOUND
+================================================================================
+
+ISSUE #1: HARDCODED DATABASE PATH
+Location: scripts/api_routes_bookmarks.py:38
+Code: conn = sqlite3.connect('data/aupat.db')
+Status: BREAKS with relative paths
+Fix: Use current_app.config['DB_PATH']
+
+ISSUE #2: MISSING BLUEPRINT REGISTRATIONS
+Affected: api_routes_bookmarks.py, api_maps.py
+Status: Blueprints defined but NOT registered in app.py
+Fix: Add register_blueprint() calls to app.py
+
+ISSUE #3: INCONSISTENT IMPORT PATHS
+Location: scripts/immich_integration.py
+Code: from adapters.immich_adapter (relative path)
+Status: BREAKS when run from project root
+Fix: Use from scripts.adapters.immich_adapter
+
+ISSUE #4: NO TRANSACTION ISOLATION
+Affected: Multiple scripts with multi-step operations
+Status: Risk of data inconsistency on crash
+Fix: Wrap operations in BEGIN...COMMIT blocks
+
+================================================================================
+                        CIRCULAR DEPENDENCIES CHECK
+================================================================================
+
+RESULT: NO CIRCULAR DEPENDENCIES DETECTED ✓
+
+Dependency flow is strictly unidirectional:
+- app.py (top level) -> API routes -> adapters/utils/normalize
+- DB scripts -> normalize -> external services
+- All leaf modules have no project dependencies
+
+================================================================================
+                         MIGRATION DEPENDENCY ORDER
+================================================================================
+
+MUST RUN IN SEQUENCE:
+1. db_migrate_v012.py (creates base schema + all core tables)
+2. db_migrate_v013.py (adds map import tables)
+3. db_migrate_v014.py (adds import batch tracking)
+4. migrations/add_browser_tables.py (adds bookmarks)
+5. migrations/add_performance_indexes.py (adds database indexes)
+
+RUNNING OUT OF ORDER WILL CAUSE FAILURES ⚠
+
+================================================================================
+                         BACKGROUND DAEMONS
+================================================================================
+
+archive_worker.py:
+- Polls every 30 seconds for pending URLs (archive_status='pending')
+- Calls ArchiveBox CLI to process URLs
+- Updates database with snapshot_id and status
+- Should run continuously in background
+
+media_extractor.py:
+- Polls every 30 seconds for archived URLs needing extraction
+- Scans ArchiveBox directory for media files
+- Uploads to Immich and links to locations
+- Updates media_extracted count
+- Should run continuously in background
+
+Both implement graceful shutdown on SIGINT/SIGTERM.
+
+================================================================================
+                            API ENDPOINT SUMMARY
+================================================================================
+
+REGISTERED IN app.py (WORKING):
+- GET / (root info)
+- GET /api/health
+- GET /api/health/services
+- GET /api/map/markers
+- GET /api/locations/{id}
+- GET /api/search
+- POST/GET /api/media/*
+- POST/GET /api/import/*
+- GET/POST/PUT/DELETE /api/locations/*
+- POST /api/locations/{id}/media/*
+- POST /api/sync/mobile
+- GET /api/sync/mobile/pull
+
+NOT REGISTERED (BROKEN):
+- /api/bookmarks/* endpoints (api_routes_bookmarks.py)
+- /api/maps/* endpoints (api_maps.py)
+
+FIX: Add these registrations to app.py:
+  from scripts.api_routes_bookmarks import bookmarks_bp
+  from scripts.api_maps import api_maps
+  app.register_blueprint(bookmarks_bp, url_prefix='/api')
+  app.register_blueprint(api_maps)
+
+================================================================================
+                          CRITICAL WORKFLOW PATHS
+================================================================================
+
+IMPORT WORKFLOW (archive/v0.1.0/scripts):
+1. backup.py - backup database
+2. db_import_v012.py - import photos, generate UUIDs, upload to Immich
+3. db_organize.py - extract EXIF/metadata, categorize by hardware
+4. db_folder.py - create archive folder structure
+5. db_ingest.py - hardlink/move files to archive
+6. db_verify.py - verify SHA256, cleanup staging
+
+WEB ARCHIVING WORKFLOW:
+1. API: POST /api/locations/{id}/urls - submit URLs for archiving
+2. archive_worker.py - background daemon, polls and archives pending URLs
+3. media_extractor.py - background daemon, extracts media from archives
+4. API: GET /api/locations/{id} - retrieve archived URL references
+
+MAP IMPORT WORKFLOW:
+1. API: POST /api/maps/parse - parse map file (CSV/GeoJSON/KML)
+2. API: POST /api/maps/check-duplicates - check against existing locations
+3. API: POST /api/maps/import - import to database (full or reference mode)
+
+MOBILE SYNC WORKFLOW:
+1. Mobile app: POST /api/sync/mobile - push new locations
+2. Backend: Insert into locations, track in sync_log
+3. Mobile app: GET /api/sync/mobile/pull - pull new locations
+4. Backend: Query and return new locations
+
+================================================================================

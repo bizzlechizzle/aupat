@@ -245,6 +245,14 @@ credentials/
 .env.staging
 
 # ===================================
+# Generated files
+# ===================================
+# Generated plist file (regenerate with: python scripts/generate_plist.py)
+com.aupat.worker.plist
+# Health check results
+health_check_results.json
+
+# ===================================
 # Misc
 # ===================================
 .DS_Store
