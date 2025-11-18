@@ -18,7 +18,6 @@ from flask import Flask
 from flasgger import Swagger
 from scripts.api_routes_v012 import register_api_routes
 from scripts.api_sync_mobile import register_mobile_sync_routes
-from scripts.api_routes_bookmarks import bookmarks_bp
 from scripts.api_maps import api_maps
 
 # Configure logging
@@ -151,9 +150,6 @@ register_api_routes(app)
 
 # Register mobile sync API routes
 register_mobile_sync_routes(app)
-
-# Register bookmarks API routes
-app.register_blueprint(bookmarks_bp, url_prefix='/api')
 
 # Register map import API routes
 app.register_blueprint(api_maps)
