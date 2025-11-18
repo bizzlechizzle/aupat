@@ -15,7 +15,8 @@
     immichUrl: '',
     archiveboxUrl: '',
     mapCenter: { lat: 0, lng: 0 },
-    mapZoom: 10
+    mapZoom: 10,
+    deleteImportMedia: false
   };
 
   let archiveConfig = {
@@ -345,6 +346,30 @@
         {:else if configSaveStatus === 'error'}
           <span class="text-sm text-red-600">Failed to save archive paths</span>
         {/if}
+      </div>
+    </div>
+
+    <!-- Import Settings (v0.1.5) -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Import Settings</h3>
+
+      <div class="space-y-4">
+        <!-- Delete Import Media -->
+        <div class="flex items-center">
+          <input
+            id="deleteImportMedia"
+            type="checkbox"
+            bind:checked={currentSettings.deleteImportMedia}
+            on:change={() => handleSave('deleteImportMedia', currentSettings.deleteImportMedia)}
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label for="deleteImportMedia" class="ml-2 block text-sm text-gray-900">
+            Delete source files after successful import
+          </label>
+        </div>
+        <p class="text-sm text-gray-500 ml-6">
+          When enabled, original media files will be deleted from the source directory after being successfully imported into the archive. Use with caution.
+        </p>
       </div>
     </div>
 
