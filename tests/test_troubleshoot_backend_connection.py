@@ -15,10 +15,7 @@ import json
 from pathlib import Path
 import sys
 
-# Add scripts directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
-
-from normalize import normalize_state_code, normalize_location_type
+from scripts.normalize import normalize_state_code, normalize_location_type
 
 
 class TestBackendConnectionConfiguration(unittest.TestCase):

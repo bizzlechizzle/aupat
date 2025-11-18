@@ -22,10 +22,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Add scripts directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
-from normalize import normalize_datetime
+from scripts.normalize import normalize_datetime
 
 # Configure logging
 logging.basicConfig(

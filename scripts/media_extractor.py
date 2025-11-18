@@ -27,11 +27,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-# Add scripts directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
-from normalize import normalize_datetime
-from utils import generate_uuid, calculate_sha256
+from scripts.normalize import normalize_datetime
+from scripts.utils import generate_uuid, calculate_sha256
 
 # Configure logging
 def setup_logging():

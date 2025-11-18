@@ -19,11 +19,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# Add scripts directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
-from utils import calculate_sha256
-from normalize import normalize_datetime
+from scripts.utils import calculate_sha256
+from scripts.normalize import normalize_datetime
 
 # Configure logging
 logging.basicConfig(

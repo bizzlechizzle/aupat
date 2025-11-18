@@ -21,8 +21,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from normalize import normalize_datetime
-from backup import create_backup as _create_backup
+from scripts.normalize import normalize_datetime
+from scripts.backup import create_backup as _create_backup
 
 logger = logging.getLogger(__name__)
 

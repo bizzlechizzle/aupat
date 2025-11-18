@@ -29,10 +29,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add scripts directory to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from utils import (
+from scripts.utils import (
     generate_uuid,
     calculate_sha256,
     generate_filename,
@@ -40,7 +37,7 @@ from utils import (
     check_sha256_collision,
     check_location_name_collision
 )
-from normalize import (
+from scripts.normalize import (
     normalize_location_name,
     normalize_state_code,
     normalize_location_type,
@@ -48,7 +45,7 @@ from normalize import (
     normalize_extension,
     normalize_author
 )
-from immich_integration import (
+from scripts.immich_integration import (
     get_immich_adapter,
     process_media_for_immich,
     update_location_gps
