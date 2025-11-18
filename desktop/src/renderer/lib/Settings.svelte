@@ -68,7 +68,7 @@
 <div class="p-8 max-w-2xl">
   <div class="mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Settings</h2>
-    <p class="text-gray-600 mt-1">Configure AUPAT Desktop application</p>
+    <p class="text-gray-600 mt-1">Configure Abandoned Upstate application</p>
   </div>
 
   <form on:submit={handleSubmit} class="space-y-6">

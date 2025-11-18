@@ -1,5 +1,5 @@
 /**
- * AUPAT Desktop - Renderer Entry Point
+ * Abandoned Upstate - Renderer Entry Point
  *
  * Mounts the Svelte app and initializes stores
  */
