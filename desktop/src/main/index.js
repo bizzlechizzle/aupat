@@ -235,15 +235,22 @@ ipcMain.handle('locations:create', async (event, locationData) => {
 
 ipcMain.handle('locations:update', async (event, id, locationData) => {
   try {
+    log.info(`[IPC] Update request received for location ${id}`);
+    log.debug(`[IPC] Update data:`, JSON.stringify(locationData, null, 2));
+
     validateRequired(id, 'id');
     validateString(id, 'id');
     validateRequired(locationData, 'locationData');
 
-    log.info(`Updating location ${id}`);
+    log.info(`[IPC] Validation passed, sending PUT request to API`);
     const location = await api.put(`/api/locations/${id}`, locationData);
+    log.info(`[IPC] Update successful for location ${id}`);
+    log.debug(`[IPC] Updated location data:`, JSON.stringify(location, null, 2));
+
     return { success: true, data: location };
   } catch (error) {
-    log.error(`Failed to update location ${id}:`, error);
+    log.error(`[IPC] Failed to update location ${id}:`, error.message);
+    log.error(`[IPC] Error stack:`, error.stack);
     return { success: false, error: sanitizeError(error) };
   }
 });

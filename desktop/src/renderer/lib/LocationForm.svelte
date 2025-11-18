@@ -176,6 +176,18 @@
       return;
     }
 
+    // Additional validation for edit mode
+    if (mode === 'edit') {
+      if (!location) {
+        errors.submit = 'No location selected for editing';
+        return;
+      }
+      if (!location.loc_uuid) {
+        errors.submit = 'Location UUID is missing';
+        return;
+      }
+    }
+
     isSubmitting = true;
 
     try {
@@ -196,16 +208,27 @@
       };
 
       if (mode === 'create') {
+        console.log('Creating new location:', data);
         const newLocation = await locations.create(data);
+        console.log('Location created successfully:', newLocation);
         dispatch('created', newLocation);
       } else {
+        console.log('Updating location:', location.loc_uuid, data);
         const updatedLocation = await locations.update(location.loc_uuid, data);
+        console.log('Location updated successfully:', updatedLocation);
         dispatch('updated', updatedLocation);
       }
 
       close();
     } catch (error) {
       console.error('Failed to save location:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        mode,
+        locationId: location?.loc_uuid
+      });
+
       // Check for collision error
       if (error.message && error.message.includes('already exists')) {
         errors.loc_name = 'A location with this name already exists';
