@@ -640,7 +640,7 @@ def main():
     try:
         # Load configuration
         config = load_user_config(args.config)
-        db_path = config['db_loc']
+        db_path = str(Path(config['db_loc']) / config['db_name'])
 
         # Run migration
         run_migration(db_path, backup=not args.no_backup)
