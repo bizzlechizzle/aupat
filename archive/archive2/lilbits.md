@@ -1,20 +1,9 @@
 # LILBITS - AUPAT Script Documentation
 
-Version: 2.0.0 (12-char Hash Update)
+Version: 1.0.0
 Last Updated: 2025-11-18
 
 This document catalogs all scripts in the AUPAT project, following the LILBITS principle: one script = one function. Each script is documented with its purpose, inputs, outputs, and dependencies.
-
----
-
-## CRITICAL: 12-CHARACTER HASH STANDARD (2025-11-18)
-
-**ALL new scripts must use 12-char hashes:**
-- `uuid12 = uuid_full[:12]`
-- `sha12 = sha256_full[:12]`
-- Filenames: `{uuid12}-{sha12}.{ext}`
-
-See claude.md for full rationale.
 
 ---
 

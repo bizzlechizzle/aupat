@@ -1,0 +1,180 @@
+================================================================================
+                    FILE-BY-FILE DEPENDENCY REFERENCE TABLE
+================================================================================
+
+FILE NAME                      | IMPORTS FROM PROJECT        | READS DATA FILES      | ACCESSES TABLES
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+app.py                         | api_routes_v012             | None                  | All (indirect)
+                               | api_sync_mobile             |                       |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+api_routes_v012.py             | adapters.archivebox_adapter | None                  | locations, images
+                               |                             |                       | videos, documents
+                               |                             |                       | urls, google_maps_*
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+api_routes_bookmarks.py        | None                        | None                  | bookmarks
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+api_maps.py                    | map_import                  | None                  | locations, google_maps*
+                               |                             |                       | map_locations
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+api_sync_mobile.py             | None                        | None                  | locations, sync_log
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_migrate_v012.py             | normalize                   | user.json             | Creates: locations,
+                               |                             |                       | images, videos,
+                               |                             |                       | documents, urls,
+                               |                             |                       | google_maps_exports,
+                               |                             |                       | sync_log, map_*
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_migrate_v013.py             | normalize                   | user.json             | Creates/Alters:
+                               |                             |                       | map_reference_cache,
+                               |                             |                       | google_maps_exports,
+                               |                             |                       | locations
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_migrate_v014.py             | normalize                   | user.json             | Creates/Alters:
+                               |                             |                       | import_batches,
+                               |                             |                       | import_log, images,
+                               |                             |                       | videos
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_import_v012.py              | utils                       | user.json             | locations, images,
+                               | normalize                   | metadata.json         | videos, documents
+                               | immich_integration          |                       |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_organize.py                 | normalize                   | user.json             | images, videos
+                               |                             | camera_hardware.json  |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_folder.py                   | normalize                   | user.json             | images, videos,
+                               |                             | folder.json           | documents (count)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_ingest.py                   | utils                       | user.json             | images, videos
+                               | normalize                   |                       |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+db_verify.py                   | utils                       | user.json             | images, videos,
+                               | normalize                   |                       | documents
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+backup.py                      | normalize                   | user.json             | versions table
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+archive_worker.py              | normalize                   | user.json             | urls table
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+media_extractor.py             | normalize                   | user.json             | urls, images,
+                               | utils                       |                       | videos
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+import_helpers.py              | normalize                   | user.json             | import_batches,
+                               | backup                      |                       | import_log
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+immich_integration.py           | adapters.immich_adapter     | None                  | locations (GPS update)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+map_import.py                  | None                        | None                  | locations,
+                               |                             |                       | map_locations
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+utils.py (LEAF MODULE)         | None                        | None                  | locations, urls
+                               |                             |                       | (for collision)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+normalize.py (LEAF MODULE)     | None (opt: unidecode,       | location_type_       | None
+                               | dateutil, postal)           | mapping.json          |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+adapters/immich_adapter.py     | None                        | None                  | None
+  (LEAF MODULE)                | (external: requests,        |                       |
+                               | tenacity)                   |                       |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+adapters/archivebox_adapter.py | None                        | None                  | None
+  (LEAF MODULE)                | (external: requests,        |                       |
+                               | tenacity)                   |                       |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+migrations/add_browser_*.py    | normalize                   | None                  | bookmarks, urls,
+                               |                             |                       | indexes
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+test_map_api.py                | None                        | test_map_import.csv   | None (test)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+                          TABLE ACCESS MATRIX
+================================================================================
+
+TABLE              | CREATE  | READ         | WRITE        | DELETE
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+locations          | v012    | api_routes   | api_routes   | api_routes
+                   |         | api_maps     | api_maps     | api_maps
+                   |         | api_sync     | api_sync     |
+                   |         | db_verify    | db_import    |
+                   |         | map_import   | immich_int   |
+                   |         | utils        | map_import   |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+images             | v012    | api_routes   | api_routes   | api_routes
+                   |         | db_organize  | db_ingest    |
+                   |         | db_verify    | db_organize  |
+                   |         | media_extr   | media_extr   |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+videos             | v012    | api_routes   | api_routes   | api_routes
+                   |         | db_organize  | db_ingest    |
+                   |         | db_verify    | db_organize  |
+                   |         | media_extr   | media_extr   |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+documents          | v012    | api_routes   | api_routes   | api_routes
+                   |         | db_verify    | db_import    |
+                   |         | db_folder    |              |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+urls               | v012    | api_routes   | api_routes   | api_routes
+                   |         | archive_wrk  | archive_wrk  |
+                   |         | media_extr   | media_extr   |
+                   |         | utils        |              |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+bookmarks          | browser | api_bookm    | api_bookm    | api_bookm
+                   |         |              |              |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+google_maps_*      | v012    | api_maps     | api_maps     | api_maps
+                   | v013    | api_routes   | api_routes   |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+map_locations      | v012/13 | api_maps     | map_import   | api_maps
+                   |         | map_import   |              |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+sync_log           | v012    | -            | api_sync     | -
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+import_batches     | v014    | api_routes   | import_hlp   | -
+                   |         | import_hlp   |              |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+import_log         | v014    | import_hlp   | import_hlp   | -
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+versions           | v012+   | backup       | backup       | -
+                   |         | db_migrate   | db_migrate   |
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+                        MODULE IMPORT FREQUENCY
+================================================================================
+
+MODULE IMPORTED BY:                                    FREQUENCY   STATUS
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+normalize.py                                           13 times    CRITICAL (most imported)
+utils.py                                               5 times     IMPORTANT
+adapters.immich_adapter                               3 times     IMPORTANT
+adapters.archivebox_adapter                           2 times     IMPORTANT
+backup.py                                              1 time      (import_helpers only)
+map_import.py                                          1 time      (api_maps only)
+immich_integration.py                                  1 time      (db_import_v012 only)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+                       EXECUTION FLOW CHECKLIST
+================================================================================
+
+INITIAL SETUP:
+  [ ] 1. Create user/user.json from user.json.template
+  [ ] 2. Run db_migrate_v012.py (creates base schema)
+  [ ] 3. Run db_migrate_v013.py (adds map import)
+  [ ] 4. Run db_migrate_v014.py (adds batch tracking)
+  [ ] 5. Run migrations/add_browser_tables.py
+  [ ] 6. Run migrations/add_performance_indexes.py
+
+FIRST TIME DEPLOYMENT:
+  [ ] 7. Configure Immich adapter (if using photo storage)
+  [ ] 8. Configure ArchiveBox adapter (if using web archiving)
+  [ ] 9. Start Flask app: python app.py
+  [ ] 10. (Optional) Start background daemons:
+         - python scripts/archive_worker.py
+         - python scripts/media_extractor.py
+
+DURING OPERATION:
+  [ ] Import workflow: backup → db_import → db_organize → db_folder → db_ingest → db_verify
+  [ ] API endpoints: Use /api/* paths (verify /api/bookmarks and /api/maps are registered!)
+  [ ] Monitor background daemons for long-running operations
+
+================================================================================

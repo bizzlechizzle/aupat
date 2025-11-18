@@ -1,0 +1,207 @@
+================================================================================
+                          AUPAT DEPENDENCY DIAGRAM
+================================================================================
+
+                                   app.py
+                                     |
+                    __________________|__________________
+                   |                  |                  |
+                   v                  v                  v
+             api_routes_v012   api_sync_mobile    (missing: api_maps)
+                   |                                (missing: bookmarks)
+        ___________|___________
+        |         |           |
+        v         v           v
+    archivebox  health   location ops
+    adapter     checks   (all tables)
+                   |
+                   v
+              immich_adapter (optional)
+
+
+DATABASE LAYER:
+                    ┌─────────────────────────────────┐
+                    |  SQLite Database (aupat.db)    |
+                    └─────────────────────────────────┘
+                              |
+        ________________________|________________________
+        |        |        |        |        |        |
+        v        v        v        v        v        v
+    locations  images   videos  documents  urls  bookmarks
+        |        |        |        |        |
+        |________|________|________|        |
+                   |                        |
+        ┌──────────┴──────────┐    ┌───────┴────────┐
+        v                     v    v                v
+    api_routes        db_verify  api_routes    archive_worker
+    db_import           backup    db_organize    media_extractor
+
+
+IMPORT WORKFLOW (Sequential Execution):
+
+  User                 backup.py           Creates timestamped
+  Initiates ─────────────────────────────  database backup
+  Import               db_import_v012       Imports files, generates
+                      ──────────────────   UUIDs, uploads to Immich
+                       db_organize         Extracts EXIF/metadata,
+                      ──────────────────   categorizes hardware
+                       db_folder           Creates archive folder
+                      ──────────────────   structure
+                       db_ingest           Hardlinks/moves files
+                      ──────────────────   to archive
+                       db_verify           Verifies SHA256,
+                      ──────────────────   cleans up staging
+
+
+MODULE IMPORT HIERARCHY:
+
+                    ┌──────────────────────────────┐
+                    |  Leaf Modules (no imports)   |
+                    ├──────────────────────────────┤
+                    | - utils.py                   |
+                    | - normalize.py               |
+                    | - map_import.py              |
+                    | - immich_adapter.py          |
+                    | - archivebox_adapter.py      |
+                    └──────────────────────────────┘
+                                 ^
+                                 |
+                    _____________|_____________
+                   |             |            |
+                   v             v            v
+          Core Scripts    API Routes      Migrations
+        (db_*.py files) (api_*.py files) (db_migrate_*.py)
+                   |             |            |
+                   |_____________|____________|
+                          |
+                   ┌──────┴──────┐
+                   v             v
+               app.py      Flask Routes
+                               |
+                               v
+                          Client Apps
+
+
+EXTERNAL SERVICE INTEGRATION:
+
+                       ┌─────────────────┐
+                       | AUPAT Backend   |
+                       │  (app.py)       │
+                       └────────┬────────┘
+                                |
+        ________________________|________________________
+        |                       |                      |
+        v                       v                      v
+    Immich              ArchiveBox                Users
+    (Photo Storage)    (Web Archive)          (Desktop/Mobile
+        |                   |                  API Clients)
+        |  Health Check      |  Health Check
+        |________________    |_________________
+                        |
+                    ┌───┴────┐
+                    v        v
+               immich_      archivebox_
+               adapter      adapter
+                    |        |
+                    v        v
+            HTTP requests, retry logic
+
+
+CRITICAL PATHS:
+
+1. MEDIA INGEST PATH:
+   Desktop App → api_routes_v012 → db_import_v012 → immich_integration 
+   → immich_adapter → Immich API
+
+2. WEB ARCHIVING PATH:
+   Desktop App → api_routes_v012 → archive_worker (daemon) → ArchiveBox CLI
+   → media_extractor (daemon) → Immich (optional)
+
+3. MAP IMPORT PATH:
+   Desktop App → api_maps → map_import → locations table
+
+4. MOBILE SYNC PATH:
+   Mobile App → api_sync_mobile → locations + sync_log tables
+
+
+BROKEN CONNECTIONS (FIX REQUIRED):
+
+   ┌─────────────────────────────┐
+   │ api_routes_bookmarks        │ ← Not registered!
+   │ (bookmarks blueprint)       │
+   └─────────────────────────────┘
+
+   ┌─────────────────────────────┐
+   │ api_maps                    │ ← Not registered!
+   │ (maps blueprint)            │
+   └─────────────────────────────┘
+
+   FIX in app.py:
+   from scripts.api_routes_bookmarks import bookmarks_bp
+   from scripts.api_maps import api_maps
+   app.register_blueprint(bookmarks_bp, url_prefix='/api')
+   app.register_blueprint(api_maps)
+
+
+DATA FILE FLOW:
+
+                        ┌──────────────────────┐
+                        │ user/user.json       │ ← Configuration
+                        │ (user config)        │
+                        └──────────────────────┘
+                                 |
+        _________________________|_________________________
+        |              |            |           |        |
+        v              v            v           v        v
+    db_migrate   db_import   db_organize  backup   all other scripts
+    (all)         (metadata)   (hardware)  (backup) (config path)
+                     |
+        ┌────────────┼────────────┐
+        v            v            v
+    metadata.json  folder.json  camera_hardware.json
+    (import meta)  (structure)   (EXIF rules)
+                     |
+                     v
+            location_type_mapping.json
+              (type normalization)
+
+
+DEPLOYMENT STRUCTURE:
+
+/home/user/aupat/
+├── app.py (Flask application)
+├── scripts/
+│   ├── __init__.py
+│   ├── adapters/
+│   │   ├── immich_adapter.py (Immich API abstraction)
+│   │   └── archivebox_adapter.py (ArchiveBox API abstraction)
+│   ├── migrations/
+│   │   ├── add_browser_tables.py
+│   │   └── add_performance_indexes.py
+│   ├── api_routes_v012.py (REGISTERED in app.py)
+│   ├── api_routes_bookmarks.py (NOT REGISTERED ⚠)
+│   ├── api_maps.py (NOT REGISTERED ⚠)
+│   ├── api_sync_mobile.py (REGISTERED in app.py)
+│   ├── db_migrate_v012.py (run sequentially first)
+│   ├── db_migrate_v013.py (run second)
+│   ├── db_migrate_v014.py (run third)
+│   ├── db_import_v012.py (manual execution)
+│   ├── db_organize.py (manual execution)
+│   ├── db_folder.py (manual execution)
+│   ├── db_ingest.py (manual execution)
+│   ├── db_verify.py (manual execution)
+│   ├── backup.py (manual execution)
+│   ├── archive_worker.py (background daemon)
+│   ├── media_extractor.py (background daemon)
+│   ├── utils.py (utility functions)
+│   ├── normalize.py (normalization functions)
+│   ├── import_helpers.py (import tracking)
+│   └── immich_integration.py (Immich workflow wrapper)
+├── data/
+│   ├── folder.json (folder template)
+│   ├── camera_hardware.json (EXIF rules)
+│   └── location_type_mapping.json (type suggestions)
+└── user/
+    └── user.json (configuration)
+
+================================================================================
