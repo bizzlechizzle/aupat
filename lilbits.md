@@ -204,6 +204,67 @@ curl http://localhost:5002/api/health
 
 ## DATABASE MIGRATIONS
 
+### scripts/migrate.py (NEW - Migration Orchestrator)
+
+**Location:** `/home/user/aupat/scripts/migrate.py`
+**LOC:** ~470 lines
+**Purpose:** Database migration orchestrator and version manager
+
+**What it does:**
+- Detects current schema version from versions table
+- Lists all available migrations in dependency order
+- Runs pending migrations automatically
+- Tracks which migrations have been applied
+- Backs up database before each migration
+- Provides safe upgrade path from any version
+
+**Migrations managed:**
+- 0.1.2: initial_schema - Base tables (locations, images, videos, URLs)
+- 0.1.3: map_imports - KML/CSV/GeoJSON import support
+- 0.1.4: archive_workflow - Import batch tracking
+- 0.1.4-browser: browser_tables - Browser bookmarks
+- 0.1.4-indexes: performance_indexes - Query optimization
+
+**How to run:**
+```bash
+# Show current version and pending migrations
+python scripts/migrate.py --status
+
+# List all available migrations
+python scripts/migrate.py --list
+
+# Upgrade to latest version
+python scripts/migrate.py --upgrade
+
+# Upgrade to specific version
+python scripts/migrate.py --upgrade 0.1.4
+
+# Upgrade without backups (faster, not recommended)
+python scripts/migrate.py --upgrade --no-backup
+```
+
+**When to run:** After git pull when database schema changes
+
+**Dependencies:**
+- All migration scripts (db_migrate_v012.py, v013, v014, etc.)
+
+**Database tables:**
+- READ/WRITE: versions (migration tracking)
+
+**Features:**
+- Automatic version detection
+- Sequential migration execution
+- Idempotent (safe to re-run)
+- Automatic database backup
+- Transaction-safe migrations
+- Detailed progress logging
+
+**Exit codes:**
+- 0: Success
+- 1: Migration failed or error occurred
+
+---
+
 ### scripts/db_migrate_v012.py
 
 **Location:** `/home/user/aupat/scripts/db_migrate_v012.py`

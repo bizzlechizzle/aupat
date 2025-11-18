@@ -58,6 +58,33 @@ The app will automatically:
 ./launch.sh --help     # Show all options
 ```
 
+### Database Migrations
+
+**NEW: Migration Orchestrator** (2025-11-18)
+
+After pulling updates that include database changes, use the migration orchestrator:
+
+```bash
+# Check migration status
+python scripts/migrate.py --status
+
+# List all available migrations
+python scripts/migrate.py --list
+
+# Upgrade to latest version
+python scripts/migrate.py --upgrade
+
+# Upgrade to specific version
+python scripts/migrate.py --upgrade 0.1.4
+```
+
+The migration orchestrator:
+- Automatically detects which migrations are needed
+- Runs migrations in the correct order
+- Backs up your database before each migration
+- Tracks which migrations have been applied
+- Is safe to re-run (idempotent)
+
 ### Updating After Git Pull
 
 **Important**: After pulling updates, always run:
