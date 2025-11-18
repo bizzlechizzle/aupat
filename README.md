@@ -523,6 +523,7 @@ curl http://localhost:5002/api/health
 ### Technical Documentation
 - `docs/dependency_map.md` - Complete file dependency analysis
 - `CODEBASE_AUDIT_COMPLETE.md` - Comprehensive codebase audit
+- `docs/PRODUCTION_DEPLOYMENT.md` - Production deployment guide with security, SSL, monitoring
 - `docs/v0.1.2/` - Versioned documentation (18 files)
 
 ---
