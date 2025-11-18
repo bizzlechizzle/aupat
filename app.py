@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 from flask import Flask
 from scripts.api_routes_v012 import register_api_routes
+from scripts.api_sync_mobile import register_mobile_sync_routes
 
 # Configure logging
 logging.basicConfig(
@@ -34,6 +35,9 @@ app.config['JSON_SORT_KEYS'] = False
 # Register v0.1.2 API routes
 register_api_routes(app)
 
+# Register mobile sync API routes
+register_mobile_sync_routes(app)
+
 # Root endpoint
 @app.route('/')
 def index():
@@ -47,7 +51,9 @@ def index():
             'services': '/api/health/services',
             'map_markers': '/api/map/markers',
             'locations': '/api/locations/{loc_uuid}',
-            'search': '/api/search'
+            'search': '/api/search',
+            'mobile_sync_push': '/api/sync/mobile',
+            'mobile_sync_pull': '/api/sync/mobile/pull'
         },
         'documentation': 'https://github.com/bizzlechizzle/aupat'
     }
