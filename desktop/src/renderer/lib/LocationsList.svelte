@@ -3,11 +3,13 @@
    * Locations List View
    *
    * Table view of all locations with search and CRUD operations.
+   * Click on a location row to view details.
    */
 
   import { onMount } from 'svelte';
   import { locations } from '../stores/locations.js';
   import LocationForm from './LocationForm.svelte';
+  import LocationDetail from './LocationDetail.svelte';
 
   let locationItems = [];
   let loading = false;
@@ -15,6 +17,7 @@
   let showForm = false;
   let formMode = 'create';
   let selectedLocation = null;
+  let detailLocation = null;
 
   onMount(async () => {
     loading = true;
@@ -67,6 +70,18 @@
   function handleFormClose() {
     showForm = false;
     selectedLocation = null;
+  }
+
+  function openDetailView(location) {
+    detailLocation = location;
+  }
+
+  function closeDetailView() {
+    detailLocation = null;
+  }
+
+  function handleRowClick(location) {
+    openDetailView(location);
   }
 </script>
 
@@ -127,7 +142,10 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           {#each filteredLocations as location}
-            <tr class="hover:bg-gray-50">
+            <tr
+              class="hover:bg-gray-50 cursor-pointer transition-colors"
+              on:click={() => handleRowClick(location)}
+            >
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {location.loc_name}
                 {#if location.aka_name}
@@ -149,13 +167,13 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                 <button
-                  on:click={() => openEditForm(location)}
+                  on:click|stopPropagation={() => openEditForm(location)}
                   class="text-blue-600 hover:text-blue-900"
                 >
                   Edit
                 </button>
                 <button
-                  on:click={() => handleDelete(location)}
+                  on:click|stopPropagation={() => handleDelete(location)}
                   class="text-red-600 hover:text-red-900"
                 >
                   Delete
@@ -178,3 +196,8 @@
   on:created={handleFormClose}
   on:updated={handleFormClose}
 />
+
+<!-- Location Detail Sidebar -->
+{#if detailLocation}
+  <LocationDetail location={detailLocation} onClose={closeDetailView} />
+{/if}
