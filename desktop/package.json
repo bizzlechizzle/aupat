@@ -1,9 +1,9 @@
 {
-  "name": "aupat-desktop",
-  "version": "0.1.2",
-  "description": "AUPAT Desktop - Location-centric digital archive management",
+  "name": "abandoned-upstate",
+  "version": "0.2.0",
+  "description": "Abandoned Upstate - Digital archive for abandoned locations in Upstate New York",
   "main": "dist-electron/main/index.js",
-  "author": "AUPAT Project",
+  "author": "Abandoned Upstate",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -34,6 +34,7 @@
     "autoprefixer": "^10.4.16",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "electron-icon-builder": "^2.0.1",
     "electron-vite": "^2.0.0",
     "leaflet": "^1.9.4",
     "playwright": "^1.40.1",
@@ -45,8 +46,8 @@
     "vitest": "^1.0.4"
   },
   "build": {
-    "appId": "com.aupat.desktop",
-    "productName": "AUPAT",
+    "appId": "com.abandonedupstate.app",
+    "productName": "Abandoned Upstate",
     "directories": {
       "output": "dist-builder"
     },
@@ -55,18 +56,28 @@
       "resources/**/*"
     ],
     "mac": {
-      "category": "public.app-category.productivity",
+      "category": "public.app-category.lifestyle",
+      "icon": "resources/icon.icns",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "linux": {
+      "icon": "resources/icon.png",
       "target": [
         "AppImage",
         "deb"
       ],
-      "category": "Utility"
+      "category": "Graphics"
+    },
+    "win": {
+      "icon": "resources/icon.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "bizzlechizzle",
+      "repo": "aupat"
     }
   }
 }

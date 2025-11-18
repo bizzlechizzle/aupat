@@ -108,8 +108,20 @@
     error = null;
 
     try {
-      // Read file content
-      const content = await selectedFile.text();
+      // Read file content (handle binary KMZ differently)
+      let content;
+      let isBase64 = false;
+
+      if (fileFormat === 'kmz') {
+        // KMZ is a binary ZIP file - read as ArrayBuffer and encode to base64
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        content = btoa(String.fromCharCode(...bytes));
+        isBase64 = true;
+      } else {
+        // KML, CSV, GeoJSON are text files
+        content = await selectedFile.text();
+      }
 
       // Send to backend for parsing
       const response = await fetch(`${apiUrl}/api/maps/parse`, {
@@ -118,7 +130,8 @@
         body: JSON.stringify({
           filename: fileName,
           format: fileFormat,
-          content: content
+          content: content,
+          isBase64: isBase64
         })
       });
 
@@ -181,8 +194,20 @@
     error = null;
 
     try {
-      // Read file content again
-      const content = await selectedFile.text();
+      // Read file content again (handle binary KMZ differently)
+      let content;
+      let isBase64 = false;
+
+      if (fileFormat === 'kmz') {
+        // KMZ is a binary ZIP file - read as ArrayBuffer and encode to base64
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        content = btoa(String.fromCharCode(...bytes));
+        isBase64 = true;
+      } else {
+        // KML, CSV, GeoJSON are text files
+        content = await selectedFile.text();
+      }
 
       const response = await fetch(`${apiUrl}/api/maps/import`, {
         method: 'POST',
@@ -192,6 +217,7 @@
           format: fileFormat,
           mode: importMode,
           content: content,
+          isBase64: isBase64,
           description: description,
           skip_duplicates: skipDuplicates
         })
