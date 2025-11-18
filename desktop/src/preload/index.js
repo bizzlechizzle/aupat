@@ -12,7 +12,7 @@
  * @see https://www.electronjs.org/docs/latest/tutorial/context-isolation
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object

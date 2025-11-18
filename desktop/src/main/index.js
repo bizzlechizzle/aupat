@@ -24,9 +24,9 @@ log.info('AUPAT Desktop starting...');
 // Initialize settings store
 const store = new Store({
   defaults: {
-    apiUrl: 'http://localhost:5002',
-    immichUrl: 'http://localhost:2283',
-    archiveboxUrl: 'http://localhost:8001',
+    apiUrl: 'http://127.0.0.1:5002',
+    immichUrl: 'http://127.0.0.1:2283',
+    archiveboxUrl: 'http://127.0.0.1:8001',
     mapCenter: { lat: 42.6526, lng: -73.7562 }, // Albany, NY
     mapZoom: 10
   }
@@ -44,12 +44,23 @@ if (currentApiUrl && currentApiUrl.includes('localhost')) {
   if (urlMatch) {
     const storedPort = urlMatch[1];
     if (LEGACY_PORTS.includes(storedPort)) {
-      const migratedUrl = `http://localhost:${CURRENT_API_PORT}`;
+      const migratedUrl = `http://127.0.0.1:${CURRENT_API_PORT}`;
       log.info(`Auto-migrating API URL: port ${storedPort} → ${CURRENT_API_PORT}`);
       store.set('apiUrl', migratedUrl);
     }
   }
 }
+
+// Migrate localhost to 127.0.0.1 to fix IPv6 connection issues
+// Node.js fetch() resolves localhost to IPv6 (::1) first, but Flask only listens on IPv4
+['apiUrl', 'immichUrl', 'archiveboxUrl'].forEach(key => {
+  const url = store.get(key);
+  if (url && url.includes('localhost')) {
+    const migratedUrl = url.replace('localhost', '127.0.0.1');
+    log.info(`Migrating ${key}: localhost → 127.0.0.1`);
+    store.set(key, migratedUrl);
+  }
+});
 
 // Initialize API client
 const api = createAPIClient(store.get('apiUrl'));
