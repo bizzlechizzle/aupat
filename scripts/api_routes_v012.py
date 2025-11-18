@@ -1075,6 +1075,82 @@ def get_config():
         return jsonify({'error': str(e)}), 500
 
 
+@api_v012.route('/config', methods=['PUT'])
+def update_config():
+    """
+    Update user configuration paths.
+
+    Request JSON:
+        {
+            "db_path": "/path/to/aupat.db",
+            "staging_path": "/path/to/staging",
+            "archive_path": "/path/to/archive",
+            "backup_path": "/path/to/backups"
+        }
+
+    Returns:
+        JSON with updated configuration
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+
+        # Load existing config
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        else:
+            config = {
+                'db_name': 'aupat.db'
+            }
+
+        # Update paths if provided
+        if 'db_path' in data:
+            config['db_loc'] = data['db_path']
+
+        if 'staging_path' in data:
+            config['db_ingest'] = data['staging_path']
+
+        if 'archive_path' in data:
+            config['arch_loc'] = data['archive_path']
+
+        if 'backup_path' in data:
+            config['db_backup'] = data['backup_path']
+
+        # Validate paths exist (create if they don't)
+        for key in ['db_ingest', 'arch_loc', 'db_backup']:
+            if key in config and config[key]:
+                path = Path(config[key])
+                if not path.exists():
+                    path.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created directory: {path}")
+
+        # Save updated config
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        logger.info(f"Configuration updated: {config_path}")
+
+        return jsonify({
+            'success': True,
+            'configured': True,
+            'db_path': config.get('db_loc'),
+            'staging_path': config.get('db_ingest'),
+            'archive_path': config.get('arch_loc'),
+            'backup_path': config.get('db_backup')
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to update config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @api_v012.route('/import/batches', methods=['GET'])
 def list_import_batches():
     """

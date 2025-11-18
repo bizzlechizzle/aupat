@@ -72,6 +72,14 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Configuration API
+   */
+  config: {
+    get: () => ipcRenderer.invoke('config:get'),
+    update: (configData) => ipcRenderer.invoke('config:update', configData)
+  },
+
+  /**
    * URLs API (Web Archive)
    */
   urls: {

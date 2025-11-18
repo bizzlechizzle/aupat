@@ -528,6 +528,33 @@ ipcMain.handle('import:listBatches', async (event, filters = {}) => {
 });
 
 /**
+ * Configuration handlers
+ */
+ipcMain.handle('config:get', async () => {
+  try {
+    log.info('Fetching configuration');
+    const config = await api.get('/api/config');
+    return { success: true, data: config };
+  } catch (error) {
+    log.error('Failed to fetch configuration:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('config:update', async (event, configData) => {
+  try {
+    validateRequired(configData, 'configData');
+
+    log.info('Updating configuration');
+    const config = await api.put('/api/config', configData);
+    return { success: true, data: config };
+  } catch (error) {
+    log.error('Failed to update configuration:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
  * URL Archive API handlers
  */
 ipcMain.handle('urls:archive', async (event, data) => {
