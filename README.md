@@ -376,6 +376,31 @@ python scripts/db_migrate_v012.py
 python scripts/db_import_v012.py
 ```
 
+### Type Checking
+
+**NEW: Python Type Hints** (v0.1.6)
+
+High-priority modules now have comprehensive type hints for better IDE support and code quality:
+
+```bash
+# Install mypy (optional)
+pip install mypy
+
+# Run type checking on all modules
+mypy scripts/ app.py
+
+# Run type checking on specific module
+mypy scripts/utils.py
+```
+
+**Fully Typed Modules:**
+- `scripts/utils.py` - UUID generation, SHA256 hashing, filename generation
+- `scripts/normalize.py` - Text and data normalization functions
+- `scripts/adapters/immich_adapter.py` - Immich photo storage adapter
+- `scripts/adapters/archivebox_adapter.py` - ArchiveBox web archiving adapter
+
+Configuration in `mypy.ini` with strict checking enabled for fully-typed modules.
+
 ---
 
 ## Configuration

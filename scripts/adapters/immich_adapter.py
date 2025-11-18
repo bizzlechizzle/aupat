@@ -17,7 +17,7 @@ import logging
 import os
 import requests
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -54,7 +54,7 @@ class ImmichAdapter:
     - Handle API authentication
     """
 
-    def __init__(self, base_url: str, api_key: Optional[str] = None):
+    def __init__(self, base_url: str, api_key: Optional[str] = None) -> None:
         """
         Initialize Immich adapter.
 
@@ -279,7 +279,7 @@ class ImmichAdapter:
         return timestamp.isoformat()
 
 
-def create_immich_adapter(url: str = None, api_key: str = None) -> ImmichAdapter:
+def create_immich_adapter(url: Optional[str] = None, api_key: Optional[str] = None) -> ImmichAdapter:
     """
     Factory function to create Immich adapter from environment or parameters.
 

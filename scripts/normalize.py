@@ -19,7 +19,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Set, Any
 
 try:
     from unidecode import unidecode
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 # Valid US state codes (USPS two-letter abbreviations)
-VALID_US_STATES = {
+VALID_US_STATES: Set[str] = {
     'al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga',
     'hi', 'id', 'il', 'in', 'ia', 'ks', 'ky', 'la', 'me', 'md',
     'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv', 'nh', 'nj',
@@ -62,7 +62,7 @@ VALID_US_STATES = {
 }
 
 # Common location types (validated list)
-VALID_LOCATION_TYPES = {
+VALID_LOCATION_TYPES: Set[str] = {
     'industrial', 'residential', 'commercial', 'institutional',
     'agricultural', 'recreational', 'infrastructure', 'military',
     'religious', 'educational', 'healthcare', 'transportation',
@@ -71,7 +71,7 @@ VALID_LOCATION_TYPES = {
 
 
 # Load type mapping for auto-correction
-def load_type_mapping() -> dict:
+def load_type_mapping() -> Dict[str, Any]:
     """Load location type mapping from JSON file."""
     mapping_path = Path(__file__).parent.parent / 'data' / 'location_type_mapping.json'
 
@@ -88,8 +88,8 @@ def load_type_mapping() -> dict:
 
 
 # Load mapping at module level (once)
-TYPE_MAPPING_DATA = load_type_mapping()
-TYPE_MAPPINGS = TYPE_MAPPING_DATA.get('mappings', {})
+TYPE_MAPPING_DATA: Dict[str, Any] = load_type_mapping()
+TYPE_MAPPINGS: Dict[str, str] = TYPE_MAPPING_DATA.get('mappings', {})
 
 
 def normalize_location_name(name: str, use_postal: bool = True) -> str:

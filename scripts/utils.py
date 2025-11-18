@@ -14,9 +14,10 @@ Last Updated: 2025-11-15
 
 import hashlib
 import logging
+import sqlite3
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Set
 
 # Configure logging
 logging.basicConfig(
@@ -26,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def generate_uuid(cursor, table_name: str, uuid_field: str = 'loc_uuid') -> str:
+def generate_uuid(cursor: sqlite3.Cursor, table_name: str, uuid_field: str = 'loc_uuid') -> str:
     """
     Generate a unique UUID4 identifier with collision detection.
 
@@ -250,7 +251,7 @@ def calculate_sha256_with_short(file_path: str) -> Tuple[str, str]:
 
 
 # File type detection based on extension
-IMAGE_EXTENSIONS = {
+IMAGE_EXTENSIONS: Set[str] = {
     '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif',
     '.heic', '.heif', '.webp', '.raw', '.cr2', '.nef', '.dng',
     '.arw', '.orf', '.rw2', '.pef', '.srw', '.raf', '.3fr',
@@ -258,7 +259,7 @@ IMAGE_EXTENSIONS = {
     '.nrw', '.ptx', '.pxn', '.r3d', '.rwl', '.sr2', '.srf', '.x3f'
 }
 
-VIDEO_EXTENSIONS = {
+VIDEO_EXTENSIONS: Set[str] = {
     '.mp4', '.mov', '.avi', '.mkv', '.m4v', '.mpg', '.mpeg',
     '.wmv', '.flv', '.webm', '.3gp', '.mts', '.m2ts', '.ts',
     '.vob', '.ogv', '.ogg', '.drc', '.gifv', '.mng', '.qt',
@@ -267,7 +268,7 @@ VIDEO_EXTENSIONS = {
     '.mxf', '.roq', '.nsv', '.f4v', '.f4p', '.f4a', '.f4b'
 }
 
-DOCUMENT_EXTENSIONS = {
+DOCUMENT_EXTENSIONS: Set[str] = {
     '.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt',
     '.srt', '.xml', '.json', '.csv', '.xls', '.xlsx',
     '.ppt', '.pptx', '.odp', '.ods', '.pages', '.numbers',
@@ -316,7 +317,7 @@ def determine_file_type(extension: str) -> str:
         return 'other'
 
 
-def check_sha256_collision(cursor, sha256: str, file_type: str) -> bool:
+def check_sha256_collision(cursor: sqlite3.Cursor, sha256: str, file_type: str) -> bool:
     """
     Check if SHA256 hash already exists in the appropriate media table.
 
@@ -363,7 +364,7 @@ def check_sha256_collision(cursor, sha256: str, file_type: str) -> bool:
         return False
 
 
-def check_location_name_collision(cursor, loc_name: str) -> Optional[str]:
+def check_location_name_collision(cursor: sqlite3.Cursor, loc_name: str) -> Optional[str]:
     """
     Check if location name already exists in database.
 
