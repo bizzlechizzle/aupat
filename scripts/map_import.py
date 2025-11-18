@@ -14,10 +14,12 @@ import math
 import re
 import sqlite3
 import uuid
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
-from io import StringIO
+from io import StringIO, BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -350,6 +352,159 @@ def parse_geojson_map(file_content: str) -> Tuple[List[Dict], List[str]]:
         errors.append(f"Invalid JSON: {e}")
     except Exception as e:
         errors.append(f"GeoJSON parsing failed: {e}")
+
+    return locations, errors
+
+
+def parse_kml_map(file_content: bytes, is_kmz: bool = False) -> Tuple[List[Dict], List[str]]:
+    """
+    Parse KML or KMZ map file.
+
+    Supports:
+    - KML (Keyhole Markup Language) XML format
+    - KMZ (compressed KML in ZIP format)
+
+    Extracts Placemarks with coordinates and metadata.
+
+    Args:
+        file_content: File content as bytes (KML XML or KMZ ZIP)
+        is_kmz: True if file is KMZ (ZIP compressed), False for KML
+
+    Returns:
+        Tuple of (locations list, errors list)
+    """
+    locations = []
+    errors = []
+
+    try:
+        # If KMZ, extract KML from ZIP
+        if is_kmz:
+            try:
+                zip_buffer = BytesIO(file_content)
+                with zipfile.ZipFile(zip_buffer, 'r') as kmz:
+                    # KMZ files typically contain doc.kml
+                    kml_files = [f for f in kmz.namelist() if f.endswith('.kml')]
+                    if not kml_files:
+                        errors.append("KMZ file contains no .kml files")
+                        return locations, errors
+
+                    # Use the first KML file found (usually doc.kml)
+                    kml_content = kmz.read(kml_files[0])
+            except zipfile.BadZipFile:
+                errors.append("Invalid KMZ file: not a valid ZIP archive")
+                return locations, errors
+        else:
+            kml_content = file_content
+
+        # Parse KML XML
+        try:
+            root = ET.fromstring(kml_content)
+        except ET.ParseError as e:
+            errors.append(f"Invalid KML XML: {e}")
+            return locations, errors
+
+        # KML uses namespaces, need to handle both with and without namespace
+        # Common KML namespace
+        ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+
+        # Find all Placemarks (with or without namespace)
+        placemarks = root.findall('.//kml:Placemark', ns)
+        if not placemarks:
+            # Try without namespace
+            placemarks = root.findall('.//Placemark')
+
+        if not placemarks:
+            errors.append("No Placemarks found in KML file")
+            return locations, errors
+
+        for idx, placemark in enumerate(placemarks):
+            try:
+                # Extract name
+                name_elem = placemark.find('.//kml:name', ns)
+                if name_elem is None:
+                    name_elem = placemark.find('.//name')
+
+                name = name_elem.text.strip() if name_elem is not None and name_elem.text else None
+                if not name:
+                    errors.append(f"Placemark {idx}: Missing name")
+                    continue
+
+                # Extract coordinates from Point
+                point = placemark.find('.//kml:Point/kml:coordinates', ns)
+                if point is None:
+                    point = placemark.find('.//Point/coordinates')
+
+                lat, lon = None, None
+                if point is not None and point.text:
+                    # KML coordinates format: "lon,lat,altitude" or "lon,lat"
+                    coords_text = point.text.strip()
+                    coords_parts = coords_text.split(',')
+                    if len(coords_parts) >= 2:
+                        try:
+                            lon = float(coords_parts[0])
+                            lat = float(coords_parts[1])
+
+                            # Validate GPS bounds
+                            if lat < -90 or lat > 90:
+                                errors.append(f"Placemark {idx} ({name}): Invalid latitude {lat}")
+                                lat = None
+                            if lon < -180 or lon > 180:
+                                errors.append(f"Placemark {idx} ({name}): Invalid longitude {lon}")
+                                lon = None
+                        except (ValueError, IndexError):
+                            errors.append(f"Placemark {idx} ({name}): Invalid coordinates format")
+
+                # Extract description
+                desc_elem = placemark.find('.//kml:description', ns)
+                if desc_elem is None:
+                    desc_elem = placemark.find('.//description')
+                description = desc_elem.text.strip() if desc_elem is not None and desc_elem.text else None
+
+                # Extract ExtendedData if available
+                extended_data = {}
+                extended = placemark.find('.//kml:ExtendedData', ns)
+                if extended is None:
+                    extended = placemark.find('.//ExtendedData')
+
+                if extended is not None:
+                    for data_elem in extended.findall('.//kml:Data', ns):
+                        data_name = data_elem.get('name')
+                        value_elem = data_elem.find('.//kml:value', ns)
+                        if data_name and value_elem is not None and value_elem.text:
+                            extended_data[data_name.lower()] = value_elem.text.strip()
+
+                    # Try without namespace too
+                    if not extended_data:
+                        for data_elem in extended.findall('.//Data'):
+                            data_name = data_elem.get('name')
+                            value_elem = data_elem.find('.//value')
+                            if data_name and value_elem is not None and value_elem.text:
+                                extended_data[data_name.lower()] = value_elem.text.strip()
+
+                # Extract metadata from extended data or description
+                state_raw = extended_data.get('state') or None
+                state = normalize_state(state_raw) if state_raw else None
+
+                location = {
+                    'name': name,
+                    'lat': lat,
+                    'lon': lon,
+                    'state': state,
+                    'type': extended_data.get('type'),
+                    'street_address': extended_data.get('address') or extended_data.get('street_address'),
+                    'city': extended_data.get('city'),
+                    'zip_code': extended_data.get('zip_code') or extended_data.get('zip'),
+                    'notes': description,
+                    'original_data': ET.tostring(placemark, encoding='unicode')
+                }
+
+                locations.append(location)
+
+            except Exception as e:
+                errors.append(f"Placemark {idx}: Parsing error - {e}")
+
+    except Exception as e:
+        errors.append(f"KML parsing failed: {e}")
 
     return locations, errors
 

@@ -22,6 +22,7 @@ from pathlib import Path
 from scripts.map_import import (
     parse_csv_map,
     parse_geojson_map,
+    parse_kml_map,
     find_duplicates,
     import_locations_to_db,
     search_reference_maps,
@@ -95,14 +96,26 @@ def parse_map_file():
                 file_format = 'csv'
             elif filename.endswith('.json') or filename.endswith('.geojson'):
                 file_format = 'geojson'
+            elif filename.endswith('.kml'):
+                file_format = 'kml'
+            elif filename.endswith('.kmz'):
+                file_format = 'kmz'
             else:
-                return jsonify({'error': 'Unknown file format. Use .csv or .geojson'}), 400
+                return jsonify({'error': 'Unknown file format. Use .csv, .json, .geojson, .kml, or .kmz'}), 400
 
         # Parse based on format
         if file_format == 'csv':
             locations, errors = parse_csv_map(content)
         elif file_format in ['geojson', 'json']:
             locations, errors = parse_geojson_map(content)
+        elif file_format == 'kml':
+            # KML/KMZ requires bytes, not string
+            content_bytes = content.encode('utf-8') if isinstance(content, str) else content
+            locations, errors = parse_kml_map(content_bytes, is_kmz=False)
+        elif file_format == 'kmz':
+            # KMZ is binary, ensure we have bytes
+            content_bytes = content if isinstance(content, bytes) else content.encode('utf-8')
+            locations, errors = parse_kml_map(content_bytes, is_kmz=True)
         else:
             return jsonify({'error': f'Unsupported format: {file_format}'}), 400
 
@@ -241,8 +254,14 @@ def import_map():
             locations, parse_errors = parse_csv_map(content)
         elif file_format in ['geojson', 'json']:
             locations, parse_errors = parse_geojson_map(content)
+        elif file_format == 'kml':
+            content_bytes = content.encode('utf-8') if isinstance(content, str) else content
+            locations, parse_errors = parse_kml_map(content_bytes, is_kmz=False)
+        elif file_format == 'kmz':
+            content_bytes = content if isinstance(content, bytes) else content.encode('utf-8')
+            locations, parse_errors = parse_kml_map(content_bytes, is_kmz=True)
         else:
-            return jsonify({'error': f'Unsupported format: {file_format}'}), 400
+            return jsonify({'error': f'Unsupported format: {file_format}. Use csv, geojson, kml, or kmz'}), 400
 
         if not locations:
             return jsonify({
