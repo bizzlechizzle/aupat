@@ -636,6 +636,60 @@ python scripts/media_extractor.py
 
 ## UTILITY MODULES
 
+### scripts/logging_config.py (NEW - Structured Logging)
+
+**Location:** `/home/user/aupat/scripts/logging_config.py`
+**LOC:** ~285 lines
+**Purpose:** Centralized structured JSON logging configuration
+
+**What it provides:**
+- JSON formatted logging (optional)
+- Correlation IDs for request tracing
+- Sensitive data redaction (passwords, tokens, API keys)
+- Configurable log levels via environment variables
+- Both JSON and text format support
+
+**Key functions:**
+- `get_logger(name, level=None, force_json=False)` - Get configured logger
+- `correlation_context(correlation_id)` - Context manager for correlation IDs
+- `set_correlation_id(id)` / `clear_correlation_id()` - Manual correlation ID management
+- `init_logging(module_name, json_format=False)` - Initialize logging for a module
+
+**Usage:**
+```python
+from scripts.logging_config import get_logger
+
+logger = get_logger(__name__)
+logger.info("Processing started", extra={"location_id": "abc123", "count": 10})
+```
+
+**Correlation ID example:**
+```python
+from scripts.logging_config import correlation_context
+
+with correlation_context("req-123"):
+    logger.info("Request processing")  # Will include correlation_id in logs
+```
+
+**Environment variables:**
+- `LOG_LEVEL` - DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
+- `LOG_FORMAT` - json or text (default: text for backward compatibility)
+
+**Dependencies:**
+- `python-json-logger>=2.0.7` (optional, falls back to text if not installed)
+
+**Used by:** New scripts (opt-in, backward compatible)
+
+**No direct execution** - import as module
+
+**Features:**
+- Automatic sensitive data redaction
+- Correlation IDs for distributed tracing
+- JSON output for log aggregation systems
+- Backward compatible with existing logging code
+
+---
+
 ### scripts/utils.py
 
 **Location:** `/home/user/aupat/scripts/utils.py`
