@@ -87,7 +87,14 @@ function createLocationsStore() {
      */
     async update(id, locationData) {
       try {
+        console.log('[Store] Updating location:', id, locationData);
+
+        if (!id) {
+          throw new Error('Location ID is required for update');
+        }
+
         const response = await window.api.locations.update(id, locationData);
+        console.log('[Store] Update response:', response);
 
         if (response.success) {
           update(s => ({
@@ -96,12 +103,17 @@ function createLocationsStore() {
               item.loc_uuid === id ? response.data : item
             )
           }));
+          console.log('[Store] Location updated successfully');
           return response.data;
         } else {
-          throw new Error(response.error);
+          const errorMsg = response.error || 'Update failed with no error message';
+          console.error('[Store] Update failed:', errorMsg);
+          throw new Error(errorMsg);
         }
       } catch (error) {
-        console.error('Failed to update location:', error);
+        console.error('[Store] Failed to update location:', error);
+        console.error('[Store] Error type:', error.constructor.name);
+        console.error('[Store] Error message:', error.message);
         throw error;
       }
     },
