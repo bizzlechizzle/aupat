@@ -1,24 +1,9 @@
 # AUPAT Technical Guide
 
-Version: 2.0.0 (12-char Hash Update)
+Version: 1.0.0
 Last Updated: 2025-11-18
 
 Complete technical reference for the Abandoned Upstate Photo & Archive Tracker (AUPAT) project.
-
----
-
-## CRITICAL: HASH LENGTH DECISION (2025-11-18)
-
-**DECISION: Use 12-character hashes instead of 8-character**
-
-**Problem:** With 70k photos, 8-char hashes have 50% collision risk at 65k files
-**Solution:** 12-char hashes (48 bits) = safe until 16.7M files
-
-**Implementation:**
-- `uuid12 = uuid_full[:12]` (First 12 chars of UUID4)
-- `sha12 = sha256_full[:12]` (First 12 chars of SHA256)
-- Full hashes still stored in database (no schema change)
-- Filenames: `{uuid12}-{sha12}.{ext}` (e.g., `a3f5d8e2b1c4-f7e9c2a1d3b5.jpg`)
 
 ---
 
