@@ -107,7 +107,7 @@
   /**
    * Handle file drop
    */
-  function handleDrop(event) {
+  async function handleDrop(event) {
     event.preventDefault();
     isDragging = false;
 
@@ -116,8 +116,51 @@
       return;
     }
 
-    const files = Array.from(event.dataTransfer.files);
-    addFilesToQueue(files);
+    // Use DataTransferItem API to handle folders
+    const items = event.dataTransfer.items;
+    if (items) {
+      const files = await getAllFiles(items);
+      addFilesToQueue(files);
+    } else {
+      // Fallback for older browsers
+      const files = Array.from(event.dataTransfer.files);
+      addFilesToQueue(files);
+    }
+  }
+
+  /**
+   * Recursively get all files from dropped items (including folders)
+   */
+  async function getAllFiles(items) {
+    const files = [];
+
+    async function traverseEntry(entry) {
+      if (entry.isFile) {
+        const file = await new Promise((resolve, reject) => {
+          entry.file(resolve, reject);
+        });
+        files.push(file);
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const entries = await new Promise((resolve, reject) => {
+          reader.readEntries(resolve, reject);
+        });
+        for (const childEntry of entries) {
+          await traverseEntry(childEntry);
+        }
+      }
+    }
+
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+          await traverseEntry(entry);
+        }
+      }
+    }
+
+    return files;
   }
 
   /**

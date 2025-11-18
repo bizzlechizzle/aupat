@@ -885,6 +885,14 @@ def locations_list_create():
             lat = data.get('lat')
             lon = data.get('lon')
             gps_source = data.get('gps_source', 'manual') if (lat and lon) else None
+            imp_author = (data.get('imp_author') or '').strip() or None
+
+            # Check for name collision
+            cursor.execute("SELECT loc_uuid FROM locations WHERE LOWER(loc_name) = LOWER(?)", (loc_name,))
+            existing = cursor.fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'A location with this name already exists', 'collision': True}), 409
 
             # Insert location
             cursor.execute(
@@ -892,14 +900,14 @@ def locations_list_create():
                 INSERT INTO locations (
                     loc_uuid, loc_name, aka_name, state, type, sub_type,
                     street_address, city, zip_code,
-                    lat, lon, gps_source,
+                    lat, lon, gps_source, imp_author,
                     loc_add, loc_update
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     loc_uuid, loc_name, aka_name, state, loc_type, sub_type,
                     street_address, city, zip_code,
-                    lat, lon, gps_source,
+                    lat, lon, gps_source, imp_author,
                     timestamp, timestamp
                 )
             )
@@ -959,7 +967,7 @@ def location_update_delete(loc_uuid):
             allowed_fields = [
                 'loc_name', 'aka_name', 'state', 'type', 'sub_type',
                 'street_address', 'city', 'zip_code',
-                'lat', 'lon', 'gps_source'
+                'lat', 'lon', 'gps_source', 'imp_author'
             ]
 
             update_fields = []
@@ -1027,6 +1035,76 @@ def location_update_delete(loc_uuid):
         except Exception as e:
             logger.error(f"Failed to delete location: {e}")
             return jsonify({'error': str(e)}), 500
+
+
+@api_v012.route('/locations/autocomplete/<field>', methods=['GET'])
+def location_autocomplete(field):
+    """
+    Get autocomplete suggestions for location fields.
+
+    Supported fields: type, sub_type, state, imp_author
+
+    Query params:
+        type: Filter sub_type by type (optional, for sub_type field only)
+        limit: Max number of results (default: 20)
+
+    Returns:
+        JSON array of distinct values with counts, ordered by frequency
+    """
+    try:
+        allowed_fields = ['type', 'sub_type', 'state', 'imp_author', 'city']
+        if field not in allowed_fields:
+            return jsonify({'error': f'Invalid field. Allowed: {", ".join(allowed_fields)}'}), 400
+
+        limit = request.args.get('limit', 20, type=int)
+        limit = min(limit, 100)  # Cap at 100
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # For sub_type, optionally filter by type
+        if field == 'sub_type':
+            type_filter = request.args.get('type')
+            if type_filter:
+                cursor.execute(f"""
+                    SELECT {field}, COUNT(*) as count
+                    FROM locations
+                    WHERE {field} IS NOT NULL
+                    AND {field} != ''
+                    AND type = ?
+                    GROUP BY LOWER({field})
+                    ORDER BY count DESC, {field} ASC
+                    LIMIT ?
+                """, (type_filter.lower(), limit))
+            else:
+                cursor.execute(f"""
+                    SELECT {field}, COUNT(*) as count
+                    FROM locations
+                    WHERE {field} IS NOT NULL
+                    AND {field} != ''
+                    GROUP BY LOWER({field})
+                    ORDER BY count DESC, {field} ASC
+                    LIMIT ?
+                """, (limit,))
+        else:
+            cursor.execute(f"""
+                SELECT {field}, COUNT(*) as count
+                FROM locations
+                WHERE {field} IS NOT NULL
+                AND {field} != ''
+                GROUP BY LOWER({field})
+                ORDER BY count DESC, {field} ASC
+                LIMIT ?
+            """, (limit,))
+
+        results = [{'value': row[field], 'count': row['count']} for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        logger.error(f"Failed to fetch autocomplete for {field}: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @api_v012.route('/search', methods=['GET'])

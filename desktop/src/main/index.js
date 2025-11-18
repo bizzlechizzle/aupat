@@ -262,6 +262,27 @@ ipcMain.handle('locations:delete', async (event, id) => {
   }
 });
 
+ipcMain.handle('locations:autocomplete', async (event, field, options = {}) => {
+  try {
+    validateRequired(field, 'field');
+    validateString(field, 'field');
+
+    const params = new URLSearchParams();
+    if (options.type) params.append('type', options.type);
+    if (options.limit) params.append('limit', options.limit.toString());
+
+    const queryString = params.toString();
+    const url = `/api/locations/autocomplete/${field}${queryString ? '?' + queryString : ''}`;
+
+    log.info(`Fetching autocomplete for ${field}`);
+    const results = await api.get(url);
+    return { success: true, data: results };
+  } catch (error) {
+    log.error(`Failed to fetch autocomplete for ${field}:`, error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
 /**
  * Map markers API handler
  */
