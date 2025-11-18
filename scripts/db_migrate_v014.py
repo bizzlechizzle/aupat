@@ -165,6 +165,11 @@ def migrate_images_table(cursor: sqlite3.Cursor) -> None:
     """Add archive workflow columns to images table."""
     logger.info("Migrating images table for archive workflow...")
 
+    # Check if table exists first
+    if not table_exists(cursor, 'images'):
+        logger.info("Images table does not exist - skipping migration (will be created by v0.1.3)")
+        return
+
     existing_columns = get_table_columns(cursor, 'images')
 
     if 'hardware_category' not in existing_columns:
@@ -199,6 +204,11 @@ def migrate_images_table(cursor: sqlite3.Cursor) -> None:
 def migrate_videos_table(cursor: sqlite3.Cursor) -> None:
     """Add archive workflow columns to videos table."""
     logger.info("Migrating videos table for archive workflow...")
+
+    # Check if table exists first
+    if not table_exists(cursor, 'videos'):
+        logger.info("Videos table does not exist - skipping migration (will be created by v0.1.3)")
+        return
 
     existing_columns = get_table_columns(cursor, 'videos')
 
@@ -265,11 +275,28 @@ def run_migration(db_path: str, backup: bool = True) -> None:
     db_file = Path(db_path)
     db_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Check if database exists
-    db_exists = db_file.exists()
+    # Check if database has schema (not just if file exists)
+    needs_v013_migration = False
+    if db_file.exists():
+        # File exists - check if it has the base schema
+        try:
+            check_conn = sqlite3.connect(db_path)
+            check_cursor = check_conn.cursor()
+            check_cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='locations'"
+            )
+            if not check_cursor.fetchone():
+                needs_v013_migration = True
+            check_conn.close()
+        except sqlite3.DatabaseError:
+            # Corrupt or empty database
+            needs_v013_migration = True
+    else:
+        # File doesn't exist
+        needs_v013_migration = True
 
-    # Backup database if it exists and backup is requested
-    if backup and db_exists:
+    # Backup database if it exists and has data
+    if backup and db_file.exists() and not needs_v013_migration:
         try:
             from backup import backup_database
             backup_database(db_path)
@@ -279,9 +306,9 @@ def run_migration(db_path: str, backup: bool = True) -> None:
         except Exception as e:
             logger.warning(f"Backup failed (continuing anyway): {e}")
 
-    # If database doesn't exist, run v0.1.3 migration first
-    if not db_exists:
-        logger.info("Database doesn't exist - running v0.1.3 migration first...")
+    # If database needs v0.1.3 migration, run it first
+    if needs_v013_migration:
+        logger.info("Database needs v0.1.3 schema - running v0.1.3 migration first...")
         try:
             from db_migrate_v012 import run_migration as run_v013_migration
             run_v013_migration(db_path, backup=False)
