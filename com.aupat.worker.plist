@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+AUPAT Worker LaunchAgent Template
+This file is a template for generating com.aupat.worker.plist
+
+To generate the actual plist file:
+  python scripts/generate_plist.py
+
+DO NOT edit this template directly. Edit the template and regenerate.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
@@ -7,18 +16,18 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>/Users/bryant/Documents/tools/aupat/scripts/archive_worker.py</string>
+        <string>/usr/local/bin/python</string>
+        <string>/home/user/aupat/scripts/archive_worker.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/bryant/Documents/tools/aupat</string>
+    <string>/home/user/aupat</string>
 
     <key>StandardOutPath</key>
-    <string>/Users/bryant/Documents/tools/aupat/logs/worker.out</string>
+    <string>/home/user/aupat/logs/worker.out</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/bryant/Documents/tools/aupat/logs/worker.err</string>
+    <string>/home/user/aupat/logs/worker.err</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -31,5 +40,13 @@
 
     <key>ThrottleInterval</key>
     <integer>10</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>DB_PATH</key>
+        <string>/home/user/aupat/data/aupat.db</string>
+        <key>PATH</key>
+        <string>/home/user/aupat/venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
 </dict>
 </plist>
