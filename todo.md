@@ -654,7 +654,7 @@ Option C: Create simplified companion app
 
 ### 15. Archive v0.1.0 Directory
 
-**Status:** Not Started
+**Status:** Done (2025-11-18)
 **Priority:** Medium
 **Complexity:** Low
 **Estimated Time:** 1 hour

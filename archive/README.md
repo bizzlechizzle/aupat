@@ -1,40 +1,73 @@
 # AUPAT Archive Directory
 
-**DO NOT USE CODE FROM THIS DIRECTORY**
+**This directory tracks historical versions of AUPAT**
 
-This directory contains archived code from previous versions of AUPAT. The code here is **not compatible** with the current version and is kept for **historical reference only**.
+As of 2025-11-18, the archive directory structure has been cleaned up to reduce repository size and eliminate developer confusion.
 
 ---
 
 ## Contents
 
-### v0.1.0/
-Legacy implementation of AUPAT from the initial version.
+### v0.1.0/ (REMOVED - Available in Git History)
 
-**Status:** DEPRECATED - Do not use
-**Size:** ~526KB
-**Last Updated:** Historical (before v0.1.2)
+Legacy implementation of AUPAT from the initial version has been **removed from the repository** to keep the codebase clean and focused.
 
-**Contents:**
+**Status:** ARCHIVED - Removed from repository
+**Size:** ~526KB (60 files)
+**Removed:** 2025-11-18
+**Last Commit:** See git history before this date
+
+**Original Contents:**
 - `scripts/` - 19 deprecated Python scripts
 - `root_files/` - Old startup scripts and web interface
 - `docs/logseq/` - Logseq knowledge base entries
 
-**Important Notes:**
-- This code is NOT imported by current AUPAT (v0.1.2+)
-- Database schemas are incompatible
-- File paths and structures have changed
-- Many features have been rewritten
+**Why Removed:**
+- Code was never imported by current AUPAT (v0.1.2+)
+- Database schemas incompatible with current version
+- File paths and structures completely changed
+- All features have been rewritten
+- Caused confusion for developers
+- Git history preserves everything if needed
 
 ---
 
-## Why Is This Here?
+## Accessing Historical Code
 
-The archive directory serves as:
+If you need to reference v0.1.0 code for any reason:
 
-1. **Historical Reference** - Documentation of how the system evolved
-2. **Learning Resource** - See what approaches were tried and abandoned
-3. **Migration Context** - Understanding what changed between versions
+**Option 1: View in Git History**
+```bash
+# Find the last commit before removal
+git log --all --full-history -- "archive/v0.1.0/"
+
+# Checkout the historical code
+git checkout <commit-hash> -- archive/v0.1.0/
+
+# View specific file from history
+git show <commit-hash>:archive/v0.1.0/scripts/db_import.py
+```
+
+**Option 2: View on GitHub**
+Navigate to the repository before the cleanup commit and browse the archive directory.
+
+---
+
+## Why Is This Approach Better?
+
+**Benefits of Removal:**
+1. **Reduced Repository Size** - 526KB smaller
+2. **Eliminated Confusion** - No dead code to stumble upon
+3. **Clear Codebase** - Only current, supported code visible
+4. **Git History Preserves Everything** - Nothing is lost
+5. **Follows Best Practices** - Dead code should not live in main branch
+
+**Git History as Archive:**
+- Git is designed for this exact use case
+- Historical code is always accessible
+- No maintenance burden
+- No separate repository needed
+- Complete commit history preserved
 
 ---
 
@@ -47,17 +80,7 @@ For the current, supported version of AUPAT, see:
 - `claude.md` - Development rules and processes
 - `techguide.md` - Technical reference
 - `lilbits.md` - Script documentation
-
----
-
-## If You Need Old Code
-
-If you truly need to reference or use old code:
-
-1. **Check the current version first** - The feature may already exist in a better form
-2. **Read the audit** - See CODEBASE_AUDIT_COMPLETE.md for current architecture
-3. **Ask questions** - Consult todo.md for known gaps and planned features
-4. **Don't copy directly** - If you need functionality, reimplement following current patterns
+- `CODEBASE_AUDIT_COMPLETE.md` - Architecture overview
 
 ---
 
@@ -69,30 +92,28 @@ If you truly need to reference or use old code:
 - Check todo.md for planned work
 - Read techguide.md for architecture
 
-**For Bug Fixes:**
-- Fix in current codebase only
-- Do not backport to v0.1.0 (unsupported)
-
-**For Questions:**
-- See lilbits.md for script documentation
-- See techguide.md for technical details
-- See docs/dependency_map.md for file relationships
+**If You Need Old Code:**
+1. **Check the current version first** - The feature may already exist in a better form
+2. **Read the audit** - See CODEBASE_AUDIT_COMPLETE.md for current architecture
+3. **Don't copy directly** - If you need functionality, reimplement following current patterns
+4. **Use git history** - Retrieve historical code if absolutely necessary
 
 ---
 
-## Archival Policy
+## Future Archival Policy
 
-- Old versions are kept indefinitely for reference
-- No maintenance or bug fixes will be made
-- Code is read-only and should not be modified
-- If you need something from here, reimplement it properly in the current version
+- Dead code will be removed from the repository
+- Git history serves as the permanent archive
+- No separate archive repositories will be created
+- README.md will document what was removed and when
+- Historical code always accessible via `git checkout`
 
 ---
 
 ## Version History
 
-- **v0.1.0** - Initial implementation (archived)
-- **v0.1.1** - Intermediate version (not archived)
+- **v0.1.0** - Initial implementation (archived, removed 2025-11-18)
+- **v0.1.1** - Intermediate version (not separately archived)
 - **v0.1.2** - Current stable version
 - **v0.1.3** - Map improvements (migration available)
 - **v0.1.4** - Import tracking (migration available)
@@ -103,4 +124,4 @@ See `docs/v0.1.2/` for current version documentation.
 
 **Last Updated:** 2025-11-18
 **Maintained By:** Project maintainers
-**Status:** Read-only archive, no active maintenance
+**Status:** Active - Documents archival policy
