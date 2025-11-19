@@ -439,6 +439,10 @@ ipcMain.handle('dialog:selectDirectory', async () => {
       return { success: false, canceled: true };
     }
 
+    if (!result.filePaths || result.filePaths.length === 0) {
+      return { success: false, error: 'No directory selected' };
+    }
+
     const selectedPath = result.filePaths[0];
     log.info(`Directory selected: ${selectedPath}`);
     return { success: true, path: selectedPath };

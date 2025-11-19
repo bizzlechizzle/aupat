@@ -133,13 +133,33 @@ contextBridge.exposeInMainWorld('api', {
     download: () => ipcRenderer.invoke('update:download'),
     install: () => ipcRenderer.invoke('update:install'),
     version: () => ipcRenderer.invoke('update:version'),
-    onAvailable: (callback) => ipcRenderer.on('update-available', (_, data) => callback(data)),
-    onDownloaded: (callback) => ipcRenderer.on('update-downloaded', (_, data) => callback(data)),
-    onProgress: (callback) => ipcRenderer.on('update-progress', (_, data) => callback(data)),
-    onError: (callback) => ipcRenderer.on('update-error', (_, data) => callback(data)),
-    removeAvailableListener: (callback) => ipcRenderer.removeListener('update-available', callback),
-    removeDownloadedListener: (callback) => ipcRenderer.removeListener('update-downloaded', callback),
-    removeProgressListener: (callback) => ipcRenderer.removeListener('update-progress', callback),
-    removeErrorListener: (callback) => ipcRenderer.removeListener('update-error', callback)
+    onAvailable: (callback) => {
+      const wrapper = (_, data) => {
+        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
+      };
+      ipcRenderer.on('update-available', wrapper);
+      return () => ipcRenderer.removeListener('update-available', wrapper);
+    },
+    onDownloaded: (callback) => {
+      const wrapper = (_, data) => {
+        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
+      };
+      ipcRenderer.on('update-downloaded', wrapper);
+      return () => ipcRenderer.removeListener('update-downloaded', wrapper);
+    },
+    onProgress: (callback) => {
+      const wrapper = (_, data) => {
+        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
+      };
+      ipcRenderer.on('update-progress', wrapper);
+      return () => ipcRenderer.removeListener('update-progress', wrapper);
+    },
+    onError: (callback) => {
+      const wrapper = (_, data) => {
+        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
+      };
+      ipcRenderer.on('update-error', wrapper);
+      return () => ipcRenderer.removeListener('update-error', wrapper);
+    }
   }
 });
