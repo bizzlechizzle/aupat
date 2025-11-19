@@ -1,0 +1,54 @@
+{
+  "name": "aupat-desktop-v2",
+  "version": "0.1.0",
+  "description": "Abandoned Upstate Project Archive Tool - Pure Electron Desktop App",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "test": "node test-example.js",
+    "test:unit": "vitest",
+    "test:coverage": "vitest --coverage",
+    "build": "electron-builder"
+  },
+  "keywords": [
+    "abandoned",
+    "archive",
+    "photo-management",
+    "electron"
+  ],
+  "author": "Abandoned Upstate",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^9.2.0",
+    "electron-store": "^8.1.0",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "build": {
+    "appId": "com.abandonedupstate.aupat",
+    "productName": "AUPAT",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    }
+  }
+}
