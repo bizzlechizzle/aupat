@@ -1,165 +1,209 @@
 /**
- * AUPAT Desktop - Preload Script
+ * AUPAT Preload Script
  *
- * Secure IPC bridge between main and renderer processes.
- * Exposes minimal, validated API to renderer.
+ * Securely exposes IPC handlers to the renderer process (Svelte).
+ * Uses contextBridge to prevent direct Node.js access in renderer.
  *
  * Security:
- * - Uses contextBridge (no direct access to Node APIs in renderer)
- * - All IPC calls validated in main process
- * - No eval, no arbitrary code execution
+ * - contextIsolation: true
+ * - nodeIntegration: false
+ * - Only specific APIs exposed via contextBridge
  *
- * @see https://www.electronjs.org/docs/latest/tutorial/context-isolation
+ * Version: 1.0.0
+ * Last Updated: 2025-11-19
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose protected methods that allow the renderer process to use
-// ipcRenderer without exposing the entire object
+// Expose API to renderer via window.api
 contextBridge.exposeInMainWorld('api', {
-  /**
-   * Settings API
-   */
-  settings: {
-    get: () => ipcRenderer.invoke('settings:get'),
-    set: (key, value) => ipcRenderer.invoke('settings:set', key, value)
+  // ============================================================================
+  // LOCATION API
+  // ============================================================================
+  location: {
+    /**
+     * Create new location
+     * @param {Object} locationData - Location data (name, state, type, etc.)
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    create: (locationData) => ipcRenderer.invoke('location:create', locationData),
+
+    /**
+     * Get location by UUID
+     * @param {string} locUuid - Location UUID
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    get: (locUuid) => ipcRenderer.invoke('location:get', locUuid),
+
+    /**
+     * Get all locations
+     * @param {Object} options - Query options (limit, offset, orderBy)
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    getAll: (options) => ipcRenderer.invoke('location:getAll', options),
+
+    /**
+     * Search locations (autocomplete)
+     * @param {string} searchTerm - Search term
+     * @param {number} limit - Max results
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    search: (searchTerm, limit) => ipcRenderer.invoke('location:search', searchTerm, limit),
+
+    /**
+     * Update location
+     * @param {string} locUuid - Location UUID
+     * @param {Object} updates - Fields to update
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    update: (locUuid, updates) => ipcRenderer.invoke('location:update', locUuid, updates),
+
+    /**
+     * Delete location
+     * @param {string} locUuid - Location UUID
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    delete: (locUuid) => ipcRenderer.invoke('location:delete', locUuid)
   },
 
-  /**
-   * Locations API
-   */
-  locations: {
-    getAll: () => ipcRenderer.invoke('locations:getAll'),
-    getById: (id) => ipcRenderer.invoke('locations:getById', id),
-    create: (data) => ipcRenderer.invoke('locations:create', data),
-    update: (id, data) => ipcRenderer.invoke('locations:update', id, data),
-    delete: (id) => ipcRenderer.invoke('locations:delete', id),
-    autocomplete: (field, options) => ipcRenderer.invoke('locations:autocomplete', field, options)
-  },
-
-  /**
-   * Map API
-   */
-  map: {
-    getMarkers: () => ipcRenderer.invoke('map:getMarkers')
-  },
-
-  /**
-   * Images API
-   */
-  images: {
-    getByLocation: (locUuid, limit, offset) => ipcRenderer.invoke('images:getByLocation', locUuid, limit, offset),
-    getThumbnailUrl: (assetId) => ipcRenderer.invoke('images:getThumbnailUrl', assetId),
-    getOriginalUrl: (assetId) => ipcRenderer.invoke('images:getOriginalUrl', assetId)
-  },
-
-  /**
-   * Import API
-   */
+  // ============================================================================
+  // IMPORT API
+  // ============================================================================
   import: {
-    uploadFile: (fileData) => ipcRenderer.invoke('import:uploadFile', fileData),
-    bulkImport: (data) => ipcRenderer.invoke('import:bulkImport', data),
-    getBatchStatus: (batchId) => ipcRenderer.invoke('import:getBatchStatus', batchId),
-    getBatchLogs: (batchId, filters) => ipcRenderer.invoke('import:getBatchLogs', batchId, filters),
-    listBatches: (filters) => ipcRenderer.invoke('import:listBatches', filters)
-  },
+    /**
+     * Import single file
+     * @param {string} filePath - Source file path
+     * @param {Object} locationData - Location info (locUuid, locShort, state, type)
+     * @param {Object} options - Import options (deleteSource)
+     * @returns {Promise<{success: boolean, fileUuid?: string, error?: string}>}
+     */
+    file: (filePath, locationData, options) =>
+      ipcRenderer.invoke('import:file', filePath, locationData, options),
 
-  /**
-   * Dialog API
-   */
-  dialog: {
-    selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory')
-  },
+    /**
+     * Import multiple files (batch)
+     * @param {Array<string>} filePaths - Array of file paths
+     * @param {Object} locationData - Location info
+     * @param {Object} options - Import options
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    batch: (filePaths, locationData, options) =>
+      ipcRenderer.invoke('import:batch', filePaths, locationData, options),
 
-  /**
-   * Configuration API
-   */
-  config: {
-    get: () => ipcRenderer.invoke('config:get'),
-    update: (configData) => ipcRenderer.invoke('config:update', configData)
-  },
-
-  /**
-   * URLs API (Web Archive)
-   */
-  urls: {
-    archive: (data) => ipcRenderer.invoke('urls:archive', data),
-    getByLocation: (locationId) => ipcRenderer.invoke('urls:getByLocation', locationId),
-    delete: (urlUuid) => ipcRenderer.invoke('urls:delete', urlUuid)
-  },
-
-  /**
-   * Bookmarks API
-   */
-  bookmarks: {
-    getAll: (filters) => ipcRenderer.invoke('bookmarks:getAll', filters),
-    getById: (bookmarkUuid) => ipcRenderer.invoke('bookmarks:getById', bookmarkUuid),
-    create: (bookmarkData) => ipcRenderer.invoke('bookmarks:create', bookmarkData),
-    update: (bookmarkUuid, bookmarkData) => ipcRenderer.invoke('bookmarks:update', bookmarkUuid, bookmarkData),
-    delete: (bookmarkUuid) => ipcRenderer.invoke('bookmarks:delete', bookmarkUuid),
-    getFolders: () => ipcRenderer.invoke('bookmarks:getFolders')
-  },
-
-  /**
-   * Health check
-   */
-  health: {
-    check: () => ipcRenderer.invoke('api:health')
-  },
-
-  /**
-   * Stats API
-   */
-  stats: {
-    getDashboard: () => ipcRenderer.invoke('stats:getDashboard'),
-    getRandom: () => ipcRenderer.invoke('stats:getRandom')
-  },
-
-  /**
-   * Notes API
-   */
-  notes: {
-    getByLocation: (locUuid) => ipcRenderer.invoke('notes:getByLocation', locUuid),
-    create: (noteData) => ipcRenderer.invoke('notes:create', noteData),
-    update: (noteUuid, noteData) => ipcRenderer.invoke('notes:update', noteUuid, noteData),
-    delete: (noteUuid) => ipcRenderer.invoke('notes:delete', noteUuid)
-  },
-
-  /**
-   * Auto-Update API
-   */
-  updates: {
-    check: () => ipcRenderer.invoke('update:check'),
-    download: () => ipcRenderer.invoke('update:download'),
-    install: () => ipcRenderer.invoke('update:install'),
-    version: () => ipcRenderer.invoke('update:version'),
-    onAvailable: (callback) => {
-      const wrapper = (_, data) => {
-        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
-      };
-      ipcRenderer.on('update-available', wrapper);
-      return () => ipcRenderer.removeListener('update-available', wrapper);
-    },
-    onDownloaded: (callback) => {
-      const wrapper = (_, data) => {
-        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
-      };
-      ipcRenderer.on('update-downloaded', wrapper);
-      return () => ipcRenderer.removeListener('update-downloaded', wrapper);
-    },
+    /**
+     * Listen for import progress updates
+     * @param {Function} callback - Called with {current, total}
+     */
     onProgress: (callback) => {
-      const wrapper = (_, data) => {
-        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
-      };
-      ipcRenderer.on('update-progress', wrapper);
-      return () => ipcRenderer.removeListener('update-progress', wrapper);
+      ipcRenderer.on('import:progress', (event, data) => callback(data));
     },
-    onError: (callback) => {
-      const wrapper = (_, data) => {
-        try { callback(data); } catch (e) { console.error('Update callback error:', e); }
-      };
-      ipcRenderer.on('update-error', wrapper);
-      return () => ipcRenderer.removeListener('update-error', wrapper);
+
+    /**
+     * Remove progress listener
+     */
+    removeProgressListener: () => {
+      ipcRenderer.removeAllListeners('import:progress');
     }
+  },
+
+  // ============================================================================
+  // SETTINGS API
+  // ============================================================================
+  settings: {
+    /**
+     * Get all settings
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    getAll: () => ipcRenderer.invoke('settings:getAll'),
+
+    /**
+     * Update settings
+     * @param {Object} updates - Settings to update
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    update: (updates) => ipcRenderer.invoke('settings:update', updates),
+
+    /**
+     * Choose folder (opens native dialog)
+     * @param {string} title - Dialog title
+     * @returns {Promise<{success: boolean, data?: string, canceled?: boolean, error?: string}>}
+     */
+    chooseFolder: (title) => ipcRenderer.invoke('settings:chooseFolder', title)
+  },
+
+  // ============================================================================
+  // STATS API
+  // ============================================================================
+  stats: {
+    /**
+     * Get dashboard statistics
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    dashboard: () => ipcRenderer.invoke('stats:dashboard'),
+
+    /**
+     * Get locations by state
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    byState: () => ipcRenderer.invoke('stats:byState'),
+
+    /**
+     * Get locations by type
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    byType: () => ipcRenderer.invoke('stats:byType')
+  },
+
+  // ============================================================================
+  // IMAGES API
+  // ============================================================================
+  images: {
+    /**
+     * Get images by location
+     * @param {string} locUuid - Location UUID
+     * @param {number} limit - Max results (default: 100)
+     * @param {number} offset - Results offset (default: 0)
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    getByLocation: (locUuid, limit = 100, offset = 0) =>
+      ipcRenderer.invoke('images:getByLocation', locUuid, limit, offset),
+
+    /**
+     * Get single image
+     * @param {string} imgUuid - Image UUID
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    get: (imgUuid) => ipcRenderer.invoke('images:get', imgUuid),
+
+    /**
+     * Get image file path
+     * @param {string} imgUuid - Image UUID
+     * @returns {Promise<{success: boolean, path?: string, error?: string}>}
+     */
+    getPath: (imgUuid) => ipcRenderer.invoke('images:getPath', imgUuid),
+
+    /**
+     * Count images for location
+     * @param {string} locUuid - Location UUID
+     * @returns {Promise<{success: boolean, data?: number, error?: string}>}
+     */
+    count: (locUuid) => ipcRenderer.invoke('images:count', locUuid)
+  },
+
+  // ============================================================================
+  // SYSTEM API
+  // ============================================================================
+  system: {
+    /**
+     * Get platform info
+     */
+    platform: process.platform,
+
+    /**
+     * Get app version
+     */
+    version: process.env.npm_package_version || '0.1.0'
   }
 });
+
+console.log('AUPAT preload script loaded - window.api available');
