@@ -25,14 +25,17 @@ const BASE_DELAY = 1000; // 1 second base delay for exponential backoff
  * @returns {boolean} True if error should be retried
  */
 function isRetryableError(error, response = null) {
-  // Network errors (connection refused, DNS failure, etc.)
-  if (error.name === 'TypeError') {
-    return true;
-  }
+  // Check error object if provided
+  if (error) {
+    // Network errors (connection refused, DNS failure, etc.)
+    if (error.name === 'TypeError') {
+      return true;
+    }
 
-  // Timeout errors
-  if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-    return true;
+    // Timeout errors
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      return true;
+    }
   }
 
   // HTTP errors - only retry server errors and rate limits
