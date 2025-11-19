@@ -21,13 +21,6 @@
   let selectedLocation = null;
   let detailLocation = null;
 
-  // Filter state (v0.1.5)
-  let activeFilters = {
-    favorites: false,
-    historical: false,
-    undocumented: false
-  };
-
   onMount(async () => {
     loading = true;
     await locations.fetchAll();
@@ -39,32 +32,18 @@
     loading = state.loading;
   });
 
-  // Filter locations by search query and filters (v0.1.5)
+  // Filter locations by search query
   $: filteredLocations = locationItems.filter(loc => {
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = (
-        loc.loc_name?.toLowerCase().includes(query) ||
-        loc.aka_name?.toLowerCase().includes(query) ||
-        loc.type?.toLowerCase().includes(query) ||
-        loc.state?.toLowerCase().includes(query) ||
-        loc.city?.toLowerCase().includes(query)
-      );
-      if (!matchesSearch) return false;
-    }
-
-    // Status filters
-    if (activeFilters.favorites && !loc.is_favorite) return false;
-    if (activeFilters.historical && !loc.is_historical) return false;
-    if (activeFilters.undocumented && !loc.is_undocumented) return false;
-
-    return true;
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      loc.loc_name?.toLowerCase().includes(query) ||
+      loc.aka_name?.toLowerCase().includes(query) ||
+      loc.type?.toLowerCase().includes(query) ||
+      loc.state?.toLowerCase().includes(query) ||
+      loc.city?.toLowerCase().includes(query)
+    );
   });
-
-  function toggleFilter(filterName) {
-    activeFilters[filterName] = !activeFilters[filterName];
-  }
 
   function openCreateForm() {
     formMode = 'create';
@@ -113,43 +92,19 @@
 </script>
 
 <div class="p-8">
-  <div class="mb-6">
-    <div class="flex items-center justify-between mb-3">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-800">All Locations</h2>
-        <p class="text-gray-600 mt-1">
-          {filteredLocations.length} of {locationItems.length} location{locationItems.length !== 1 ? 's' : ''}
-        </p>
-      </div>
-      <button
-        on:click={openCreateForm}
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        Add Location
-      </button>
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-800">All Locations</h2>
+      <p class="text-gray-600 mt-1">
+        {filteredLocations.length} of {locationItems.length} location{locationItems.length !== 1 ? 's' : ''}
+      </p>
     </div>
-
-    <!-- Filter Buttons -->
-    <div class="flex gap-2">
-      <button
-        on:click={() => toggleFilter('favorites')}
-        class="px-3 py-1 text-sm rounded border-2 transition {activeFilters.favorites ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'}"
-      >
-        Favorites
-      </button>
-      <button
-        on:click={() => toggleFilter('historical')}
-        class="px-3 py-1 text-sm rounded border-2 transition {activeFilters.historical ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'}"
-      >
-        Historical
-      </button>
-      <button
-        on:click={() => toggleFilter('undocumented')}
-        class="px-3 py-1 text-sm rounded border-2 transition {activeFilters.undocumented ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'}"
-      >
-        Undocumented
-      </button>
-    </div>
+    <button
+      on:click={openCreateForm}
+      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      Add Location
+    </button>
   </div>
 
   <!-- Search Bar -->

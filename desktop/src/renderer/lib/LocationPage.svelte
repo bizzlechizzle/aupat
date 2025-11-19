@@ -18,7 +18,6 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import { marked } from 'marked';
   import LocationForm from './LocationForm.svelte';
-  import NotesSection from './NotesSection.svelte';
 
   export let locationUuid;
 
@@ -40,8 +39,6 @@
   let videos = [];
   let archivedUrls = [];
   let relatedLocations = [];
-  let notes = [];
-  let stats = null;
   let loading = true;
   let error = null;
   let selectedImage = null;
@@ -75,9 +72,7 @@
         loadImages(),
         loadVideos(),
         loadArchivedUrls(),
-        loadRelatedLocations(),
-        loadNotes(),
-        loadStats()
+        loadRelatedLocations()
       ]);
 
     } catch (err) {
@@ -155,30 +150,6 @@
       }
     } catch (err) {
       console.error('Failed to load related locations:', err);
-    }
-  }
-
-  async function loadNotes() {
-    try {
-      const response = await fetch(`/api/locations/${locationUuid}/notes`);
-      const result = await response.json();
-      if (result.success) {
-        notes = result.data || [];
-      }
-    } catch (err) {
-      console.error('Failed to load notes:', err);
-    }
-  }
-
-  async function loadStats() {
-    try {
-      const response = await fetch(`/api/locations/${locationUuid}/stats`);
-      const result = await response.json();
-      if (result.success) {
-        stats = result.data;
-      }
-    } catch (err) {
-      console.error('Failed to load stats:', err);
     }
   }
 
@@ -568,117 +539,6 @@
         </section>
 
         <hr class="au-section-divider" />
-
-        <!-- USER NOTES -->
-        <section class="content-section">
-          <NotesSection {locationUuid} bind:notes on:notesUpdated={() => loadNotes()} />
-        </section>
-
-        <hr class="au-section-divider" />
-
-        <!-- NERD STATS -->
-        {#if stats}
-          <section class="content-section">
-            <details class="au-details">
-              <summary class="text-lg font-semibold cursor-pointer">
-                Nerd Stats
-              </summary>
-
-              <div class="mt-4 space-y-6">
-                <!-- Summary -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div class="au-card text-center">
-                    <div class="text-3xl font-bold text-blue-600">{stats.images.count}</div>
-                    <div class="text-sm text-gray-600">Images</div>
-                  </div>
-                  <div class="au-card text-center">
-                    <div class="text-3xl font-bold text-green-600">{stats.videos.count}</div>
-                    <div class="text-sm text-gray-600">Videos</div>
-                  </div>
-                  <div class="au-card text-center">
-                    <div class="text-3xl font-bold text-purple-600">{stats.documents.count}</div>
-                    <div class="text-sm text-gray-600">Documents</div>
-                  </div>
-                  <div class="au-card text-center">
-                    <div class="text-3xl font-bold text-orange-600">{stats.urls.count}</div>
-                    <div class="text-sm text-gray-600">URLs</div>
-                  </div>
-                </div>
-
-                <!-- File Sizes -->
-                <div class="au-card">
-                  <h4 class="font-medium mb-3">Storage</h4>
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span>Images:</span>
-                      <span class="font-mono">{(stats.images.total_size_bytes / 1024 / 1024).toFixed(2)} MB</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span>Videos:</span>
-                      <span class="font-mono">{(stats.videos.total_size_bytes / 1024 / 1024).toFixed(2)} MB</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span>Documents:</span>
-                      <span class="font-mono">{(stats.documents.total_size_bytes / 1024 / 1024).toFixed(2)} MB</span>
-                    </div>
-                    <div class="flex justify-between font-bold border-t pt-2">
-                      <span>Total:</span>
-                      <span class="font-mono">{(stats.total_size_bytes / 1024 / 1024).toFixed(2)} MB</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Camera Models -->
-                {#if stats.cameras && stats.cameras.length > 0}
-                  <div class="au-card">
-                    <h4 class="font-medium mb-3">Camera Models ({stats.images.unique_cameras})</h4>
-                    <div class="space-y-1">
-                      {#each stats.cameras as camera}
-                        <div class="flex justify-between text-sm">
-                          <span class="font-mono">{camera.camera}</span>
-                          <span class="text-gray-600">{camera.count} photos</span>
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
-
-                <!-- Date Ranges -->
-                {#if stats.images.earliest_date || stats.images.latest_date}
-                  <div class="au-card">
-                    <h4 class="font-medium mb-3">Photo Date Range</h4>
-                    <div class="space-y-2">
-                      {#if stats.images.earliest_date}
-                        <div class="flex justify-between">
-                          <span>Earliest:</span>
-                          <span class="font-mono">{formatDate(stats.images.earliest_date)}</span>
-                        </div>
-                      {/if}
-                      {#if stats.images.latest_date}
-                        <div class="flex justify-between">
-                          <span>Latest:</span>
-                          <span class="font-mono">{formatDate(stats.images.latest_date)}</span>
-                        </div>
-                      {/if}
-                    </div>
-                  </div>
-                {/if}
-
-                <!-- Video Duration -->
-                {#if stats.videos.total_duration_seconds > 0}
-                  <div class="au-card">
-                    <h4 class="font-medium mb-3">Video Duration</h4>
-                    <div class="text-2xl font-mono text-center">
-                      {Math.floor(stats.videos.total_duration_seconds / 60)}:{(stats.videos.total_duration_seconds % 60).toFixed(0).padStart(2, '0')} minutes
-                    </div>
-                  </div>
-                {/if}
-              </div>
-            </details>
-          </section>
-
-          <hr class="au-section-divider" />
-        {/if}
 
         <!-- IMAGES -->
         {#if images.length > 0}

@@ -13,21 +13,19 @@
   import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
   import Bookmarks from './lib/Bookmarks.svelte';
-  import Browser from './lib/Browser.svelte';
   import UpdateNotification from './lib/UpdateNotification.svelte';
   import { locations } from './stores/locations.js';
   import logo from './assets/logo.png';
   import './styles/theme.css';
 
   // Current active view
-  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'browser', 'settings'
+  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'settings'
   let selectedLocationUuid = null;
 
   // Navigation menu items
   const menuItems = [
     { id: 'map', label: 'Map View' },
     { id: 'locations', label: 'Locations' },
-    { id: 'browser', label: 'Browser' },
     { id: 'bookmarks', label: 'Bookmarks' },
     { id: 'import', label: 'Import' },
     { id: 'settings', label: 'Settings' }
@@ -152,10 +150,6 @@
           on:close={handleLocationPageClose}
           on:navigate={handleLocationPageNavigate}
         />
-      </ErrorBoundary>
-    {:else if currentView === 'browser'}
-      <ErrorBoundary fallbackMessage="Browser view encountered an error">
-        <Browser />
       </ErrorBoundary>
     {:else if currentView === 'bookmarks'}
       <ErrorBoundary fallbackMessage="Bookmarks view encountered an error">
