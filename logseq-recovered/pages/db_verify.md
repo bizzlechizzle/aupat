@@ -1,0 +1,9 @@
+- script
+	- db_verify.py
+- operation
+	- verifies new locations in the database
+- steps
+	- load database location in [[user_json]] in /user folder ["db_name","db_loc","arch_loc"]
+	- call [[backup]]
+	- open database check files original location, new location, do a hash to verify they all successfully imported to database and match the database
+	- delete files in original files [ingest folder] location and delete any empty folder/parent folders

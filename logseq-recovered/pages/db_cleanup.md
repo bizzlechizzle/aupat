@@ -1,0 +1,12 @@
+- purpose
+	- db_cleanup.py
+-
+- operation
+	- cleans up any temp data/cache/etc
+	- does integrity check on database
+	- keeps the first back up from today, and the last one - delete anything else
+- steps
+	- load database location in [[user_json]] in /user folder ["db_name","db_loc","db_backup"]
+	- does integrity check on database
+	- if passes keep first and last backup from today
+	-

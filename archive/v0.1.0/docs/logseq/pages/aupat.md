@@ -1,0 +1,10 @@
+- Abandoned Upstate Project Archive Tool
+-
+- scripts
+	- [[aupat_import]]
+	- [[aupat_webapp]] [stage 2]
+- scope
+	- stage 1: import tool
+	- stage 2: web app
+	- stage 3: docker web app
+	- stage 4: mobile app w docker host

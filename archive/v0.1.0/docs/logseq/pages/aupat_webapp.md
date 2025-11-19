@@ -1,0 +1,8 @@
+- purpose
+	- aupat_webapp.py
+	-
+- note
+	- Web application implementation (Stage 2)
+	- Not yet designed - specification to be completed before Stage 2 implementation
+	- See web_interface.md for basic structure
+	-

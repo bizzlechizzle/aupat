@@ -1,0 +1,49 @@
+- purpose
+	- db_import.py
+	-
+- operation
+	- imports new locations into the database
+- import mode
+	- mobile web import
+	- desktop web import
+	- scan existing database
+- steps
+	- load database in [[user_json]] in /user folder ["db_name","db_loc","db_ingest"]
+	- call [[backup]]
+	- call [[gen_uuid]] for new uuid, create folder with first 8 characters of uuid in ingest location
+	- if mobile web import
+		- import images into ingest folder
+	- if desktop web import
+		- if images are on same disk/system hardlink images, if not files images into ingest folder
+	- determine media types based on file extension or import step; images - videos - urls - documents [everything else]
+	- log into database
+	- generate sha or uuid's as needed [[gen_sha]], [[gen_uuid]]
+	- update versions table
+	- check image import match count [images,documents,etc] in folder, each has its unique id
+- import interface
+	- import
+		- new location
+			- enter location name [collision check] [loc_name column]
+				- enter type [auto fills based as you type - based on existing database] [starts at most popular state based on database] [type column]
+				- enter sub-type [auto fills based as you type - based on existing database - only auto-fills sub-type based on type] [starts at most popular state based on database] [sub_type column]
+				- enter state [auto fills based as you type] [accepts 2 digit postal code] [starts at most popular state based on database] [state column]
+				- author [auto fills based as you type, based on existing database, starts at most popular author] [imp_author column]
+			- upload media
+				- images/videos [images/videos table] [sha256] [collision check]
+				- documents [documents table] [sha256] [collision check]
+				  id:: 69187139-79c9-40ac-b8b9-115512b892c6
+				- web urls [urls table] [uuid4]
+				- film [images table] [sha256] [collision check]
+					- enter film stock
+					- [mark "film" true in images table]
+		- update database
+			- location name search [auto fills based as you type - based on existing database]
+			- author [auto fills based as you type, based on existing database, starts at most popular author]
+			- upload media
+				- images/videos [images/videos table] [sha256] [collision check]
+				- documents [documents table] [sha256] [collision check]
+				  id:: 4e27f8ec-fa94-49f6-a78f-3f0b166c9ee7
+				- web urls [urls table] [uuid4] [collision check on "url"]
+				- film [images table] [sha256] [collision check]
+					- enter film stock
+-

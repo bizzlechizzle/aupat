@@ -1,0 +1,17 @@
+- purpose:
+	- aupat_import.py
+-
+- Abandoned Upstate Project Archive Tool
+	- Import Tool
+		- CLI for Importing Into Database
+-
+- scripts [run order]
+	- [[db_migrate]]
+	- [[db_import]]
+	- [[db_organize]]
+	- [[db_folder]]
+	- [[db_ingest]]
+	- [[db_verify]]
+	- [[db_identify]]
+	- [[db_cleanup]]
+-
