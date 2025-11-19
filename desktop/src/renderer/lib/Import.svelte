@@ -367,12 +367,14 @@
 
       updateProgress(item.id, 100);
 
-      if (response.success) {
+      if (response && response.success) {
         uploadQueue = uploadQueue.map(i =>
           i.id === item.id ? { ...i, status: 'success', progress: 100 } : i
         );
       } else {
-        throw new Error(response.error || 'Upload failed');
+        // Handle error from API
+        const errorMsg = response?.error || response?.message || 'Upload failed';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -732,8 +734,8 @@
                 {#if item.status === 'uploading'}
                   <div class="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style="width: {item.progress}%"
+                      class="h-2 rounded-full transition-all duration-300"
+                      style="width: {item.progress}%; background-color: var(--au-accent-brown, #b9975c);"
                     />
                   </div>
                 {/if}
