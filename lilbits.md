@@ -1972,6 +1972,8 @@ See docs/dependency_map.md for full issue list.
 
 ## VERSION HISTORY
 
+- 3.1.0 (2025-11-19): v0.1.0 Critical Fixes - Added health, config, dialog IPC handlers to ipc-handlers.js, exposed new APIs in preload/index.js, removed deprecated Flask API references from UI
+- 3.0.0 (2025-11-19): v0.1.0 Features Complete - All desktop components documented
 - 1.0.0 (2025-11-18): Initial documentation of all scripts
 
 ---

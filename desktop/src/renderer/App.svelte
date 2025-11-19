@@ -133,10 +133,10 @@
         />
         <span class="text-gray-600">
           {healthStatus === 'healthy'
-            ? 'API Connected'
+            ? 'Database Ready'
             : healthStatus === 'error'
-            ? 'API Offline'
-            : 'Checking...'}
+            ? 'Database Error'
+            : 'Connecting...'}
         </span>
       </div>
     </div>
