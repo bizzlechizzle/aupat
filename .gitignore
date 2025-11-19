@@ -20,8 +20,9 @@ eggs/
 .eggs/
 lib/
 lib64/
-# But don't ignore desktop renderer lib directory
+# But don't ignore desktop lib directories
 !desktop/src/renderer/lib/
+!desktop/src/main/lib/
 parts/
 sdist/
 var/
