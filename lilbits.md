@@ -1040,29 +1040,51 @@ python scripts/migrations/add_performance_indexes.py
 
 ## STARTUP SCRIPTS
 
-### start_aupat.sh
+### start_aupat.sh (v0.1.0 Smart Startup)
 
 **Location:** `/home/user/aupat/start_aupat.sh`
-**LOC:** 89 lines
-**Purpose:** Start full stack (backend + desktop app)
+**LOC:** 168 lines (LILBITS compliant)
+**Purpose:** Smart startup with first-run intelligence for v0.1.0
 
 **What it does:**
-- Activates Python virtual environment
 - Checks port 5002 availability
+- Activates Python virtual environment (with helpful error if missing)
+- Sets PYTHONPATH for proper module imports
+- Runs health_check_simple.py automatically
+- Offers fixes for common issues (missing database, missing desktop deps)
+- Auto-installs desktop dependencies if missing
 - Starts Flask API on port 5002
 - Starts Electron desktop app with dev server
-- Implements graceful shutdown
+- Implements graceful shutdown (Ctrl+C)
 
 **How to run:**
 ```bash
+# Normal startup with health checks
 ./start_aupat.sh
+
+# Skip health checks (advanced users)
+./start_aupat.sh --skip-health
 ```
 
 **Ports used:**
 - 5002: Flask API
-- 5173: Electron dev server
+- 5173: Electron dev server (auto-assigned by vite)
 
-**Stops with:** Ctrl+C (graceful shutdown)
+**First-Run Experience:**
+- Detects missing virtual environment
+- Detects missing user.json
+- Detects missing database
+- Detects missing desktop node_modules
+- Auto-installs desktop dependencies
+- Prompts user to fix issues or run bootstrap
+- Allows override to continue anyway
+
+**Exit Behavior:**
+- Graceful shutdown on Ctrl+C
+- Cleans up both backend and frontend PIDs
+- Force kills if processes don't exit gracefully
+
+**LILBITS Compliance:** ✓ One script = one function (smart startup)
 
 ---
 
@@ -1320,11 +1342,51 @@ launchctl list | grep aupat
 
 ## SYSTEM HEALTH
 
-### scripts/health_check.py (NEW)
+### scripts/health_check_simple.py (v0.1.0 Health Check)
+
+**Location:** `/home/user/aupat/scripts/health_check_simple.py`
+**LOC:** 177 lines (LILBITS compliant)
+**Purpose:** Simple health check for v0.1.0 first-run experience
+
+**What it checks:**
+- Python version (3.11+ required)
+- Virtual environment activation status
+- user.json existence and validity
+- Database existence and accessibility
+- Desktop dependencies (node_modules)
+- External tools (exiftool, ffmpeg) - optional
+
+**How to run:**
+```bash
+# Run standalone
+python scripts/health_check_simple.py
+
+# Or via start_aupat.sh (automatic)
+./start_aupat.sh
+
+# Returns exit code 0 if healthy, 1 if problems
+```
+
+**Output:**
+- Color-coded console output
+- Clear [OK]/[FAIL]/[WARN]/[SKIP] statuses
+- Helpful fix suggestions
+- Exit code for scripting
+
+**Integration:**
+- Called automatically by start_aupat.sh
+- Can be skipped with --skip-health flag
+- Blocks startup if critical checks fail (with override option)
+
+**LILBITS Compliance:** ✓ One script = one function (health check)
+
+---
+
+### scripts/health_check.py (Comprehensive Health Check)
 
 **Location:** `/home/user/aupat/scripts/health_check.py`
 **LOC:** ~500 lines
-**Purpose:** Comprehensive system health verification
+**Purpose:** Comprehensive system health verification for v0.1.2+
 
 **What it checks:**
 - Database connectivity and write capability

@@ -1,6 +1,6 @@
 {
   "name": "abandoned-upstate",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Abandoned Upstate - Digital archive for abandoned locations in Upstate New York",
   "main": "dist-electron/main/index.js",
   "author": "Abandoned Upstate",
