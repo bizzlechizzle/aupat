@@ -19,6 +19,7 @@ const { getDatabase, createSchema, databaseExists } = require('./database');
 const { createLocation, getLocation, getAllLocations, searchLocations, updateLocation, deleteLocation } = require('./modules/locations');
 const { createLocationFolders } = require('./modules/folders');
 const { importFile } = require('./modules/import');
+const { getImagesByLocation, getImage, getImagePath, countImagesByLocation } = require('./modules/images');
 
 // Database instance (initialized on app start)
 let db = null;
@@ -60,6 +61,7 @@ function initializeHandlers(electronStore) {
   registerImportHandlers();
   registerSettingsHandlers();
   registerStatsHandlers();
+  registerImagesHandlers();
 
   console.log('IPC handlers initialized');
 }
@@ -296,6 +298,68 @@ function registerSettingsHandlers() {
       return { success: true, data: result.filePaths[0] };
     } catch (error) {
       console.error('settings:chooseFolder error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+}
+
+// ============================================================================
+// IMAGES HANDLERS
+// ============================================================================
+
+function registerImagesHandlers() {
+  /**
+   * Get images by location
+   */
+  ipcMain.handle('images:getByLocation', async (event, locUuid, limit, offset) => {
+    try {
+      const images = getImagesByLocation(db, locUuid, { limit, offset });
+      return { success: true, data: images };
+    } catch (error) {
+      console.error('images:getByLocation error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Get single image
+   */
+  ipcMain.handle('images:get', async (event, imgUuid) => {
+    try {
+      const image = getImage(db, imgUuid);
+      if (!image) {
+        return { success: false, error: 'Image not found' };
+      }
+      return { success: true, data: image };
+    } catch (error) {
+      console.error('images:get error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Get image file path
+   */
+  ipcMain.handle('images:getPath', async (event, imgUuid) => {
+    try {
+      const archiveRoot = settings.get('archiveRoot');
+      const result = getImagePath(db, imgUuid, archiveRoot);
+      return result;
+    } catch (error) {
+      console.error('images:getPath error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Count images for location
+   */
+  ipcMain.handle('images:count', async (event, locUuid) => {
+    try {
+      const count = countImagesByLocation(db, locUuid);
+      return { success: true, data: count };
+    } catch (error) {
+      console.error('images:count error:', error);
       return { success: false, error: error.message };
     }
   });
