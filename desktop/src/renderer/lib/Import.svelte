@@ -76,7 +76,7 @@
   // Sublocation state
   let sublocations = [];
   let selectedSublocationId = '';
-  let createNewSublocation = false;
+  let sublocationOption = 'none'; // 'none', 'existing', or 'new'
   let newSublocationName = '';
   let newSublocationShort = '';
   let newSublocationIsPrimary = false;
@@ -109,7 +109,7 @@
   } else {
     sublocations = [];
     selectedSublocationId = '';
-    createNewSublocation = false;
+    sublocationOption = 'none';
   }
 
   /**
@@ -125,7 +125,7 @@
       }
       // Reset sublocation selection
       selectedSublocationId = '';
-      createNewSublocation = false;
+      sublocationOption = 'none';
       newSublocationName = '';
       newSublocationShort = '';
       newSublocationIsPrimary = false;
@@ -347,7 +347,7 @@
 
       // Prepare sublocation data if applicable
       let sublocationData = null;
-      if (createNewSublocation && newSublocationName.trim()) {
+      if (sublocationOption === 'new' && newSublocationName.trim()) {
         sublocationData = {
           name: newSublocationName.trim(),
           sub_short: newSublocationShort.trim() || null,
@@ -514,11 +514,7 @@
                 type="radio"
                 name="sublocation-option"
                 value="none"
-                checked={!createNewSublocation}
-                on:change={() => {
-                  createNewSublocation = false;
-                  selectedSublocationId = '';
-                }}
+                bind:group={sublocationOption}
                 class="text-blue-600"
               />
               <span class="text-sm">No sub-location</span>
@@ -532,15 +528,12 @@
                   type="radio"
                   name="sublocation-option"
                   value="existing"
-                  checked={selectedSublocationId !== '' && !createNewSublocation}
-                  on:change={() => {
-                    createNewSublocation = false;
-                  }}
+                  bind:group={sublocationOption}
                   class="text-blue-600"
                 />
                 <span class="text-sm">Use existing sub-location</span>
               </label>
-              {#if selectedSublocationId !== '' || (!createNewSublocation && selectedSublocationId === '')}
+              {#if sublocationOption === 'existing'}
                 <select
                   bind:value={selectedSublocationId}
                   class="w-full ml-6 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -562,13 +555,13 @@
                 type="radio"
                 name="sublocation-option"
                 value="new"
-                bind:checked={createNewSublocation}
+                bind:group={sublocationOption}
                 class="text-blue-600"
               />
               <span class="text-sm">Create new sub-location</span>
             </label>
 
-            {#if createNewSublocation}
+            {#if sublocationOption === 'new'}
               <div class="ml-6 space-y-3">
                 <div>
                   <label for="sub-name" class="block text-xs text-gray-600 mb-1">

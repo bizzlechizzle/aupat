@@ -13,6 +13,7 @@ Last Updated: 2025-11-15
 """
 
 import hashlib
+import json
 import logging
 import sqlite3
 import uuid
@@ -25,6 +26,32 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def get_db_connection():
+    """
+    Get database connection using configuration from user.json.
+
+    Returns:
+        sqlite3.Connection: Database connection with row_factory set to sqlite3.Row
+
+    Raises:
+        FileNotFoundError: If user.json or database file not found
+        json.JSONDecodeError: If user.json is invalid
+
+    Example:
+        >>> conn = get_db_connection()
+        >>> cursor = conn.cursor()
+        >>> cursor.execute("SELECT * FROM locations")
+        >>> conn.close()
+    """
+    config_path = Path(__file__).parent.parent / 'user' / 'user.json'
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    db_path = Path(config['db_loc']) / config['db_name']
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def generate_uuid(cursor: sqlite3.Cursor, table_name: str, uuid_field: str = 'loc_uuid') -> str:
