@@ -29,14 +29,19 @@ if [ ! -f "package.json" ] || ! grep -q '"name": "abandoned-upstate"' package.js
     exit 1
 fi
 
-# Check if source image exists
-SOURCE_IMAGE="../Abandoned Upstate.png"
-if [ ! -f "$SOURCE_IMAGE" ]; then
-    echo "ERROR: Source image not found: $SOURCE_IMAGE"
-    echo "Please ensure 'Abandoned Upstate.png' exists in the project root."
+# Check if source image exists (prefer "App Icon.png", fallback to "Abandoned Upstate.png")
+if [ -f "../App Icon.png" ]; then
+    SOURCE_IMAGE="../App Icon.png"
+elif [ -f "../Abandoned Upstate.png" ]; then
+    SOURCE_IMAGE="../Abandoned Upstate.png"
+else
+    echo "ERROR: Source image not found"
+    echo "Please ensure one of these files exists in the project root:"
+    echo "  - App Icon.png (preferred)"
+    echo "  - Abandoned Upstate.png"
     echo ""
     echo "Current working directory: $(pwd)"
-    echo "Expected image path: $(cd .. && pwd)/Abandoned Upstate.png"
+    echo "Project root: $(cd .. && pwd)"
     echo ""
     exit 1
 fi

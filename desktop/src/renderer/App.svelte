@@ -20,16 +20,16 @@
   import './styles/theme.css';
 
   // Current active view
-  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'browser', 'settings'
+  let currentView = 'import'; // Default to import as first screen
   let selectedLocationUuid = null;
 
-  // Navigation menu items
+  // Navigation menu items (v0.1.0 order)
   const menuItems = [
-    { id: 'map', label: 'Map View' },
-    { id: 'locations', label: 'Locations' },
-    { id: 'bookmarks', label: 'Bookmarks' },
-    { id: 'browser', label: 'Browser' },
     { id: 'import', label: 'Import' },
+    { id: 'locations', label: 'Locations' },
+    { id: 'map', label: 'Map' },
+    { id: 'browser', label: 'Browser' },
+    { id: 'bookmarks', label: 'Bookmarks' },
     { id: 'settings', label: 'Settings' }
   ];
 

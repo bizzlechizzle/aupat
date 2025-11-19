@@ -401,9 +401,9 @@
 
       <!-- Form -->
       <form on:submit|preventDefault={handleSubmit} class="p-6 space-y-6">
-        <!-- Basic Information -->
+        <!-- SECTION 1: Location Information -->
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold text-gray-700">Basic Information</h3>
+          <h3 class="text-lg font-bold text-gray-800 pb-2 border-b border-gray-300">Location</h3>
 
           <!-- Location Name -->
           <div>
@@ -611,9 +611,9 @@
           </div>
         </div>
 
-        <!-- Address Information -->
-        <div class="space-y-4 pt-8 mt-8 border-t-2 border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-700">Address</h3>
+        <!-- SECTION 2: Address Information -->
+        <div class="space-y-4 pt-10 mt-10 border-t-4 border-gray-300">
+          <h3 class="text-lg font-bold text-gray-800 pb-2 border-b border-gray-300">Address</h3>
 
           <div>
             <label for="street_address" class="block text-sm font-medium text-gray-700 mb-1">
@@ -691,9 +691,9 @@
           </div>
         </div>
 
-        <!-- GPS Coordinates -->
-        <div class="space-y-4 pt-8 mt-8 border-t-2 border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-700">GPS Coordinates</h3>
+        <!-- SECTION 3: GPS Coordinates -->
+        <div class="space-y-4 pt-10 mt-10 border-t-4 border-gray-300">
+          <h3 class="text-lg font-bold text-gray-800 pb-2 border-b border-gray-300">GPS Coordinates</h3>
 
           <div class="grid grid-cols-2 gap-4">
             <div>

@@ -83,6 +83,9 @@ def create_v010_schema(cursor: sqlite3.Cursor) -> None:
             gps_lon REAL,
             import_author TEXT,
             historical INTEGER DEFAULT 0,
+            pinned INTEGER DEFAULT 0,
+            documented INTEGER DEFAULT 1,
+            favorite INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
@@ -236,6 +239,9 @@ def create_indexes(cursor: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_locations_state ON locations(state)",
         "CREATE INDEX IF NOT EXISTS idx_locations_type ON locations(type)",
         "CREATE INDEX IF NOT EXISTS idx_locations_historical ON locations(historical)",
+        "CREATE INDEX IF NOT EXISTS idx_locations_pinned ON locations(pinned DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_locations_documented ON locations(documented)",
+        "CREATE INDEX IF NOT EXISTS idx_locations_favorite ON locations(favorite)",
         "CREATE INDEX IF NOT EXISTS idx_locations_updated ON locations(updated_at)",
         "CREATE INDEX IF NOT EXISTS idx_locations_gps ON locations(gps_lat, gps_lon)",
 

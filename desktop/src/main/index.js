@@ -23,12 +23,10 @@ import { initAutoUpdater, registerUpdateHandlers } from './updater.js';
 log.transports.file.level = 'info';
 log.info('Abandoned Upstate starting...');
 
-// Initialize settings store
+// Initialize settings store (v0.1.0 - minimal configuration)
 const store = new Store({
   defaults: {
     apiUrl: 'http://127.0.0.1:5002',
-    immichUrl: 'http://127.0.0.1:2283',
-    archiveboxUrl: 'http://127.0.0.1:8001',
     mapCenter: { lat: 42.6526, lng: -73.7562 }, // Albany, NY
     mapZoom: 10
   }
@@ -72,14 +70,12 @@ if (currentApiUrl && currentApiUrl.includes('localhost')) {
 
 // Migrate localhost to 127.0.0.1 to fix IPv6 connection issues
 // Node.js fetch() resolves localhost to IPv6 (::1) first, but Flask only listens on IPv4
-['apiUrl', 'immichUrl', 'archiveboxUrl'].forEach(key => {
-  const url = store.get(key);
-  if (url && url.includes('localhost')) {
-    const migratedUrl = url.replace('localhost', '127.0.0.1');
-    log.info(`Migrating ${key}: localhost → 127.0.0.1`);
-    store.set(key, migratedUrl);
-  }
-});
+const apiUrl = store.get('apiUrl');
+if (apiUrl && apiUrl.includes('localhost')) {
+  const migratedUrl = apiUrl.replace('localhost', '127.0.0.1');
+  log.info(`Migrating apiUrl: localhost → 127.0.0.1`);
+  store.set('apiUrl', migratedUrl);
+}
 
 // Initialize API client
 const api = createAPIClient(store.get('apiUrl'));
