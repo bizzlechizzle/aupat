@@ -13,13 +13,14 @@
   import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
   import Bookmarks from './lib/Bookmarks.svelte';
+  import Browser from './lib/Browser.svelte';
   import UpdateNotification from './lib/UpdateNotification.svelte';
   import { locations } from './stores/locations.js';
   import logo from './assets/logo.png';
   import './styles/theme.css';
 
   // Current active view
-  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'settings'
+  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'browser', 'settings'
   let selectedLocationUuid = null;
 
   // Navigation menu items
@@ -27,6 +28,7 @@
     { id: 'map', label: 'Map View' },
     { id: 'locations', label: 'Locations' },
     { id: 'bookmarks', label: 'Bookmarks' },
+    { id: 'browser', label: 'Browser' },
     { id: 'import', label: 'Import' },
     { id: 'settings', label: 'Settings' }
   ];
@@ -161,6 +163,10 @@
     {:else if currentView === 'bookmarks'}
       <ErrorBoundary fallbackMessage="Bookmarks view encountered an error">
         <Bookmarks />
+      </ErrorBoundary>
+    {:else if currentView === 'browser'}
+      <ErrorBoundary fallbackMessage="Browser encountered an error">
+        <Browser />
       </ErrorBoundary>
     {:else if currentView === 'import'}
       <ErrorBoundary fallbackMessage="Import view encountered an error">
