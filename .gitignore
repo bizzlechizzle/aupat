@@ -136,6 +136,7 @@ user/*.json
 # AUPAT - Data directories
 # ===================================
 # These directories contain user data and should not be committed
+archive/
 data/archive/
 data/backups/
 data/ingest/
