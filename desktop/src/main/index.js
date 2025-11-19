@@ -176,7 +176,7 @@ function sanitizeError(error) {
   if (typeof error === 'string') {
     return error;
   }
-  return error.message || 'An unknown error occurred';
+  return error?.message || 'An unknown error occurred';
 }
 
 /**
