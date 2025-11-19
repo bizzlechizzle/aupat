@@ -6,13 +6,13 @@
  * LILBITS Principle: One script = one function
  * This module handles SQLite database connection using better-sqlite3.
  *
- * Version: 1.0.0
+ * Version: 1.1.0 - Converted to ESM
  * Last Updated: 2025-11-19
  */
 
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
 
 // Singleton database instance
 let dbInstance = null;
@@ -365,8 +365,8 @@ function createIndexes(db) {
   console.log(`Created ${indexes.length} indexes`);
 }
 
-// Export functions
-module.exports = {
+// Export functions (ESM format)
+export {
   getDatabase,
   closeDatabase,
   databaseExists,

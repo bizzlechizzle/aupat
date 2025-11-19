@@ -10,9 +10,9 @@
  * Last Updated: 2025-11-19
  */
 
-const { generateUUID } = require('../lib/uuid');
-const { normalizeLocationName, normalizeShortName, normalizeStateCode, normalizeLocationType, normalizeDatetime } = require('../lib/normalize');
-const { parseGPS } = require('../lib/gps');
+import { generateUUID  } from '../lib/uuid';
+import { normalizeLocationName, normalizeShortName, normalizeStateCode, normalizeLocationType, normalizeDatetime  } from '../lib/normalize';
+import { parseGPS  } from '../lib/gps';
 
 /**
  * Create new location in database.
@@ -318,7 +318,7 @@ function deleteLocation(db, locUuid) {
 }
 
 // Export functions
-module.exports = {
+export {
   createLocation,
   getLocation,
   getAllLocations,

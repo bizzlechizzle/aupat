@@ -10,8 +10,8 @@
  * Last Updated: 2025-11-19
  */
 
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 
 /**
  * Get images by location UUID.
@@ -197,7 +197,7 @@ function countImagesByLocation(db, locUuid) {
 }
 
 // Export functions
-module.exports = {
+export {
   getImagesByLocation,
   getImage,
   getImagePath,

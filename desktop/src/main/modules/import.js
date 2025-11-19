@@ -20,14 +20,14 @@
  * Last Updated: 2025-11-19
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { calculateSHA256 } = require('../lib/hash');
-const { generateUUID } = require('../lib/uuid');
-const { generateFilename } = require('../lib/filename');
-const { determineMediaType } = require('../lib/validate');
-const { normalizeDatetime, normalizeExtension } = require('../lib/normalize');
-const { createLocationFolders } = require('./folders');
+import fs from 'fs-extra';
+import path from 'path';
+import { calculateSHA256  } from '../lib/hash';
+import { generateUUID  } from '../lib/uuid';
+import { generateFilename  } from '../lib/filename';
+import { determineMediaType  } from '../lib/validate';
+import { normalizeDatetime, normalizeExtension  } from '../lib/normalize';
+import { createLocationFolders  } from './folders';
 
 /**
  * Import file into AUPAT archive.
@@ -269,6 +269,6 @@ function _checkDuplicate(db, hash12, mediaType) {
 }
 
 // Export function
-module.exports = {
+export {
   importFile
 };

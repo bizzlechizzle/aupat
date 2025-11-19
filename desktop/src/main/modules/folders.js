@@ -18,10 +18,10 @@
  * Last Updated: 2025-11-19
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { generateLocationFolderName, generateMediaFolderName } = require('../lib/filename');
-const { normalizeLocationType, normalizeStateCode } = require('../lib/normalize');
+import fs from 'fs-extra';
+import path from 'path';
+import { generateLocationFolderName, generateMediaFolderName  } from '../lib/filename';
+import { normalizeLocationType, normalizeStateCode  } from '../lib/normalize';
 
 /**
  * Create complete folder structure for a location.
@@ -228,7 +228,7 @@ function _capitalizeFirst(str) {
 }
 
 // Export functions
-module.exports = {
+export {
   createLocationFolders,
   getMediaFolderPath,
   locationFoldersExist

@@ -21,10 +21,11 @@ import { join } from 'path';
 import log from 'electron-log';
 import Store from 'electron-store';
 import { BrowserManager } from './browser-manager.js';
-import { initAutoUpdater, registerUpdateHandlers } from './updater.js';
+// REMOVED: Auto-updater violates local-only requirement for v0.1.0
+// import { initAutoUpdater, registerUpdateHandlers } from './updater.js';
 
-// Import IPC handlers (desktop-v2 backend)
-const { initializeHandlers } = require('./ipc-handlers.js');
+// Import IPC handlers (desktop-v2 backend) - FIXED: Use ESM import instead of require
+import { initializeHandlers } from './ipc-handlers.js';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -303,15 +304,9 @@ app.whenReady().then(async () => {
   // Create main window
   createWindow();
 
-  // Initialize auto-updater (production only)
-  if (app.isPackaged) {
-    const { ipcMain } = require('electron');
-    initAutoUpdater(mainWindow);
-    registerUpdateHandlers(ipcMain);
-    log.info('Auto-updater enabled');
-  } else {
-    log.info('Auto-updater disabled in development mode');
-  }
+  // REMOVED: Auto-updater for v0.1.0 (violates local-only requirement)
+  // For updates: User must manually download new version from GitHub releases
+  log.info('Auto-updater disabled for v0.1.0 (local-only requirement)');
 
   app.on('activate', function () {
     // On macOS re-create window when dock icon is clicked

@@ -6,20 +6,20 @@
  *
  * Security: All handlers are exposed via contextBridge in preload.js
  *
- * Version: 1.0.0
+ * Version: 1.1.0 - Converted to ESM
  * Last Updated: 2025-11-19
  */
 
-const { ipcMain } = require('electron');
-const path = require('path');
-const fs = require('fs');
+import { ipcMain } from 'electron';
+import path from 'path';
+import fs from 'fs';
 
 // Import backend modules
-const { getDatabase, createSchema, databaseExists } = require('./database');
-const { createLocation, getLocation, getAllLocations, searchLocations, updateLocation, deleteLocation } = require('./modules/locations');
-const { createLocationFolders } = require('./modules/folders');
-const { importFile } = require('./modules/import');
-const { getImagesByLocation, getImage, getImagePath, countImagesByLocation } = require('./modules/images');
+import { getDatabase, createSchema, databaseExists } from './database/index.js';
+import { createLocation, getLocation, getAllLocations, searchLocations, updateLocation, deleteLocation } from './modules/locations.js';
+import { createLocationFolders } from './modules/folders.js';
+import { importFile } from './modules/import.js';
+import { getImagesByLocation, getImage, getImagePath, countImagesByLocation } from './modules/images.js';
 
 // Database instance (initialized on app start)
 let db = null;
@@ -609,7 +609,7 @@ function registerDialogHandlers() {
   });
 }
 
-// Export
-module.exports = {
+// Export (ESM format)
+export {
   initializeHandlers
 };
