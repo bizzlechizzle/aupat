@@ -376,3 +376,64 @@ def api_delete_location(loc_uuid):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@locations_bp.route('/locations/autocomplete/<field>', methods=['GET'])
+def api_autocomplete_field(field):
+    """
+    Get autocomplete suggestions for a field.
+
+    Supports: sub_type, city, county, region
+
+    Query Parameters:
+    - type: Filter sub_type by location type
+    - limit: Max results (default: 50)
+
+    Returns:
+    {
+        "field": "sub_type",
+        "suggestions": ["factory", "mill", "warehouse"]
+    }
+    """
+    try:
+        allowed_fields = ['sub_type', 'city', 'county', 'region']
+        if field not in allowed_fields:
+            return jsonify({'error': f'Invalid field. Allowed: {allowed_fields}'}), 400
+
+        location_type = request.args.get('type')
+        limit = int(request.args.get('limit', 50))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Build query based on field
+        if field == 'sub_type' and location_type:
+            cursor.execute(f"""
+                SELECT DISTINCT {field}
+                FROM locations
+                WHERE type = ? AND {field} IS NOT NULL AND {field} != ''
+                ORDER BY {field}
+                LIMIT ?
+            """, (location_type.lower(), limit))
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT {field}
+                FROM locations
+                WHERE {field} IS NOT NULL AND {field} != ''
+                ORDER BY {field}
+                LIMIT ?
+            """, (limit,))
+
+        rows = cursor.fetchall()
+        suggestions = [row[0] for row in rows]
+
+        conn.close()
+
+        return jsonify({
+            'field': field,
+            'suggestions': suggestions,
+            'count': len(suggestions)
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

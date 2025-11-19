@@ -15,7 +15,7 @@ Serves REST API endpoints for:
 import os
 import logging
 from pathlib import Path
-from flask import Flask
+from flask import Flask, jsonify
 from flasgger import Swagger
 from scripts.api_routes_v010 import register_v010_routes
 
@@ -147,6 +147,40 @@ swagger = Swagger(app, config=swagger_config, template=swagger_template)
 # Register v0.1.0 API routes
 register_v010_routes(app)
 
+# Health endpoint
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Simple health check endpoint"""
+    import sqlite3
+
+    db_path = Path(app.config['DB_PATH'])
+    health_status = {
+        'status': 'healthy',
+        'version': '0.1.0',
+        'database': 'not_configured'
+    }
+
+    # Check if database exists and is accessible
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM locations")
+            count = cursor.fetchone()[0]
+            conn.close()
+            health_status['database'] = 'connected'
+            health_status['locations_count'] = count
+        except Exception as e:
+            health_status['database'] = f'error: {str(e)}'
+            health_status['status'] = 'degraded'
+    else:
+        health_status['database'] = 'missing'
+        health_status['status'] = 'degraded'
+
+    status_code = 200 if health_status['status'] == 'healthy' else 503
+    return jsonify(health_status), status_code
+
+
 # Root endpoint
 @app.route('/')
 def index():
@@ -156,6 +190,7 @@ def index():
         'version': '0.1.0',
         'description': 'Abandoned location archive management system',
         'endpoints': {
+            'health': '/api/health',
             'import': '/api/import',
             'locations': '/api/locations',
             'location_detail': '/api/locations/{loc_uuid}',

@@ -339,7 +339,7 @@ if [[ ! -f "user/user.json" ]]; then
         cat > user/user.json << EOF
 {
   "db_name": "aupat.db",
-  "db_loc": "${SCRIPT_DIR}/data/aupat.db",
+  "db_loc": "${SCRIPT_DIR}/data",
   "db_backup": "${SCRIPT_DIR}/data/backups/",
   "db_ingest": "${SCRIPT_DIR}/data/ingest/",
   "arch_loc": "${SCRIPT_DIR}/data/archive/"

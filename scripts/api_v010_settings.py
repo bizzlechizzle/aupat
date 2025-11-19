@@ -101,3 +101,10 @@ def api_update_settings():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# Alias for /config (used by frontend)
+@settings_bp.route('/config', methods=['GET'])
+def api_get_config():
+    """Alias for /settings endpoint (for frontend compatibility)."""
+    return api_get_settings()
