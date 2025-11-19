@@ -155,6 +155,42 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // ============================================================================
+  // IMAGES API
+  // ============================================================================
+  images: {
+    /**
+     * Get images by location
+     * @param {string} locUuid - Location UUID
+     * @param {number} limit - Max results (default: 100)
+     * @param {number} offset - Results offset (default: 0)
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    getByLocation: (locUuid, limit = 100, offset = 0) =>
+      ipcRenderer.invoke('images:getByLocation', locUuid, limit, offset),
+
+    /**
+     * Get single image
+     * @param {string} imgUuid - Image UUID
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    get: (imgUuid) => ipcRenderer.invoke('images:get', imgUuid),
+
+    /**
+     * Get image file path
+     * @param {string} imgUuid - Image UUID
+     * @returns {Promise<{success: boolean, path?: string, error?: string}>}
+     */
+    getPath: (imgUuid) => ipcRenderer.invoke('images:getPath', imgUuid),
+
+    /**
+     * Count images for location
+     * @param {string} locUuid - Location UUID
+     * @returns {Promise<{success: boolean, data?: number, error?: string}>}
+     */
+    count: (locUuid) => ipcRenderer.invoke('images:count', locUuid)
+  },
+
+  // ============================================================================
   // SYSTEM API
   // ============================================================================
   system: {

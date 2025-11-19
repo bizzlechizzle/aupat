@@ -244,7 +244,7 @@
    */
   async function handleMarkerClick(locationId) {
     try {
-      const response = await window.api.locations.getById(locationId);
+      const response = await window.api.location.get(locationId);
 
       if (response.success) {
         // Dispatch event to parent (App.svelte) to navigate to location page

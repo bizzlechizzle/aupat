@@ -35,16 +35,17 @@ let settings = null;
 function initializeHandlers(electronStore) {
   settings = electronStore;
 
-  // Get paths from settings
-  const dbPath = settings.get('dbPath') || path.join(app.getPath('userData'), 'data', 'aupat.db');
-  const archiveRoot = settings.get('archiveRoot') || path.join(app.getPath('userData'), 'archive');
+  // Get paths from settings (already set with defaults in main process)
+  const dbPath = settings.get('dbPath');
+  const archiveRoot = settings.get('archiveRoot');
 
-  // Store paths back to settings if they were defaults
-  if (!settings.get('dbPath')) {
-    settings.set('dbPath', dbPath);
+  // Ensure directories exist
+  const dbDir = path.dirname(dbPath);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
   }
-  if (!settings.get('archiveRoot')) {
-    settings.set('archiveRoot', archiveRoot);
+  if (!fs.existsSync(archiveRoot)) {
+    fs.mkdirSync(archiveRoot, { recursive: true });
   }
 
   // Initialize database
