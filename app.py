@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-AUPAT v0.1.2 Flask Application
+AUPAT v0.1.0 Flask Application
 Main entry point for AUPAT Core API server
 
 Serves REST API endpoints for:
-- Health checks
-- Map marker data
-- Location details
-- Media queries
-- Search functionality
+- Import workflow
+- Location management
+- Map markers
+- Notes
+- Bookmarks
+- Settings
 """
 
 import os
@@ -16,10 +17,7 @@ import logging
 from pathlib import Path
 from flask import Flask
 from flasgger import Swagger
-from scripts.api_routes_v012 import register_api_routes
-from scripts.api_sync_mobile import register_mobile_sync_routes
-from scripts.api_routes_bookmarks import bookmarks_bp
-from scripts.api_maps import api_maps
+from scripts.api_routes_v010 import register_v010_routes
 
 # Configure logging
 logging.basicConfig(
@@ -121,7 +119,7 @@ swagger_template = {
     "info": {
         "title": "AUPAT Core API",
         "description": "Location-centric digital archive management system for abandoned and historical places",
-        "version": "0.1.2",
+        "version": "0.1.0",
         "contact": {
             "name": "AUPAT Project",
             "url": "https://github.com/bizzlechizzle/aupat"
@@ -146,17 +144,8 @@ swagger_template = {
 # Initialize Swagger
 swagger = Swagger(app, config=swagger_config, template=swagger_template)
 
-# Register v0.1.2 API routes
-register_api_routes(app)
-
-# Register mobile sync API routes
-register_mobile_sync_routes(app)
-
-# Register bookmarks API routes
-app.register_blueprint(bookmarks_bp, url_prefix='/api')
-
-# Register map import API routes
-app.register_blueprint(api_maps)
+# Register v0.1.0 API routes
+register_v010_routes(app)
 
 # Root endpoint
 @app.route('/')
@@ -164,16 +153,19 @@ def index():
     """Root endpoint - API information"""
     return {
         'name': 'AUPAT Core API',
-        'version': '0.1.2',
-        'description': 'Location-centric digital archive management system',
+        'version': '0.1.0',
+        'description': 'Abandoned location archive management system',
         'endpoints': {
-            'health': '/api/health',
-            'services': '/api/health/services',
+            'import': '/api/import',
+            'locations': '/api/locations',
+            'location_detail': '/api/locations/{loc_uuid}',
+            'location_search': '/api/locations/search',
             'map_markers': '/api/map/markers',
-            'locations': '/api/locations/{loc_uuid}',
-            'search': '/api/search',
-            'mobile_sync_push': '/api/sync/mobile',
-            'mobile_sync_pull': '/api/sync/mobile/pull'
+            'map_states': '/api/map/states',
+            'map_types': '/api/map/types',
+            'notes': '/api/notes',
+            'bookmarks': '/api/bookmarks',
+            'settings': '/api/settings'
         },
         'documentation': {
             'interactive_api_docs': '/api/docs',
@@ -190,13 +182,13 @@ if __name__ == '__main__':
     # Initialize database if it doesn't exist
     if not db_path.exists():
         logger.warning(f"Database not found at {db_path}")
-        logger.info("Run 'python scripts/db_migrate_v012.py' to initialize the database")
-        logger.info("Alternatively, the database will be created automatically on first write operation")
+        logger.info("Run 'python scripts/db_migrate_v010.py' to initialize the database")
+        logger.info("Alternatively, run './bootstrap_v010.sh' to set up everything")
 
     # Check external tools availability
     check_external_tools_on_startup()
 
-    logger.info(f"Starting AUPAT Core API v0.1.2")
+    logger.info(f"Starting AUPAT Core API v0.1.0")
     logger.info(f"Database: {app.config['DB_PATH']}")
     logger.info(f"Server will listen on http://0.0.0.0:5002")
     logger.info(f"Desktop app should connect to http://localhost:5002")

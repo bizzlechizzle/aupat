@@ -19,7 +19,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Set, Any
+from typing import Optional, List, Dict, Set, Any, Tuple
 
 try:
     from unidecode import unidecode
@@ -428,6 +428,77 @@ def normalize_author(author: Optional[str]) -> Optional[str]:
 
     # Lowercase and strip whitespace
     return author.strip().lower()
+
+
+def normalize_gps(gps_input: Optional[str]) -> Optional[Tuple[float, float]]:
+    """
+    Normalize GPS coordinates from various string formats to (lat, lon) tuple.
+
+    Supports formats:
+    - "42.8864, -78.8784" (decimal degrees with comma)
+    - "42.8864,-78.8784" (no space)
+    - "42.8864 -78.8784" (space separated)
+    - "(42.8864, -78.8784)" (with parentheses)
+    - "lat: 42.8864, lon: -78.8784" (with labels)
+
+    Args:
+        gps_input: GPS coordinate string in various formats
+
+    Returns:
+        Tuple of (latitude, longitude) as floats, or None if invalid
+
+    Example:
+        >>> normalize_gps("42.8864, -78.8784")
+        (42.8864, -78.8784)
+        >>> normalize_gps("(42.8864,-78.8784)")
+        (42.8864, -78.8784)
+        >>> normalize_gps("invalid")
+        None
+    """
+    if not gps_input or not gps_input.strip():
+        return None
+
+    try:
+        # Clean input - remove parentheses, labels
+        cleaned = gps_input.strip()
+        cleaned = cleaned.replace('(', '').replace(')', '')
+        cleaned = cleaned.replace('lat:', '').replace('lon:', '')
+        cleaned = cleaned.replace('latitude:', '').replace('longitude:', '')
+
+        # Try comma-separated first (most common)
+        if ',' in cleaned:
+            parts = cleaned.split(',')
+            if len(parts) == 2:
+                lat = float(parts[0].strip())
+                lon = float(parts[1].strip())
+            else:
+                return None
+        # Try space-separated
+        elif ' ' in cleaned:
+            parts = cleaned.split()
+            # Filter out empty strings
+            parts = [p for p in parts if p]
+            if len(parts) == 2:
+                lat = float(parts[0])
+                lon = float(parts[1])
+            else:
+                return None
+        else:
+            # Can't parse - need at least 2 numbers
+            return None
+
+        # Validate ranges
+        # Latitude: -90 to 90
+        # Longitude: -180 to 180
+        if not (-90 <= lat <= 90):
+            return None
+        if not (-180 <= lon <= 180):
+            return None
+
+        return (lat, lon)
+
+    except (ValueError, AttributeError):
+        return None
 
 
 # Utility function to get normalization status
