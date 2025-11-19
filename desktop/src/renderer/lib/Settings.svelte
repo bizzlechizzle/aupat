@@ -12,8 +12,6 @@
 
   let currentSettings = {
     apiUrl: '',
-    immichUrl: '',
-    archiveboxUrl: '',
     mapCenter: { lat: 0, lng: 0 },
     mapZoom: 10
   };
@@ -67,8 +65,6 @@
     e.preventDefault();
     // Save all settings
     handleSave('apiUrl', currentSettings.apiUrl);
-    handleSave('immichUrl', currentSettings.immichUrl);
-    handleSave('archiveboxUrl', currentSettings.archiveboxUrl);
   }
 
   function openMapImport() {
@@ -148,34 +144,9 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="http://localhost:5002"
           />
-        </div>
-
-        <!-- Immich API URL -->
-        <div>
-          <label for="immichUrl" class="block text-sm font-medium text-gray-700 mb-1">
-            Immich API URL
-          </label>
-          <input
-            id="immichUrl"
-            type="url"
-            bind:value={currentSettings.immichUrl}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="http://localhost:2283"
-          />
-        </div>
-
-        <!-- ArchiveBox API URL -->
-        <div>
-          <label for="archiveboxUrl" class="block text-sm font-medium text-gray-700 mb-1">
-            ArchiveBox API URL
-          </label>
-          <input
-            id="archiveboxUrl"
-            type="url"
-            bind:value={currentSettings.archiveboxUrl}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="http://localhost:8001"
-          />
+          <p class="mt-1 text-sm text-gray-500">
+            Local API server URL. Default: http://127.0.0.1:5002
+          </p>
         </div>
       </div>
     </div>

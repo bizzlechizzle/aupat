@@ -176,6 +176,11 @@ else
     log_info "If you want fresh database, delete it first: rm $DB_PATH"
 fi
 
+# Ensure stats columns exist (for existing databases)
+log_info "Ensuring dashboard stats columns exist..."
+python3 scripts/db_migrate_add_stats_columns.py
+log_success "Stats columns verified"
+
 # STEP 6: Install Desktop Dependencies
 log_step "Installing desktop app dependencies..."
 

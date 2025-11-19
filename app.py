@@ -13,6 +13,7 @@ Serves REST API endpoints for:
 """
 
 import os
+import json
 import logging
 from pathlib import Path
 from flask import Flask, jsonify
@@ -91,11 +92,43 @@ def check_external_tools_on_startup():
         logger.warning("No external media tools found - metadata extraction disabled")
 
 
+def get_db_path():
+    """
+    Get database path from configuration sources in priority order.
+
+    Priority:
+    1. DB_PATH environment variable (Docker, production)
+    2. user/user.json config file (local development)
+    3. Fallback to Docker default path
+
+    Returns:
+        str: Path to SQLite database file
+    """
+    # 1. Try environment variable first (Docker, production)
+    if 'DB_PATH' in os.environ:
+        return os.environ['DB_PATH']
+
+    # 2. Try user.json (local development)
+    user_json_path = Path(__file__).parent / 'user' / 'user.json'
+    if user_json_path.exists():
+        try:
+            with open(user_json_path, 'r') as f:
+                config = json.load(f)
+            db_loc = config.get('db_loc', 'data')
+            db_name = config.get('db_name', 'aupat.db')
+            return str(Path(db_loc) / db_name)
+        except Exception as e:
+            logger.warning(f"Failed to load user.json: {e}")
+
+    # 3. Fallback to Docker path
+    return '/app/data/aupat.db'
+
+
 # Create Flask app
 app = Flask(__name__)
 
 # Configure app
-app.config['DB_PATH'] = os.environ.get('DB_PATH', '/app/data/aupat.db')
+app.config['DB_PATH'] = get_db_path()
 app.config['JSON_SORT_KEYS'] = False
 
 # Configure Swagger/OpenAPI documentation

@@ -67,6 +67,8 @@
 
   // Component state
   let selectedLocationId = '';
+  let locationSearchQuery = '';
+  let showLocationDropdown = false;
   let uploadQueue = [];
   let isDragging = false;
   let showFileInput = false;
@@ -84,8 +86,24 @@
   // File input reference
   let fileInputElement;
 
+  // Filtered locations for autocomplete
+  $: filteredLocations = locationSearchQuery.trim()
+    ? ($locations.items || [])
+        .filter(loc =>
+          loc.loc_name?.toLowerCase().includes(locationSearchQuery.toLowerCase()) ||
+          loc.type?.toLowerCase().includes(locationSearchQuery.toLowerCase()) ||
+          loc.state?.toLowerCase().includes(locationSearchQuery.toLowerCase())
+        )
+        .slice(0, 10) // Show top 10 matches
+    : [];
+
+  // Get selected location object
+  $: selectedLocation = selectedLocationId
+    ? ($locations.items || []).find(loc => loc.loc_uuid === selectedLocationId)
+    : null;
+
   onMount(() => {
-    // Load locations for dropdown
+    // Load locations for autocomplete
     locations.fetchAll();
 
     // Check for pre-filled GPS coordinates from map right-click
@@ -162,6 +180,41 @@
   function handleLocationFormClose() {
     showLocationForm = false;
     prefillGPS = null; // Clear pre-filled GPS
+  }
+
+  /**
+   * Select location from autocomplete
+   */
+  function selectLocation(location) {
+    selectedLocationId = location.loc_uuid;
+    locationSearchQuery = location.loc_name;
+    showLocationDropdown = false;
+  }
+
+  /**
+   * Clear location selection
+   */
+  function clearLocationSelection() {
+    selectedLocationId = '';
+    locationSearchQuery = '';
+    showLocationDropdown = false;
+  }
+
+  /**
+   * Handle location search input focus
+   */
+  function handleLocationInputFocus() {
+    showLocationDropdown = true;
+  }
+
+  /**
+   * Handle location search input blur
+   */
+  function handleLocationInputBlur() {
+    // Delay to allow click on dropdown item
+    setTimeout(() => {
+      showLocationDropdown = false;
+    }, 200);
   }
 
   /**
@@ -451,32 +504,75 @@
   <div class="bg-white border-b border-gray-200 p-6">
     <h2 class="text-2xl font-bold text-gray-800 mb-4">Import Files</h2>
 
-    <!-- Location Selector -->
+    <!-- Location Autocomplete Selector -->
     <div class="max-w-2xl">
-      <label for="location-select" class="block text-sm font-medium text-gray-700 mb-2">
+      <label for="location-input" class="block text-sm font-medium text-gray-700 mb-2">
         Select Location
       </label>
       <div class="flex gap-3">
-        <select
-          id="location-select"
-          bind:value={selectedLocationId}
-          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">-- Choose a location --</option>
-          {#if $locations.loading}
-            <option value="" disabled>Loading locations...</option>
-          {:else if $locations.error}
-            <option value="" disabled>Error: {$locations.error}</option>
-          {:else if $locations.items && $locations.items.length === 0}
-            <option value="" disabled>No locations found</option>
-          {:else if $locations.items}
-            {#each $locations.items as location}
-              <option value={location.loc_uuid}>
-                {location.loc_name || 'Unnamed'} ({location.type || 'Unknown'})
-              </option>
-            {/each}
+        <div class="flex-1 relative">
+          <!-- Selected Location Display / Search Input -->
+          {#if selectedLocationId && selectedLocation}
+            <div class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-white">
+              <span class="flex-1 text-gray-800">
+                {selectedLocation.loc_name || 'Unnamed'} ({selectedLocation.type || 'Unknown'})
+              </span>
+              <button
+                on:click={clearLocationSelection}
+                class="text-gray-400 hover:text-red-600"
+                title="Clear selection"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          {:else}
+            <input
+              type="text"
+              id="location-input"
+              bind:value={locationSearchQuery}
+              on:focus={handleLocationInputFocus}
+              on:blur={handleLocationInputBlur}
+              placeholder="Type to search locations..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={$locations.loading}
+            />
+
+            <!-- Autocomplete Dropdown -->
+            {#if showLocationDropdown && locationSearchQuery.trim()}
+              <div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-auto">
+                {#if filteredLocations.length > 0}
+                  {#each filteredLocations as location}
+                    <button
+                      type="button"
+                      on:click={() => selectLocation(location)}
+                      class="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div class="font-medium text-gray-800">{location.loc_name || 'Unnamed'}</div>
+                      <div class="text-sm text-gray-500">{location.type || 'Unknown'} · {location.state || 'N/A'}</div>
+                    </button>
+                  {/each}
+                {:else}
+                  <div class="px-4 py-3 text-sm text-gray-500">
+                    No locations found matching "{locationSearchQuery}"
+                  </div>
+                {/if}
+              </div>
+            {/if}
           {/if}
-        </select>
+
+          <!-- Loading / Error States -->
+          {#if $locations.loading}
+            <div class="absolute right-3 top-2.5 text-gray-400">
+              <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          {/if}
+        </div>
+
         <button
           on:click={openCreateLocation}
           class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium whitespace-nowrap"
@@ -485,6 +581,7 @@
           + Add Location
         </button>
       </div>
+
       {#if $locations.items && $locations.items.length === 0 && !$locations.loading && !$locations.error}
         <p class="mt-2 text-sm text-gray-600">
           No locations found. Click "Add Location" to create your first location.
@@ -494,7 +591,7 @@
         <p class="mt-2 text-sm text-red-600">
           <strong>Cannot connect to backend:</strong> {$locations.error}
           <br />
-          Please ensure the AUPAT API server is running (check scripts/api_routes_v012.py).
+          Please ensure the AUPAT API server is running.
         </p>
       {/if}
     </div>
