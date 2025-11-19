@@ -191,6 +191,61 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // ============================================================================
+  // HEALTH API
+  // ============================================================================
+  health: {
+    /**
+     * Check database health
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    check: () => ipcRenderer.invoke('health:check')
+  },
+
+  // ============================================================================
+  // CONFIG API
+  // ============================================================================
+  config: {
+    /**
+     * Get configuration
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    get: () => ipcRenderer.invoke('config:get'),
+
+    /**
+     * Update configuration
+     * @param {Object} updates - Configuration updates
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    update: (updates) => ipcRenderer.invoke('config:update', updates)
+  },
+
+  // ============================================================================
+  // DIALOG API
+  // ============================================================================
+  dialog: {
+    /**
+     * Select directory
+     * @param {Object} options - Dialog options
+     * @returns {Promise<{success: boolean, path?: string, canceled?: boolean, error?: string}>}
+     */
+    selectDirectory: (options) => ipcRenderer.invoke('dialog:selectDirectory', options),
+
+    /**
+     * Select single file
+     * @param {Object} options - Dialog options
+     * @returns {Promise<{success: boolean, path?: string, canceled?: boolean, error?: string}>}
+     */
+    selectFile: (options) => ipcRenderer.invoke('dialog:selectFile', options),
+
+    /**
+     * Select multiple files
+     * @param {Object} options - Dialog options
+     * @returns {Promise<{success: boolean, paths?: Array<string>, canceled?: boolean, error?: string}>}
+     */
+    selectFiles: (options) => ipcRenderer.invoke('dialog:selectFiles', options)
+  },
+
+  // ============================================================================
   // SYSTEM API
   // ============================================================================
   system: {

@@ -63,6 +63,9 @@ function initializeHandlers(electronStore) {
   registerSettingsHandlers();
   registerStatsHandlers();
   registerImagesHandlers();
+  registerHealthHandlers();
+  registerConfigHandlers();
+  registerDialogHandlers();
 
   console.log('IPC handlers initialized');
 }
@@ -427,6 +430,180 @@ function registerStatsHandlers() {
       return { success: true, data: results };
     } catch (error) {
       console.error('stats:byType error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+}
+
+// ============================================================================
+// HEALTH HANDLERS
+// ============================================================================
+
+function registerHealthHandlers() {
+  /**
+   * Check database health
+   */
+  ipcMain.handle('health:check', async () => {
+    try {
+      // Check if database is connected and accessible
+      if (!db) {
+        return { success: false, error: 'Database not initialized' };
+      }
+
+      // Test database with simple query
+      const result = db.prepare('SELECT COUNT(*) as count FROM locations').get();
+      const locationCount = result.count;
+
+      // Check if tables exist
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+      const hasSchema = tables.length > 0;
+
+      return {
+        success: true,
+        data: {
+          status: 'healthy',
+          database: 'connected',
+          locationCount,
+          hasSchema,
+          dbPath: settings.get('dbPath'),
+          archiveRoot: settings.get('archiveRoot')
+        }
+      };
+    } catch (error) {
+      console.error('health:check error:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: {
+          status: 'error',
+          database: 'error'
+        }
+      };
+    }
+  });
+}
+
+// ============================================================================
+// CONFIG HANDLERS
+// ============================================================================
+
+function registerConfigHandlers() {
+  /**
+   * Get configuration
+   */
+  ipcMain.handle('config:get', async () => {
+    try {
+      return {
+        success: true,
+        data: {
+          configured: true,
+          db_path: settings.get('dbPath'),
+          archive_path: settings.get('archiveRoot'),
+          staging_path: settings.get('stagingPath', ''),
+          backup_path: settings.get('backupPath', ''),
+          deleteAfterImport: settings.get('deleteAfterImport', false),
+          importAuthor: settings.get('importAuthor', '')
+        }
+      };
+    } catch (error) {
+      console.error('config:get error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Update configuration
+   */
+  ipcMain.handle('config:update', async (event, updates) => {
+    try {
+      for (const [key, value] of Object.entries(updates)) {
+        // Map config keys to settings keys
+        const settingsKey = {
+          'db_path': 'dbPath',
+          'archive_path': 'archiveRoot',
+          'staging_path': 'stagingPath',
+          'backup_path': 'backupPath'
+        }[key] || key;
+
+        settings.set(settingsKey, value);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('config:update error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+}
+
+// ============================================================================
+// DIALOG HANDLERS
+// ============================================================================
+
+function registerDialogHandlers() {
+  /**
+   * Select directory dialog
+   */
+  ipcMain.handle('dialog:selectDirectory', async (event, options = {}) => {
+    const { dialog } = require('electron');
+    try {
+      const result = await dialog.showOpenDialog({
+        title: options.title || 'Select Directory',
+        properties: ['openDirectory', 'createDirectory']
+      });
+
+      if (result.canceled) {
+        return { success: false, canceled: true };
+      }
+
+      return { success: true, path: result.filePaths[0] };
+    } catch (error) {
+      console.error('dialog:selectDirectory error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Select file dialog
+   */
+  ipcMain.handle('dialog:selectFile', async (event, options = {}) => {
+    const { dialog } = require('electron');
+    try {
+      const result = await dialog.showOpenDialog({
+        title: options.title || 'Select File',
+        properties: ['openFile'],
+        filters: options.filters || []
+      });
+
+      if (result.canceled) {
+        return { success: false, canceled: true };
+      }
+
+      return { success: true, path: result.filePaths[0] };
+    } catch (error) {
+      console.error('dialog:selectFile error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Select multiple files dialog
+   */
+  ipcMain.handle('dialog:selectFiles', async (event, options = {}) => {
+    const { dialog } = require('electron');
+    try {
+      const result = await dialog.showOpenDialog({
+        title: options.title || 'Select Files',
+        properties: ['openFile', 'multiSelections'],
+        filters: options.filters || []
+      });
+
+      if (result.canceled) {
+        return { success: false, canceled: true };
+      }
+
+      return { success: true, paths: result.filePaths };
+    } catch (error) {
+      console.error('dialog:selectFiles error:', error);
       return { success: false, error: error.message };
     }
   });

@@ -11,7 +11,6 @@
   import MapImportDialog from './MapImportDialog.svelte';
 
   let currentSettings = {
-    apiUrl: '',
     mapCenter: { lat: 0, lng: 0 },
     mapZoom: 10
   };
@@ -48,23 +47,18 @@
     }
   }
 
-  async function handleSave(key, value) {
+  async function handleSaveMapSettings() {
     try {
       saveStatus = 'saving';
-      await settings.updateSetting(key, value);
+      await settings.updateSetting('mapCenter', currentSettings.mapCenter);
+      await settings.updateSetting('mapZoom', currentSettings.mapZoom);
       saveStatus = 'success';
       setTimeout(() => { saveStatus = null; }, 2000);
     } catch (error) {
-      console.error('Failed to save setting:', error);
+      console.error('Failed to save map settings:', error);
       saveStatus = 'error';
       setTimeout(() => { saveStatus = null; }, 3000);
     }
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    // Save all settings
-    handleSave('apiUrl', currentSettings.apiUrl);
   }
 
   function openMapImport() {
@@ -126,31 +120,7 @@
     <p class="text-gray-600 mt-1">Configure Abandoned Upstate application</p>
   </div>
 
-  <form on:submit={handleSubmit} class="space-y-6">
-    <!-- API Settings -->
-    <div class="bg-white shadow rounded-lg p-6">
-      <h3 class="text-lg font-medium text-gray-900 mb-4">API Configuration</h3>
-
-      <div class="space-y-4">
-        <!-- AUPAT Core API URL -->
-        <div>
-          <label for="apiUrl" class="block text-sm font-medium text-gray-700 mb-1">
-            AUPAT Core API URL
-          </label>
-          <input
-            id="apiUrl"
-            type="url"
-            bind:value={currentSettings.apiUrl}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="http://localhost:5002"
-          />
-          <p class="mt-1 text-sm text-gray-500">
-            Local API server URL. Default: http://127.0.0.1:5002
-          </p>
-        </div>
-      </div>
-    </div>
-
+  <div class="space-y-6">
     <!-- Map Settings -->
     <div class="bg-white shadow rounded-lg p-6">
       <h3 class="text-lg font-medium text-gray-900 mb-4">Map Defaults</h3>
@@ -198,6 +168,25 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+      </div>
+
+      <!-- Save Map Settings Button -->
+      <div class="flex items-center gap-4 mt-6 pt-4 border-t border-gray-200">
+        <button
+          type="button"
+          on:click={handleSaveMapSettings}
+          class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Save Map Settings
+        </button>
+
+        {#if saveStatus === 'saving'}
+          <span class="text-sm text-gray-600">Saving...</span>
+        {:else if saveStatus === 'success'}
+          <span class="text-sm text-green-600">Settings saved successfully</span>
+        {:else if saveStatus === 'error'}
+          <span class="text-sm text-red-600">Failed to save settings</span>
+        {/if}
       </div>
     </div>
 
@@ -334,25 +323,7 @@
         Import Map File
       </button>
     </div>
-
-    <!-- Save Button -->
-    <div class="flex items-center gap-4">
-      <button
-        type="submit"
-        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        Save Settings
-      </button>
-
-      {#if saveStatus === 'saving'}
-        <span class="text-sm text-gray-600">Saving...</span>
-      {:else if saveStatus === 'success'}
-        <span class="text-sm text-green-600">Settings saved successfully</span>
-      {:else if saveStatus === 'error'}
-        <span class="text-sm text-red-600">Failed to save settings</span>
-      {/if}
-    </div>
-  </form>
+  </div>
 </div>
 
 <!-- Map Import Dialog -->
