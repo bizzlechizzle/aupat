@@ -101,35 +101,6 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
-   * Browser API (v0.1.5)
-   * Embedded Chromium browser for research and archiving
-   */
-  browser: {
-    create: () => ipcRenderer.invoke('browser:create'),
-    navigate: (url) => ipcRenderer.invoke('browser:navigate', url),
-    goBack: () => ipcRenderer.invoke('browser:goBack'),
-    goForward: () => ipcRenderer.invoke('browser:goForward'),
-    reload: () => ipcRenderer.invoke('browser:reload'),
-    setBounds: (bounds) => ipcRenderer.invoke('browser:setBounds', bounds),
-    getCookies: (domain) => ipcRenderer.invoke('browser:getCookies', domain),
-    exportCookies: (domain) => ipcRenderer.invoke('browser:exportCookies', domain),
-    // Event listeners
-    onUrlChanged: (callback) => ipcRenderer.on('browser:url-changed', (_, url) => callback(url)),
-    onTitleChanged: (callback) => ipcRenderer.on('browser:title-changed', (_, title) => callback(title)),
-    onLoadStart: (callback) => ipcRenderer.on('browser:load-start', () => callback()),
-    onLoadStop: (callback) => ipcRenderer.on('browser:load-stop', () => callback()),
-    onCanGoBack: (callback) => ipcRenderer.on('browser:can-go-back', (_, can) => callback(can)),
-    onCanGoForward: (callback) => ipcRenderer.on('browser:can-go-forward', (_, can) => callback(can))
-  },
-
-  /**
-   * Videos API (v0.1.5)
-   */
-  videos: {
-    getByLocation: (locUuid) => ipcRenderer.invoke('videos:getByLocation', locUuid)
-  },
-
-  /**
    * Health check
    */
   health: {
