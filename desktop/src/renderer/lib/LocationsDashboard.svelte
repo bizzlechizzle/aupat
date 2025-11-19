@@ -43,7 +43,7 @@
     try {
       loading = true;
       error = null;
-      const response = await window.api.stats.getDashboard();
+      const response = await window.api.stats.dashboard();
 
       if (response && response.success) {
         stats = response.data;

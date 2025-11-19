@@ -135,7 +135,7 @@
    */
   async function loadSublocations(locationId) {
     try {
-      const response = await window.api.locations.getById(locationId);
+      const response = await window.api.location.get(locationId);
       if (response.success && response.data.sub_locations) {
         sublocations = response.data.sub_locations;
       } else {

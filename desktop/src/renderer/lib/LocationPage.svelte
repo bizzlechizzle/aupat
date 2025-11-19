@@ -67,7 +67,7 @@
 
     try {
       // Load location details
-      const locResponse = await window.api.locations.getById(locationUuid);
+      const locResponse = await window.api.location.get(locationUuid);
       if (!locResponse.success) {
         error = locResponse.error || 'Location not found';
         return;
@@ -140,7 +140,7 @@
 
     try {
       // Get nearby locations within 10km
-      const response = await window.api.locations.getAll();
+      const response = await window.api.location.getAll();
       if (response.success) {
         const allLocations = response.data || [];
 
