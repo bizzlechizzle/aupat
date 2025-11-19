@@ -612,7 +612,7 @@
         </div>
 
         <!-- Address Information -->
-        <div class="space-y-4 pt-6 mt-6 border-t-2 border-gray-200">
+        <div class="space-y-4 pt-8 mt-8 border-t-2 border-gray-200">
           <h3 class="text-lg font-semibold text-gray-700">Address</h3>
 
           <div>
@@ -692,7 +692,7 @@
         </div>
 
         <!-- GPS Coordinates -->
-        <div class="space-y-4 pt-6 mt-6 border-t-2 border-gray-200">
+        <div class="space-y-4 pt-8 mt-8 border-t-2 border-gray-200">
           <h3 class="text-lg font-semibold text-gray-700">GPS Coordinates</h3>
 
           <div class="grid grid-cols-2 gap-4">
