@@ -104,7 +104,7 @@
   <aside class="w-64 bg-white shadow-lg flex flex-col">
     <!-- Header -->
     <div class="p-6 border-b border-gray-200 flex flex-col items-center">
-      <img src={logo} alt="Abandoned Upstate" class="w-40 h-40 object-contain mb-2" />
+      <img src={logo} alt="Abandoned Upstate" class="w-40 object-contain mb-2" />
       <p class="text-xs font-medium" style="font-family: var(--au-font-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--au-accent-brown);">Archive Tool</p>
     </div>
     <!-- Navigation Menu -->
