@@ -399,13 +399,22 @@ ipcMain.handle('import:uploadFile', async (event, fileData) => {
 
     log.info(`Uploading file ${fileData.filename} (${fileData.size} bytes) to location ${fileData.locationId}`);
 
-    // Send file to AUPAT Core API
-    const response = await api.post(`/api/locations/${fileData.locationId}/import`, {
+    // Prepare payload with optional sublocation
+    const payload = {
       filename: fileData.filename,
       category: fileData.category,
       size: fileData.size,
       data: fileData.data
-    });
+    };
+
+    // Add sublocation if provided
+    if (fileData.sub_location) {
+      payload.sub_location = fileData.sub_location;
+      log.info(`Including sublocation: ${fileData.sub_location.name}`);
+    }
+
+    // Send file to AUPAT Core API
+    const response = await api.post(`/api/locations/${fileData.locationId}/import`, payload);
 
     log.info(`Successfully uploaded ${fileData.filename}`);
     return { success: true, data: response };
