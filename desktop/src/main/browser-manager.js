@@ -77,60 +77,75 @@ export class BrowserManager {
 
     const webContents = this.view.webContents;
 
+    // Store listener references for cleanup
+    this.listeners = {};
+
     // Track URL changes
-    webContents.on('did-navigate', (event, url) => {
+    this.listeners.didNavigate = (event, url) => {
       this.currentUrl = url;
       this.mainWindow.webContents.send('browser:url-changed', url);
       log.info(`Browser navigated to: ${url}`);
-    });
+    };
+    webContents.on('did-navigate', this.listeners.didNavigate);
 
     // Track in-page navigation (anchors, history)
-    webContents.on('did-navigate-in-page', (event, url) => {
+    this.listeners.didNavigateInPage = (event, url) => {
       this.currentUrl = url;
       this.mainWindow.webContents.send('browser:url-changed', url);
-    });
+    };
+    webContents.on('did-navigate-in-page', this.listeners.didNavigateInPage);
 
     // Track page title
-    webContents.on('page-title-updated', (event, title) => {
+    this.listeners.pageTitleUpdated = (event, title) => {
       this.currentTitle = title;
       this.mainWindow.webContents.send('browser:title-changed', title);
-    });
+    };
+    webContents.on('page-title-updated', this.listeners.pageTitleUpdated);
 
     // Track navigation state
-    webContents.on('did-start-loading', () => {
+    this.listeners.didStartLoading = () => {
       this.mainWindow.webContents.send('browser:loading', true);
-    });
+    };
+    webContents.on('did-start-loading', this.listeners.didStartLoading);
 
-    webContents.on('did-stop-loading', () => {
+    this.listeners.didStopLoading = () => {
       this.mainWindow.webContents.send('browser:loading', false);
       this.updateNavigationState();
-    });
+    };
+    webContents.on('did-stop-loading', this.listeners.didStopLoading);
 
     // Handle navigation errors
-    webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    this.listeners.didFailLoad = (event, errorCode, errorDescription, validatedURL) => {
       log.error(`Browser failed to load ${validatedURL}: ${errorDescription}`);
       this.mainWindow.webContents.send('browser:error', {
         url: validatedURL,
         error: errorDescription,
         code: errorCode
       });
-    });
+    };
+    webContents.on('did-fail-load', this.listeners.didFailLoad);
 
     // Detect media on page load
-    webContents.on('did-finish-load', () => {
+    this.listeners.didFinishLoad = () => {
       this.injectMediaDetector().catch(error => {
         log.warn('Failed to inject media detector:', error);
       });
-    });
+    };
+    webContents.on('did-finish-load', this.listeners.didFinishLoad);
 
     // Handle new window requests (open in same view)
-    webContents.setWindowOpenHandler((details) => {
+    this.listeners.windowOpenHandler = (details) => {
       this.navigate(details.url);
       return { action: 'deny' };
-    });
+    };
+    webContents.setWindowOpenHandler(this.listeners.windowOpenHandler);
 
     // Handle browser crashes (auto-restart)
-    webContents.on('crashed', (event, killed) => {
+    this.listeners.crashed = (event, killed) => {
+      // Prevent multiple recovery attempts
+      if (this.isRecovering) return;
+      this.isRecovering = true;
+
       log.error('BrowserView crashed, attempting auto-restart...');
       this.mainWindow.webContents.send('browser:crashed');
 
@@ -145,20 +160,48 @@ export class BrowserManager {
           this.navigate(crashedUrl);
           log.info(`Browser restarted, restored URL: ${crashedUrl}`);
         }
+        this.isRecovering = false;
       }, 1000);
-    });
+    };
+    webContents.on('crashed', this.listeners.crashed);
 
     // Handle unresponsive renderer
-    webContents.on('unresponsive', () => {
+    this.listeners.unresponsive = () => {
       log.warn('BrowserView became unresponsive');
       this.mainWindow.webContents.send('browser:unresponsive');
-    });
+    };
+    webContents.on('unresponsive', this.listeners.unresponsive);
 
     // Handle renderer becoming responsive again
-    webContents.on('responsive', () => {
+    this.listeners.responsive = () => {
       log.info('BrowserView became responsive again');
       this.mainWindow.webContents.send('browser:responsive');
-    });
+    };
+    webContents.on('responsive', this.listeners.responsive);
+  }
+
+  /**
+   * Remove all event listeners from browser view.
+   * Called before destroying the view to prevent memory leaks.
+   */
+  removeEventListeners() {
+    if (!this.view || !this.listeners) return;
+
+    const webContents = this.view.webContents;
+
+    webContents.removeListener('did-navigate', this.listeners.didNavigate);
+    webContents.removeListener('did-navigate-in-page', this.listeners.didNavigateInPage);
+    webContents.removeListener('page-title-updated', this.listeners.pageTitleUpdated);
+    webContents.removeListener('did-start-loading', this.listeners.didStartLoading);
+    webContents.removeListener('did-stop-loading', this.listeners.didStopLoading);
+    webContents.removeListener('did-fail-load', this.listeners.didFailLoad);
+    webContents.removeListener('did-finish-load', this.listeners.didFinishLoad);
+    webContents.removeListener('crashed', this.listeners.crashed);
+    webContents.removeListener('unresponsive', this.listeners.unresponsive);
+    webContents.removeListener('responsive', this.listeners.responsive);
+
+    this.listeners = null;
+    log.debug('Removed all event listeners from BrowserView');
   }
 
   /**
@@ -416,6 +459,9 @@ export class BrowserManager {
   destroy() {
     if (this.view) {
       try {
+        // Remove event listeners first to prevent memory leaks
+        this.removeEventListeners();
+
         this.mainWindow.removeBrowserView(this.view);
         this.view.webContents.destroy();
         this.view = null;
