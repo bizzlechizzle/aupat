@@ -21,15 +21,18 @@ See claude.md for full rationale.
 ## TABLE OF CONTENTS
 
 1. [Main Application](#main-application)
-2. [API Routes](#api-routes)
-3. [Database Migrations](#database-migrations)
-4. [Database Operations](#database-operations)
-5. [Worker Daemons](#worker-daemons)
-6. [Utility Modules](#utility-modules)
-7. [External Adapters](#external-adapters)
-8. [Advanced Migrations](#advanced-migrations)
-9. [Startup Scripts](#startup-scripts)
-10. [Testing Scripts](#testing-scripts)
+2. [V0.1.0 New Components](#v010-new-components-2025-11-19)
+3. [Desktop Components (Svelte)](#desktop-components-svelte)
+4. [Desktop Main Process (LILBITS Modules)](#desktop-main-process-lilbits-modules)
+5. [API Routes](#api-routes)
+6. [Database Migrations](#database-migrations)
+7. [Database Operations](#database-operations)
+8. [Worker Daemons](#worker-daemons)
+9. [Utility Modules](#utility-modules)
+10. [External Adapters](#external-adapters)
+11. [Advanced Migrations](#advanced-migrations)
+12. [Startup Scripts](#startup-scripts)
+13. [Testing Scripts](#testing-scripts)
 
 ---
 
@@ -399,6 +402,248 @@ python scripts/db_migrate_add_stats_columns.py /path/to/aupat.db
 - bookmark - Save bookmark
 
 **Used by:** Browser.svelte
+
+---
+
+## DESKTOP MAIN PROCESS (LILBITS Modules)
+
+### desktop/src/main/index.js
+
+**Location:** `/home/user/aupat/desktop/src/main/index.js`
+**LOC:** 118 lines (LILBITS compliant - refactored from 338 lines)
+**Purpose:** Application entry point and orchestration
+
+**What it does:**
+- Orchestrates app initialization in 7 clear steps
+- Loads configuration, runs preflight checks
+- Initializes database backend and IPC handlers
+- Creates main window and browser handlers
+- Registers lifecycle and error handlers
+- NO business logic - pure orchestration
+
+**Key functions:**
+- app.whenReady() - Main entry point
+- _showPreflightError() - Display startup errors
+
+**Dependencies:**
+- config-loader (settings)
+- preflight (health checks)
+- window-manager (window creation)
+- browser-init (browser IPC)
+- lifecycle (app lifecycle)
+- error-handler (crash recovery)
+- ipc-handlers (database IPC)
+- cache-manager (cache clearing)
+
+**LILBITS Compliance:** ✓ One script = one function (orchestration)
+
+---
+
+### desktop/src/main/config-loader.js
+
+**Location:** `/home/user/aupat/desktop/src/main/config-loader.js`
+**LOC:** 115 lines (LILBITS compliant)
+**Purpose:** Initialize and manage application settings
+
+**What it does:**
+- Creates electron-store with default values
+- Migrates settings from old aupat-desktop store
+- Removes deprecated Flask API settings
+- Validates and normalizes configuration
+
+**Key functions:**
+- initConfig() - Main entry point
+- _migrateOldSettings() - Settings migration
+- _cleanupDeprecatedSettings() - Remove deprecated keys
+
+**Dependencies:**
+- electron-store
+- electron-log
+
+**Returns:**
+- config.store - Electron-store instance
+- config.dbPath - Database file path
+- config.archiveRoot - Archive root directory
+- config.version - App version
+
+**LILBITS Compliance:** ✓ One script = one function (config loading)
+
+---
+
+### desktop/src/main/preflight.js
+
+**Location:** `/home/user/aupat/desktop/src/main/preflight.js`
+**LOC:** 120 lines (LILBITS compliant)
+**Purpose:** Validate environment before app starts
+
+**What it does:**
+- Checks database directory is writable
+- Checks archive directory is writable
+- Creates directories if missing
+- Returns user-friendly error messages with recovery steps
+
+**Key functions:**
+- runPreflightChecks(config) - Main entry point
+- _checkDatabasePath() - Validate database path
+- _checkArchivePath() - Validate archive path
+
+**Dependencies:**
+- fs (Node.js built-in)
+- electron-log
+
+**Returns:**
+- { success: true } - All checks passed
+- { success: false, error, recovery } - Check failed with fix instructions
+
+**LILBITS Compliance:** ✓ One script = one function (health checks)
+
+---
+
+### desktop/src/main/window-manager.js
+
+**Location:** `/home/user/aupat/desktop/src/main/window-manager.js`
+**LOC:** 75 lines (LILBITS compliant)
+**Purpose:** Create and manage the main application window
+
+**What it does:**
+- Creates BrowserWindow with security settings
+- Configures sandbox, contextIsolation, no nodeIntegration
+- Loads renderer (dev server or built files)
+- Opens external links in default browser
+- Auto-opens DevTools in development mode
+
+**Key functions:**
+- createMainWindow() - Main entry point
+- _loadRenderer() - Load renderer process
+
+**Dependencies:**
+- electron (BrowserWindow, shell)
+- electron-log
+
+**Security:**
+- sandbox: true
+- contextIsolation: true
+- nodeIntegration: false
+- webviewTag: true (for browser feature)
+
+**LILBITS Compliance:** ✓ One script = one function (window management)
+
+---
+
+### desktop/src/main/browser-init.js
+
+**Location:** `/home/user/aupat/desktop/src/main/browser-init.js`
+**LOC:** 200 lines (LILBITS compliant)
+**Purpose:** Register IPC handlers for embedded browser feature
+
+**What it does:**
+- Registers IPC handlers for browser operations
+- Create/destroy browser views
+- Navigation (navigate, back, forward, reload)
+- Cookie management for ArchiveBox integration
+- URL/title tracking
+
+**Key functions:**
+- initBrowserHandlers(mainWindow) - Main entry point
+- _validateBrowserManager() - Helper validation
+- _registerCreateHandler() - browser:create
+- _registerNavigationHandlers() - navigation IPC
+- _registerStateHandlers() - state management IPC
+- _registerCookieHandlers() - cookie IPC
+- _registerDestroyHandler() - browser:destroy
+
+**Dependencies:**
+- electron (ipcMain)
+- browser-manager (BrowserManager class)
+- electron-log
+
+**IPC Handlers:**
+- browser:create, browser:destroy
+- browser:navigate, browser:goBack, browser:goForward, browser:reload
+- browser:setBounds, browser:getCurrentUrl, browser:getCurrentTitle
+- browser:getCookies, browser:exportCookies
+
+**LILBITS Compliance:** ✓ One script = one function (browser IPC)
+
+---
+
+### desktop/src/main/lifecycle.js
+
+**Location:** `/home/user/aupat/desktop/src/main/lifecycle.js`
+**LOC:** 35 lines (LILBITS compliant)
+**Purpose:** Manage application lifecycle events
+
+**What it does:**
+- Handles app.on('activate') - Re-create window on macOS dock click
+- Handles app.on('window-all-closed') - Quit on non-macOS
+
+**Key functions:**
+- registerLifecycleHandlers(createWindowFn) - Main entry point
+
+**Dependencies:**
+- electron (app, BrowserWindow)
+- electron-log
+
+**LILBITS Compliance:** ✓ One script = one function (lifecycle)
+
+---
+
+### desktop/src/main/error-handler.js
+
+**Location:** `/home/user/aupat/desktop/src/main/error-handler.js`
+**LOC:** 175 lines (LILBITS compliant)
+**Purpose:** Handle uncaught errors with user-friendly recovery
+
+**What it does:**
+- Registers process.on('uncaughtException') handler
+- Registers process.on('unhandledRejection') handler
+- Shows user-friendly error dialogs with recovery steps
+- Offers restart, view logs, or quit options
+- Formats technical errors for non-technical users
+
+**Key functions:**
+- registerErrorHandlers() - Main entry point
+- _handleUncaughtException() - Exception handler
+- _handleUnhandledRejection() - Promise rejection handler
+- _formatErrorForUser() - User-friendly error messages
+- _showLogsLocation() - Show log file location
+
+**Dependencies:**
+- electron (app, dialog)
+- electron-log
+
+**Error Categories:**
+- Database errors (SQLITE) - Permission/corruption/space fixes
+- File system errors (EACCES) - Permission fixes
+- Generic errors - Restart + log review
+
+**LILBITS Compliance:** ✓ One script = one function (error handling)
+
+---
+
+### desktop/src/main/cache-manager.js
+
+**Location:** `/home/user/aupat/desktop/src/main/cache-manager.js`
+**LOC:** 35 lines (LILBITS compliant)
+**Purpose:** Manage application cache clearing
+
+**What it does:**
+- Clears cache ONLY when app version changes
+- Stores lastClearedVersion in settings
+- Improves startup performance (no unnecessary cache clears)
+
+**Key functions:**
+- clearCacheIfNeeded(store, currentVersion) - Main entry point
+
+**Dependencies:**
+- electron (session)
+- electron-log
+
+**Performance:**
+- Before: Cache cleared every startup (~500ms slower)
+- After: Cache cleared only on version upgrade
+
+**LILBITS Compliance:** ✓ One script = one function (cache management)
 
 ---
 
@@ -1972,6 +2217,7 @@ See docs/dependency_map.md for full issue list.
 
 ## VERSION HISTORY
 
+- 4.0.0 (2025-11-19): **LILBITS Refactor** - Desktop main process split into 7 focused modules (index.js 338→118 lines), full FAANG-level architecture, preflight checks, user-facing error recovery
 - 3.1.0 (2025-11-19): v0.1.0 Critical Fixes - Added health, config, dialog IPC handlers to ipc-handlers.js, exposed new APIs in preload/index.js, removed deprecated Flask API references from UI
 - 3.0.0 (2025-11-19): v0.1.0 Features Complete - All desktop components documented
 - 1.0.0 (2025-11-18): Initial documentation of all scripts
