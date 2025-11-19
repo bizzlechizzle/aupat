@@ -26,7 +26,7 @@ const BASE_DELAY = 1000; // 1 second base delay for exponential backoff
  */
 function isRetryableError(error, response = null) {
   // Check error object if provided
-  if (error) {
+  if (error && error.name) {
     // Network errors (connection refused, DNS failure, etc.)
     if (error.name === 'TypeError') {
       return true;
@@ -39,7 +39,7 @@ function isRetryableError(error, response = null) {
   }
 
   // HTTP errors - only retry server errors and rate limits
-  if (response) {
+  if (response && response.status) {
     const status = response.status;
     // 5xx server errors
     if (status >= 500 && status < 600) {
@@ -127,8 +127,8 @@ export function createAPIClient(baseUrl) {
         try {
           return JSON.parse(text);
         } catch (parseError) {
-          log.error(`Failed to parse JSON response from ${url}:`, parseError.message);
-          throw new Error(`Invalid JSON response: ${parseError.message}`);
+          log.error(`Failed to parse JSON response from ${url}:`, parseError?.message || parseError);
+          throw new Error(`Invalid JSON response: ${parseError?.message || 'unknown error'}`);
         }
       }
 
@@ -137,9 +137,9 @@ export function createAPIClient(baseUrl) {
       // Retry on network errors, timeouts, and retryable HTTP errors
       if (isRetryableError(error, response) && attempt < MAX_RETRIES) {
         const delay = calculateBackoffDelay(attempt);
-        const errorType = error.name === 'AbortError' || error.name === 'TimeoutError'
+        const errorType = error?.name === 'AbortError' || error?.name === 'TimeoutError'
           ? 'timeout'
-          : error.name === 'TypeError'
+          : error?.name === 'TypeError'
           ? 'network error'
           : 'error';
 
@@ -151,7 +151,7 @@ export function createAPIClient(baseUrl) {
       }
 
       // Log and rethrow
-      log.error(`${method} ${url} failed after ${attempt + 1} attempts:`, error.message);
+      log.error(`${method} ${url} failed after ${attempt + 1} attempts:`, error?.message || error);
       throw error;
     }
   }
