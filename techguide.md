@@ -64,7 +64,10 @@ AUPAT is a location-centric digital archive system for documenting abandoned and
 
 ### Version
 
-Current: v0.1.2 (with v0.1.3 and v0.1.4 migrations available)
+Current: v0.1.0 (Desktop GUI - 100% Complete)
+
+**Status:** Production-ready desktop application
+**Last Updated:** 2025-11-19
 
 ---
 
@@ -148,8 +151,66 @@ Current: v0.1.2 (with v0.1.3 and v0.1.4 migrations available)
 - **Svelte 4** - UI framework
 - **Vite 5** - Build tool
 - **Leaflet** - Interactive maps
+- **Supercluster** - Marker clustering for performance (200k+ markers)
 - **Marked** - Markdown rendering
 - **TailwindCSS** - Styling
+
+**v0.1.0 Desktop Components (100% Complete):**
+
+1. **LocationForm.svelte** - Location creation/editing with all 17 required fields:
+   - Core: Name, Short Name, State, Type, Sub-Type
+   - Status: Dropdown (Abandoned/Demolished/Rehabbed/Future Classic/Unknown/Recently Sold)
+   - Explored: Dropdown (Interior/Exterior/Un-Documented/N/A)
+   - Address: Street, City, ZIP, County, Region
+   - Coordinates: GPS (lat/lon)
+   - Metadata: Import Author, Historical checkbox, AKA Name
+
+2. **Import.svelte** - File import interface:
+   - Drag & drop file upload
+   - Folder upload (recursive scanning)
+   - File type validation (60+ image, 30+ video, 40+ map, any document)
+   - Upload queue with progress tracking
+   - Location selection dropdown
+   - Create new location workflow
+
+3. **Map.svelte** - Interactive map viewer:
+   - Clustered markers (performance optimized for 200k+ markers)
+   - Street and Satellite view toggle (Leaflet layer control)
+   - Click marker to view location details
+   - OpenStreetMap tiles (street view)
+   - Esri World Imagery tiles (satellite view)
+
+4. **LocationPage.svelte** - Individual location details:
+   - Hero image display
+   - All location metadata
+   - Sub-locations support
+   - Edit/Import buttons
+   - NotesSection.svelte integration
+
+5. **LocationsList.svelte** - Location browser:
+   - Pinned locations
+   - Recent locations
+   - Recently imported/updated
+   - States list (by count)
+   - Types list (by count)
+   - Quick access filters
+
+6. **Browser.svelte** - Internal browser:
+   - Bookmark saving
+   - Integration with locations
+
+7. **Settings.svelte** - Application settings:
+   - Archive location
+   - Database location
+   - Ingest location
+   - Backup database
+   - Delete import media toggle
+   - Author mode (Single/Multiple)
+
+**IPC Bridge:**
+- Electron preload.js provides sandboxed API to renderer
+- All Flask API calls proxied through IPC
+- Security: Renderer cannot directly access backend
 
 ### Frontend (Mobile)
 - **Flutter** - Mobile framework
@@ -1364,6 +1425,8 @@ sudo apt-get install libimage-exiftool-perl ffmpeg
 
 ## VERSION HISTORY
 
+- 2.1.0 (2025-11-19): v0.1.0 Desktop GUI completion - Added all 17 location fields to LocationForm.svelte, added satellite view to Map.svelte
+- 2.0.0 (2025-11-18): 12-char hash update, comprehensive technical guide
 - 1.0.0 (2025-11-18): Initial comprehensive technical guide
 
 ---
