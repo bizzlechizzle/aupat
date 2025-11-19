@@ -18,6 +18,10 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import { marked } from 'marked';
   import LocationForm from './LocationForm.svelte';
+  import NotesSection from './NotesSection.svelte';
+  import SubLocationsList from './SubLocationsList.svelte';
+  import DocumentsList from './DocumentsList.svelte';
+  import NerdStats from './NerdStats.svelte';
 
   export let locationUuid;
 
@@ -37,6 +41,9 @@
   let location = null;
   let images = [];
   let videos = [];
+  let documents = [];
+  let notes = [];
+  let subLocations = [];
   let archivedUrls = [];
   let relatedLocations = [];
   let loading = true;
@@ -66,6 +73,11 @@
         return;
       }
       location = locResponse.data;
+
+      // Extract sub-locations from response
+      if (location.sub_locations) {
+        subLocations = location.sub_locations;
+      }
 
       // Load associated media and data in parallel
       await Promise.all([
@@ -695,6 +707,40 @@
             </div>
           </section>
         {/if}
+
+        <!-- SUB-LOCATIONS -->
+        <hr class="au-section-divider" />
+        <section class="content-section">
+          <SubLocationsList
+            subLocations={subLocations}
+            locationName={location?.loc_name || ''}
+          />
+        </section>
+
+        <!-- NOTES -->
+        <hr class="au-section-divider" />
+        <section class="content-section">
+          <NotesSection locationUuid={locationUuid} />
+        </section>
+
+        <!-- DOCUMENTS -->
+        <hr class="au-section-divider" />
+        <section class="content-section">
+          <DocumentsList documents={documents} locationUuid={locationUuid} />
+        </section>
+
+        <!-- NERD STATS -->
+        <hr class="au-section-divider" />
+        <section class="content-section">
+          <NerdStats
+            {location}
+            imagesCount={images.length}
+            videosCount={videos.length}
+            documentsCount={documents.length}
+            notesCount={notes.length}
+            subLocationsCount={subLocations.length}
+          />
+        </section>
       </div>
     </main>
   {/if}

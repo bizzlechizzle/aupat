@@ -8,18 +8,19 @@
   import { onMount } from 'svelte';
   import ErrorBoundary from './lib/ErrorBoundary.svelte';
   import Map from './lib/Map.svelte';
-  import LocationsList from './lib/LocationsList.svelte';
+  import LocationsDashboard from './lib/LocationsDashboard.svelte';
   import LocationPage from './lib/LocationPage.svelte';
   import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
   import Bookmarks from './lib/Bookmarks.svelte';
+  import Browser from './lib/Browser.svelte';
   import UpdateNotification from './lib/UpdateNotification.svelte';
   import { locations } from './stores/locations.js';
   import logo from './assets/logo.png';
   import './styles/theme.css';
 
   // Current active view
-  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'settings'
+  let currentView = 'map'; // 'map', 'locations', 'location-page', 'import', 'bookmarks', 'browser', 'settings'
   let selectedLocationUuid = null;
 
   // Navigation menu items
@@ -27,6 +28,7 @@
     { id: 'map', label: 'Map View' },
     { id: 'locations', label: 'Locations' },
     { id: 'bookmarks', label: 'Bookmarks' },
+    { id: 'browser', label: 'Browser' },
     { id: 'import', label: 'Import' },
     { id: 'settings', label: 'Settings' }
   ];
@@ -79,6 +81,14 @@
     navigateToLocation(uuid);
   }
 
+  function handleAddLocation(event) {
+    const { lat, lng } = event.detail;
+    // Navigate to import view with pre-filled GPS coordinates
+    currentView = 'import';
+    // Store coordinates for Import component to use
+    window.sessionStorage.setItem('prefillGPS', JSON.stringify({ lat, lng }));
+  }
+
   function handleError(event) {
     console.error('App-level error:', event.detail);
     // Could send to error reporting service here
@@ -94,10 +104,9 @@
   <aside class="w-64 bg-white shadow-lg flex flex-col">
     <!-- Header -->
     <div class="p-6 border-b border-gray-200 flex flex-col items-center">
-      <img src={logo} alt="Abandoned Upstate" class="w-40 h-40 object-contain mb-3" />
-      <p class="text-sm text-gray-600 font-medium" style="font-family: var(--au-font-mono); text-transform: uppercase; letter-spacing: 0.05em;">Abandoned Upstate</p>
+      <img src={logo} alt="Abandoned Upstate" class="w-40 h-40 object-contain mb-2" />
+      <p class="text-xs font-medium" style="font-family: var(--au-font-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--au-accent-brown);">Archive Tool</p>
     </div>
-
     <!-- Navigation Menu -->
     <nav class="flex-1 p-4 space-y-2">
       {#each menuItems as item}
@@ -137,11 +146,11 @@
   <main class="flex-1 overflow-auto {currentView === 'location-page' ? 'location-page-view' : ''}">
     {#if currentView === 'map'}
       <ErrorBoundary fallbackMessage="Map view encountered an error">
-        <Map on:locationClick={handleLocationClick} />
+        <Map on:locationClick={handleLocationClick} on:addLocation={handleAddLocation} />
       </ErrorBoundary>
     {:else if currentView === 'locations'}
-      <ErrorBoundary fallbackMessage="Locations list encountered an error">
-        <LocationsList on:locationClick={handleLocationClick} />
+      <ErrorBoundary fallbackMessage="Locations dashboard encountered an error">
+        <LocationsDashboard on:locationClick={handleLocationClick} />
       </ErrorBoundary>
     {:else if currentView === 'location-page' && selectedLocationUuid}
       <ErrorBoundary fallbackMessage="Location page encountered an error">
@@ -154,6 +163,10 @@
     {:else if currentView === 'bookmarks'}
       <ErrorBoundary fallbackMessage="Bookmarks view encountered an error">
         <Bookmarks />
+      </ErrorBoundary>
+    {:else if currentView === 'browser'}
+      <ErrorBoundary fallbackMessage="Browser encountered an error">
+        <Browser />
       </ErrorBoundary>
     {:else if currentView === 'import'}
       <ErrorBoundary fallbackMessage="Import view encountered an error">

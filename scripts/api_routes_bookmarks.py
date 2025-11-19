@@ -110,7 +110,7 @@ def validate_uuid(uuid_str: str) -> bool:
         return False
 
 
-@bookmarks_bp.route('/api/bookmarks', methods=['POST'])
+@bookmarks_bp.route('/bookmarks', methods=['POST'])
 def create_bookmark():
     """
     Create a new bookmark.
@@ -203,7 +203,7 @@ def create_bookmark():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@bookmarks_bp.route('/api/bookmarks', methods=['GET'])
+@bookmarks_bp.route('/bookmarks', methods=['GET'])
 def list_bookmarks():
     """
     List bookmarks with optional filtering.
@@ -309,7 +309,7 @@ def list_bookmarks():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@bookmarks_bp.route('/api/bookmarks/<bookmark_uuid>', methods=['GET'])
+@bookmarks_bp.route('/bookmarks/<bookmark_uuid>', methods=['GET'])
 def get_bookmark(bookmark_uuid):
     """
     Get a single bookmark by UUID.
@@ -356,7 +356,7 @@ def get_bookmark(bookmark_uuid):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@bookmarks_bp.route('/api/bookmarks/<bookmark_uuid>', methods=['PUT'])
+@bookmarks_bp.route('/bookmarks/<bookmark_uuid>', methods=['PUT'])
 def update_bookmark(bookmark_uuid):
     """
     Update a bookmark.
@@ -457,7 +457,7 @@ def update_bookmark(bookmark_uuid):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@bookmarks_bp.route('/api/bookmarks/<bookmark_uuid>', methods=['DELETE'])
+@bookmarks_bp.route('/bookmarks/<bookmark_uuid>', methods=['DELETE'])
 def delete_bookmark(bookmark_uuid):
     """
     Delete a bookmark.
@@ -497,7 +497,7 @@ def delete_bookmark(bookmark_uuid):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@bookmarks_bp.route('/api/bookmarks/folders', methods=['GET'])
+@bookmarks_bp.route('/bookmarks/folders', methods=['GET'])
 def list_folders():
     """
     List all unique folders used in bookmarks.
@@ -528,7 +528,7 @@ def list_folders():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@bookmarks_bp.route('/api/bookmarks/<bookmark_uuid>/visit', methods=['POST'])
+@bookmarks_bp.route('/bookmarks/<bookmark_uuid>/visit', methods=['POST'])
 def record_visit(bookmark_uuid):
     """
     Record a visit to a bookmark (increment visit count, update last_visited).

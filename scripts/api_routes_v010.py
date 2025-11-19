@@ -20,6 +20,7 @@ from scripts.api_v010_locations import locations_bp
 from scripts.api_v010_map import map_bp
 from scripts.api_v010_notes import notes_bp
 from scripts.api_v010_settings import settings_bp
+from scripts.api_v010_stats import stats_bp
 from scripts.api_routes_bookmarks import bookmarks_bp
 
 
@@ -59,5 +60,9 @@ def register_v010_routes(app):
     # Register bookmarks routes (reuses existing)
     app.register_blueprint(bookmarks_bp, url_prefix='/api')
     logger.info("Registered v0.1.0 bookmarks routes")
+
+    # Register stats routes
+    app.register_blueprint(stats_bp, url_prefix='/api')
+    logger.info("Registered v0.1.0 stats routes")
 
     logger.info("All v0.1.0 API routes registered successfully")

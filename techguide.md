@@ -1425,6 +1425,7 @@ sudo apt-get install libimage-exiftool-perl ffmpeg
 
 ## VERSION HISTORY
 
+- 2.2.0 (2025-11-19): v0.1.0 First-Run Experience - Added health_check_simple.py, smart start_aupat.sh with auto-detection, PYTHONPATH fixes, desktop dependencies auto-install
 - 2.1.0 (2025-11-19): v0.1.0 Desktop GUI completion - Added all 17 location fields to LocationForm.svelte, added satellite view to Map.svelte
 - 2.0.0 (2025-11-18): 12-char hash update, comprehensive technical guide
 - 1.0.0 (2025-11-18): Initial comprehensive technical guide

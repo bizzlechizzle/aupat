@@ -1,6 +1,6 @@
 {
   "name": "abandoned-upstate",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Abandoned Upstate - Digital archive for abandoned locations in Upstate New York",
   "main": "dist-electron/main/index.js",
   "author": "Abandoned Upstate",
@@ -58,14 +58,14 @@
     ],
     "mac": {
       "category": "public.app-category.lifestyle",
-      "icon": "resources/icon.icns",
+      "icon": "resources/icons/icon.icns",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "linux": {
-      "icon": "resources/icon.png",
+      "icon": "resources/icons/512x512.png",
       "target": [
         "AppImage",
         "deb"
@@ -73,7 +73,7 @@
       "category": "Graphics"
     },
     "win": {
-      "icon": "resources/icon.ico"
+      "icon": "resources/icons/icon.ico"
     },
     "publish": {
       "provider": "github",

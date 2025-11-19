@@ -4,15 +4,20 @@ AUPAT v0.1.0 Import API Routes
 
 Endpoints:
 - POST /api/import - Import media files with location
+- POST /api/locations/<loc_uuid>/import - Import base64 file to existing location (for desktop app)
 
 LILBITS: One function - import API
 """
 
+import base64
+import tempfile
+import os
 from flask import Blueprint, request, jsonify
 from pathlib import Path
 
 from scripts.import_location import create_location, lookup_location, create_sub_location
 from scripts.import_media import import_file
+from scripts.utils import get_db_connection
 
 
 # Create blueprint
@@ -183,6 +188,125 @@ def api_search_locations():
 
         results = lookup_location(query)
         return jsonify(results), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@import_bp.route('/locations/<loc_uuid>/import', methods=['POST'])
+def api_import_base64(loc_uuid):
+    """
+    Import base64-encoded file to existing location (for desktop app).
+
+    Request Body:
+    {
+        "filename": "photo.jpg",
+        "category": "image",  # or "video", "document"
+        "size": 1234567,
+        "data": "base64encodeddata...",
+        "sub_location": {      # Optional
+            "name": "Basement",
+            "sub_short": "basement",
+            "is_primary": false
+        }
+    }
+
+    Returns:
+    {
+        "success": true,
+        "file_uuid": "abc123def456",
+        "loc_uuid": "xyz789abc012",
+        "sub_uuid": "sub456xyz789"  # If sub-location created
+    }
+    """
+    try:
+        data = request.json
+
+        # Validate required fields
+        if not data.get('filename'):
+            return jsonify({'error': 'filename is required'}), 400
+        if not data.get('data'):
+            return jsonify({'error': 'data is required'}), 400
+        if not data.get('category'):
+            return jsonify({'error': 'category is required'}), 400
+
+        # Verify location exists
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT loc_short, state, type FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        location = cursor.fetchone()
+
+        if not location:
+            conn.close()
+            return jsonify({'error': f'Location {loc_uuid} not found'}), 404
+
+        loc_short = location[0]
+        state = location[1]
+        location_type = location[2]
+
+        # Handle sub-location if provided
+        sub_uuid = None
+        if data.get('sub_location'):
+            sub_data = data['sub_location']
+            sub_name = sub_data.get('name')
+            if sub_name:
+                sub_uuid = create_sub_location(
+                    loc_uuid=loc_uuid,
+                    sub_name=sub_name,
+                    sub_short=sub_data.get('sub_short'),
+                    is_primary=sub_data.get('is_primary', False)
+                )
+
+        conn.close()
+
+        # Decode base64 data and write to temporary file
+        try:
+            file_data = base64.b64decode(data['data'])
+        except Exception as e:
+            return jsonify({'error': f'Invalid base64 data: {str(e)}'}), 400
+
+        # Create temp file with original extension
+        filename = data['filename']
+        file_ext = os.path.splitext(filename)[1]
+
+        # Write to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+            temp_file.write(file_data)
+            temp_path = temp_file.name
+
+        try:
+            # Import file
+            success, file_uuid, error = import_file(
+                file_path=temp_path,
+                loc_uuid=loc_uuid,
+                loc_short=loc_short,
+                state=state,
+                location_type=location_type,
+                sub_uuid=sub_uuid,
+                delete_source=True  # Always delete temp file
+            )
+
+            if not success:
+                return jsonify({'error': error}), 400
+
+            response = {
+                'success': True,
+                'file_uuid': file_uuid,
+                'loc_uuid': loc_uuid
+            }
+
+            if sub_uuid:
+                response['sub_uuid'] = sub_uuid
+
+            return jsonify(response), 201
+
+        finally:
+            # Clean up temp file if it still exists
+            if os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except Exception:
+                    pass
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

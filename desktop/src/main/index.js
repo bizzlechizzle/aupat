@@ -399,13 +399,22 @@ ipcMain.handle('import:uploadFile', async (event, fileData) => {
 
     log.info(`Uploading file ${fileData.filename} (${fileData.size} bytes) to location ${fileData.locationId}`);
 
-    // Send file to AUPAT Core API
-    const response = await api.post(`/api/locations/${fileData.locationId}/import`, {
+    // Prepare payload with optional sublocation
+    const payload = {
       filename: fileData.filename,
       category: fileData.category,
       size: fileData.size,
       data: fileData.data
-    });
+    };
+
+    // Add sublocation if provided
+    if (fileData.sub_location) {
+      payload.sub_location = fileData.sub_location;
+      log.info(`Including sublocation: ${fileData.sub_location.name}`);
+    }
+
+    // Send file to AUPAT Core API
+    const response = await api.post(`/api/locations/${fileData.locationId}/import`, payload);
 
     log.info(`Successfully uploaded ${fileData.filename}`);
     return { success: true, data: response };
@@ -625,6 +634,87 @@ ipcMain.handle('api:health', async () => {
     return { success: true, data: health };
   } catch (error) {
     log.error('Health check failed:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Stats API handlers
+ */
+ipcMain.handle('stats:getDashboard', async () => {
+  try {
+    const stats = await api.get('/api/stats/dashboard');
+    return stats; // API already returns {success: true, data: {...}}
+  } catch (error) {
+    log.error('Failed to get dashboard stats:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('stats:getRandom', async () => {
+  try {
+    const location = await api.get('/api/stats/random');
+    return location; // API already returns {success: true, data: {...}}
+  } catch (error) {
+    log.error('Failed to get random location:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
+ * Notes API handlers
+ */
+ipcMain.handle('notes:getByLocation', async (event, locUuid) => {
+  try {
+    validateRequired(locUuid, 'locUuid');
+    validateString(locUuid, 'locUuid');
+    const notes = await api.get(`/api/notes/${locUuid}`);
+    return notes; // API already returns {success: true, data: [...]}
+  } catch (error) {
+    log.error('Failed to get notes:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('notes:create', async (event, noteData) => {
+  try {
+    validateRequired(noteData, 'noteData');
+    validateRequired(noteData.loc_uuid, 'loc_uuid');
+    validateString(noteData.loc_uuid, 'loc_uuid');
+    validateRequired(noteData.note_title, 'note_title');
+    validateString(noteData.note_title, 'note_title');
+
+    const result = await api.post('/api/notes', noteData);
+    return result; // API already returns {success: true, note_uuid: ...}
+  } catch (error) {
+    log.error('Failed to create note:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('notes:update', async (event, noteUuid, noteData) => {
+  try {
+    validateRequired(noteUuid, 'noteUuid');
+    validateString(noteUuid, 'noteUuid');
+    validateRequired(noteData, 'noteData');
+
+    const result = await api.put(`/api/notes/${noteUuid}`, noteData);
+    return result; // API already returns {success: true}
+  } catch (error) {
+    log.error('Failed to update note:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('notes:delete', async (event, noteUuid) => {
+  try {
+    validateRequired(noteUuid, 'noteUuid');
+    validateString(noteUuid, 'noteUuid');
+
+    const result = await api.delete(`/api/notes/${noteUuid}`);
+    return result; // API already returns {success: true}
+  } catch (error) {
+    log.error('Failed to delete note:', error);
     return { success: false, error: sanitizeError(error) };
   }
 });

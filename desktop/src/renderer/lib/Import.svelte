@@ -71,6 +71,15 @@
   let isDragging = false;
   let showFileInput = false;
   let showLocationForm = false;
+  let prefillGPS = null;
+
+  // Sublocation state
+  let sublocations = [];
+  let selectedSublocationId = '';
+  let createNewSublocation = false;
+  let newSublocationName = '';
+  let newSublocationShort = '';
+  let newSublocationIsPrimary = false;
 
   // File input reference
   let fileInputElement;
@@ -78,7 +87,53 @@
   onMount(() => {
     // Load locations for dropdown
     locations.fetchAll();
+
+    // Check for pre-filled GPS coordinates from map right-click
+    const prefillData = window.sessionStorage.getItem('prefillGPS');
+    if (prefillData) {
+      try {
+        prefillGPS = JSON.parse(prefillData);
+        // Automatically open location form with pre-filled coordinates
+        showLocationForm = true;
+        // Clear session storage after using
+        window.sessionStorage.removeItem('prefillGPS');
+      } catch (error) {
+        console.error('Failed to parse prefillGPS:', error);
+      }
+    }
   });
+
+  // Load sublocations when location changes
+  $: if (selectedLocationId) {
+    loadSublocations(selectedLocationId);
+  } else {
+    sublocations = [];
+    selectedSublocationId = '';
+    createNewSublocation = false;
+  }
+
+  /**
+   * Load sublocations for selected location
+   */
+  async function loadSublocations(locationId) {
+    try {
+      const response = await window.api.locations.getById(locationId);
+      if (response.success && response.data.sub_locations) {
+        sublocations = response.data.sub_locations;
+      } else {
+        sublocations = [];
+      }
+      // Reset sublocation selection
+      selectedSublocationId = '';
+      createNewSublocation = false;
+      newSublocationName = '';
+      newSublocationShort = '';
+      newSublocationIsPrimary = false;
+    } catch (error) {
+      console.error('Failed to load sublocations:', error);
+      sublocations = [];
+    }
+  }
 
   /**
    * Open location creation modal
@@ -92,12 +147,21 @@
    */
   function handleLocationCreated(event) {
     showLocationForm = false;
+    prefillGPS = null; // Clear pre-filled GPS
     const newLocation = event.detail;
     if (newLocation && newLocation.loc_uuid) {
       selectedLocationId = newLocation.loc_uuid;
     }
     // Refresh locations list
     locations.fetchAll();
+  }
+
+  /**
+   * Handle location form close
+   */
+  function handleLocationFormClose() {
+    showLocationForm = false;
+    prefillGPS = null; // Clear pre-filled GPS
   }
 
   /**
@@ -281,23 +345,36 @@
       // Simulate progress (in real implementation, this would come from API)
       updateProgress(item.id, 30);
 
+      // Prepare sublocation data if applicable
+      let sublocationData = null;
+      if (createNewSublocation && newSublocationName.trim()) {
+        sublocationData = {
+          name: newSublocationName.trim(),
+          sub_short: newSublocationShort.trim() || null,
+          is_primary: newSublocationIsPrimary
+        };
+      }
+
       // Send to main process via IPC
       const response = await window.api.import.uploadFile({
         locationId: item.locationId,
         filename: item.file.name,
         category: item.category,
         size: item.file.size,
-        data: base64Data
+        data: base64Data,
+        sub_location: sublocationData
       });
 
       updateProgress(item.id, 100);
 
-      if (response.success) {
+      if (response && response.success) {
         uploadQueue = uploadQueue.map(i =>
           i.id === item.id ? { ...i, status: 'success', progress: 100 } : i
         );
       } else {
-        throw new Error(response.error || 'Upload failed');
+        // Handle error from API
+        const errorMsg = response?.error || response?.message || 'Upload failed';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -421,6 +498,122 @@
         </p>
       {/if}
     </div>
+
+    <!-- Sub-Location Section (only shown if location is selected) -->
+    {#if selectedLocationId}
+      <div class="max-w-2xl mt-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Sub-Location (Optional)
+        </label>
+
+        <!-- Option to use existing or create new sublocation -->
+        <div class="space-y-3">
+          <div>
+            <label class="flex items-center gap-2">
+              <input
+                type="radio"
+                name="sublocation-option"
+                value="none"
+                checked={!createNewSublocation}
+                on:change={() => {
+                  createNewSublocation = false;
+                  selectedSublocationId = '';
+                }}
+                class="text-blue-600"
+              />
+              <span class="text-sm">No sub-location</span>
+            </label>
+          </div>
+
+          {#if sublocations && sublocations.length > 0}
+            <div>
+              <label class="flex items-center gap-2 mb-2">
+                <input
+                  type="radio"
+                  name="sublocation-option"
+                  value="existing"
+                  checked={selectedSublocationId !== '' && !createNewSublocation}
+                  on:change={() => {
+                    createNewSublocation = false;
+                  }}
+                  class="text-blue-600"
+                />
+                <span class="text-sm">Use existing sub-location</span>
+              </label>
+              {#if selectedSublocationId !== '' || (!createNewSublocation && selectedSublocationId === '')}
+                <select
+                  bind:value={selectedSublocationId}
+                  class="w-full ml-6 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">-- Choose sub-location --</option>
+                  {#each sublocations as subloc}
+                    <option value={subloc.sub_uuid}>
+                      {subloc.sub_name} {subloc.is_primary ? '(Primary)' : ''}
+                    </option>
+                  {/each}
+                </select>
+              {/if}
+            </div>
+          {/if}
+
+          <div>
+            <label class="flex items-center gap-2 mb-2">
+              <input
+                type="radio"
+                name="sublocation-option"
+                value="new"
+                bind:checked={createNewSublocation}
+                class="text-blue-600"
+              />
+              <span class="text-sm">Create new sub-location</span>
+            </label>
+
+            {#if createNewSublocation}
+              <div class="ml-6 space-y-3">
+                <div>
+                  <label for="sub-name" class="block text-xs text-gray-600 mb-1">
+                    Sub-Location Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="sub-name"
+                    bind:value={newSublocationName}
+                    placeholder="e.g., Basement, Main Building"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label for="sub-short" class="block text-xs text-gray-600 mb-1">
+                      Short Name
+                    </label>
+                    <input
+                      type="text"
+                      id="sub-short"
+                      bind:value={newSublocationShort}
+                      placeholder="e.g., basement"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div class="flex items-end pb-2">
+                    <label class="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        bind:checked={newSublocationIsPrimary}
+                        class="rounded text-blue-600"
+                      />
+                      <span class="text-sm text-gray-700">Primary Sub-Location</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <!-- Upload Area -->
@@ -541,8 +734,8 @@
                 {#if item.status === 'uploading'}
                   <div class="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style="width: {item.progress}%"
+                      class="h-2 rounded-full transition-all duration-300"
+                      style="width: {item.progress}%; background-color: var(--au-accent-brown, #b9975c);"
                     />
                   </div>
                 {/if}
@@ -564,6 +757,7 @@
 <LocationForm
   bind:isOpen={showLocationForm}
   mode="create"
+  prefillGPS={prefillGPS}
   on:created={handleLocationCreated}
-  on:close={() => showLocationForm = false}
+  on:close={handleLocationFormClose}
 />

@@ -42,27 +42,61 @@
     map = L.map(mapContainer).setView([mapCenter.lat, mapCenter.lng], mapZoom);
 
     // Create base layers
+    // Street map layer
     const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19
     });
 
+    // Satellite imagery layer
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
       maxZoom: 19
     });
 
+    // Satellite with street labels (hybrid)
+    const satelliteLabelsLayer = L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19
+      }),
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO',
+        maxZoom: 19,
+        subdomains: 'abcd'
+      })
+    ]);
+
+    // Topographical map layer
+    const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap',
+      maxZoom: 17
+    });
+
+    // Property lines / Cadastral (US)
+    const propertyLayer = L.tileLayer('https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Cadastral/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      maxZoom: 19,
+      opacity: 0.7
+    });
+
     // Add default layer (street)
     streetLayer.addTo(map);
 
-    // Create layer control for switching between street and satellite
+    // Create layer control for switching between views
     const baseMaps = {
       "Street": streetLayer,
-      "Satellite": satelliteLayer
+      "Satellite": satelliteLayer,
+      "Satellite + Labels": satelliteLabelsLayer,
+      "Topographical": topoLayer
     };
 
-    L.control.layers(baseMaps).addTo(map);
+    const overlayMaps = {
+      "Property Lines": propertyLayer
+    };
+
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
 
     // Initialize marker layer
     markerLayer = L.layerGroup().addTo(map);
@@ -73,6 +107,23 @@
     // Update clusters on map move/zoom
     map.on('moveend', updateClusters);
     map.on('zoomend', updateClusters);
+
+    // Right-click to add new location
+    map.on('contextmenu', function(e) {
+      const { lat, lng } = e.latlng;
+
+      const confirmed = confirm(
+        `Add new location at:\n` +
+        `Latitude: ${lat.toFixed(6)}\n` +
+        `Longitude: ${lng.toFixed(6)}\n\n` +
+        `Click OK to open the import form with these coordinates.`
+      );
+
+      if (confirmed) {
+        // Navigate to import view with pre-filled GPS coordinates
+        dispatch('addLocation', { lat, lng });
+      }
+    });
   });
 
   onDestroy(() => {

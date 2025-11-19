@@ -12,6 +12,7 @@
   export let isOpen = false;
   export let mode = 'create'; // 'create' or 'edit'
   export let location = null; // For edit mode
+  export let prefillGPS = null; // Optional { lat, lng } to pre-fill GPS coordinates
 
   const dispatch = createEventDispatcher();
 
@@ -147,6 +148,13 @@
       imp_author: location.imp_author || '',
       historical: location.historical || false
     };
+  }
+
+  // Pre-fill GPS coordinates when provided (for create mode)
+  $: if (mode === 'create' && prefillGPS && prefillGPS.lat && prefillGPS.lng) {
+    formData.lat = prefillGPS.lat;
+    formData.lon = prefillGPS.lng;
+    formData.gps_source = 'manual';
   }
 
   // Load autocomplete options when form opens and focus first input
@@ -604,7 +612,7 @@
         </div>
 
         <!-- Address Information -->
-        <div class="space-y-4">
+        <div class="space-y-4 pt-6 mt-6 border-t-2 border-gray-200">
           <h3 class="text-lg font-semibold text-gray-700">Address</h3>
 
           <div>
@@ -684,7 +692,7 @@
         </div>
 
         <!-- GPS Coordinates -->
-        <div class="space-y-4">
+        <div class="space-y-4 pt-6 mt-6 border-t-2 border-gray-200">
           <h3 class="text-lg font-semibold text-gray-700">GPS Coordinates</h3>
 
           <div class="grid grid-cols-2 gap-4">

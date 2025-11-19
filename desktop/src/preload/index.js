@@ -108,6 +108,24 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Stats API
+   */
+  stats: {
+    getDashboard: () => ipcRenderer.invoke('stats:getDashboard'),
+    getRandom: () => ipcRenderer.invoke('stats:getRandom')
+  },
+
+  /**
+   * Notes API
+   */
+  notes: {
+    getByLocation: (locUuid) => ipcRenderer.invoke('notes:getByLocation', locUuid),
+    create: (noteData) => ipcRenderer.invoke('notes:create', noteData),
+    update: (noteUuid, noteData) => ipcRenderer.invoke('notes:update', noteUuid, noteData),
+    delete: (noteUuid) => ipcRenderer.invoke('notes:delete', noteUuid)
+  },
+
+  /**
    * Auto-Update API
    */
   updates: {
