@@ -47,7 +47,7 @@ def api_dashboard_stats():
         # Pinned locations (top 5)
         cursor.execute("""
             SELECT loc_uuid, loc_name, loc_short, state, type, city,
-                   lat as gps_lat, lon as gps_lon, created_at, updated_at
+                   gps_lat, gps_lon, created_at, updated_at
             FROM locations
             WHERE pinned = 1
             ORDER BY updated_at DESC
@@ -58,7 +58,7 @@ def api_dashboard_stats():
         # Recent locations (last 5)
         cursor.execute("""
             SELECT loc_uuid, loc_name, loc_short, state, type, city,
-                   lat as gps_lat, lon as gps_lon, created_at, updated_at
+                   gps_lat, gps_lon, created_at, updated_at
             FROM locations
             ORDER BY created_at DESC
             LIMIT 5
@@ -68,7 +68,7 @@ def api_dashboard_stats():
         # Recently updated (last 5, excluding just created)
         cursor.execute("""
             SELECT loc_uuid, loc_name, loc_short, state, type, city,
-                   lat as gps_lat, lon as gps_lon, created_at, updated_at
+                   gps_lat, gps_lon, created_at, updated_at
             FROM locations
             WHERE updated_at != created_at
             ORDER BY updated_at DESC
@@ -155,7 +155,7 @@ def api_random_location():
 
         cursor.execute("""
             SELECT loc_uuid, loc_name, loc_short, state, type, city,
-                   lat as gps_lat, lon as gps_lon
+                   gps_lat, gps_lon
             FROM locations
             ORDER BY RANDOM()
             LIMIT 1
