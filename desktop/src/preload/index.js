@@ -108,6 +108,14 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Stats API
+   */
+  stats: {
+    getDashboard: () => ipcRenderer.invoke('stats:getDashboard'),
+    getRandom: () => ipcRenderer.invoke('stats:getRandom')
+  },
+
+  /**
    * Auto-Update API
    */
   updates: {

@@ -8,7 +8,7 @@
   import { onMount } from 'svelte';
   import ErrorBoundary from './lib/ErrorBoundary.svelte';
   import Map from './lib/Map.svelte';
-  import LocationsList from './lib/LocationsList.svelte';
+  import LocationsDashboard from './lib/LocationsDashboard.svelte';
   import LocationPage from './lib/LocationPage.svelte';
   import Import from './lib/Import.svelte';
   import Settings from './lib/Settings.svelte';
@@ -147,8 +147,8 @@
         <Map on:locationClick={handleLocationClick} on:addLocation={handleAddLocation} />
       </ErrorBoundary>
     {:else if currentView === 'locations'}
-      <ErrorBoundary fallbackMessage="Locations list encountered an error">
-        <LocationsList on:locationClick={handleLocationClick} />
+      <ErrorBoundary fallbackMessage="Locations dashboard encountered an error">
+        <LocationsDashboard on:locationClick={handleLocationClick} />
       </ErrorBoundary>
     {:else if currentView === 'location-page' && selectedLocationUuid}
       <ErrorBoundary fallbackMessage="Location page encountered an error">

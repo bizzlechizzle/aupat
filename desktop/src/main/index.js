@@ -639,6 +639,29 @@ ipcMain.handle('api:health', async () => {
 });
 
 /**
+ * Stats API handlers
+ */
+ipcMain.handle('stats:getDashboard', async () => {
+  try {
+    const stats = await api.get('/api/stats/dashboard');
+    return stats; // API already returns {success: true, data: {...}}
+  } catch (error) {
+    log.error('Failed to get dashboard stats:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('stats:getRandom', async () => {
+  try {
+    const location = await api.get('/api/stats/random');
+    return location; // API already returns {success: true, data: {...}}
+  } catch (error) {
+    log.error('Failed to get random location:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
  * Browser handlers
  */
 ipcMain.handle('browser:create', async () => {
