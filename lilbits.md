@@ -1,7 +1,7 @@
 # LILBITS - AUPAT Script Documentation
 
-Version: 2.0.0 (12-char Hash Update)
-Last Updated: 2025-11-18
+Version: 3.0.0 (v0.1.0 Features Complete)
+Last Updated: 2025-11-19
 
 This document catalogs all scripts in the AUPAT project, following the LILBITS principle: one script = one function. Each script is documented with its purpose, inputs, outputs, and dependencies.
 
@@ -87,6 +87,318 @@ Visit `http://localhost:5002/api/docs` for Swagger UI
 - Try out API endpoints interactively
 - View complete request/response schemas
 - Download OpenAPI spec from `/api/apispec.json`
+
+---
+
+## V0.1.0 NEW COMPONENTS (2025-11-19)
+
+### scripts/api_v010_stats.py
+
+**Location:** `/home/user/aupat/scripts/api_v010_stats.py`
+**LOC:** 180 lines (LILBITS compliant)
+**Purpose:** Dashboard statistics API endpoints
+
+**What it does:**
+- Provides statistics endpoints for LocationsDashboard
+- Single endpoint returns all dashboard data in one call
+- Calculates top states, types, counts
+- Returns pinned, recent, updated locations
+
+**Key endpoints:**
+- `GET /api/stats/dashboard` - All dashboard statistics
+- `GET /api/stats/random` - Random location
+
+**Dependencies:**
+- scripts.utils (get_db_connection)
+
+**Database tables:**
+- READ: locations
+
+**How to use:**
+```bash
+curl http://localhost:5002/api/stats/dashboard
+```
+
+**Integration:** Registered in scripts/api_routes_v010.py
+
+---
+
+### scripts/db_migrate_add_stats_columns.py
+
+**Location:** `/home/user/aupat/scripts/db_migrate_add_stats_columns.py`
+**LOC:** 131 lines (LILBITS compliant)
+**Purpose:** Database migration to add statistics columns
+
+**What it does:**
+- Adds pinned, documented, favorite columns to locations table
+- Creates 3 performance indexes
+- Flexible path detection (CLI arg, env var, user.json)
+- Idempotent (safe to run multiple times)
+
+**Columns added:**
+- pinned INTEGER DEFAULT 0
+- documented INTEGER DEFAULT 1
+- favorite INTEGER DEFAULT 0
+
+**Indexes created:**
+- idx_locations_pinned ON locations(pinned DESC)
+- idx_locations_documented ON locations(documented)
+- idx_locations_favorite ON locations(favorite)
+
+**How to run:**
+```bash
+python scripts/db_migrate_add_stats_columns.py
+# Or with custom path
+python scripts/db_migrate_add_stats_columns.py /path/to/aupat.db
+```
+
+---
+
+## DESKTOP COMPONENTS (Svelte)
+
+### desktop/src/renderer/lib/LocationsDashboard.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/LocationsDashboard.svelte`
+**LOC:** 243 lines
+**Purpose:** Main locations dashboard with all 6 sections
+
+**What it displays:**
+- Quick Links (Favorites, Random, Un-Documented, Historical, With Notes)
+- Pinned Locations (top 5)
+- Recent Locations (last 5)
+- Recently Updated (last 5)
+- Top States (top 5)
+- Top Types (top 10)
+
+**Dependencies:**
+- LocationCard.svelte (location display)
+- StatsCard.svelte (statistics display)
+
+**API calls:**
+- window.api.stats.getDashboard()
+- window.api.stats.getRandom()
+
+**Events emitted:**
+- locationClick - Navigate to location page
+- quickLink - Filter by criteria
+
+**LILBITS compliance:** Single responsibility (dashboard display)
+
+---
+
+### desktop/src/renderer/lib/LocationCard.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/LocationCard.svelte`
+**LOC:** 67 lines
+**Purpose:** Reusable location card component
+
+**What it displays:**
+- Location name
+- Type and state
+- City
+- GPS indicator
+- Optional date (created/updated)
+
+**Props:**
+- location (object) - Location data
+- showDate (boolean) - Show date
+- dateLabel (string) - Date label text
+
+**Events emitted:**
+- click - Location clicked
+
+**Used by:** LocationsDashboard, search results
+
+---
+
+### desktop/src/renderer/lib/StatsCard.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/StatsCard.svelte`
+**LOC:** 54 lines
+**Purpose:** Statistics display card
+
+**What it displays:**
+- Title
+- List of items with counts
+- Grid or list layout
+
+**Props:**
+- title (string) - Card title
+- items (array) - Array of {state/type, count}
+- type (string) - "list" or "grid" layout
+
+**Events emitted:**
+- itemClick - Item clicked
+
+**Used by:** LocationsDashboard (states and types)
+
+---
+
+### desktop/src/renderer/lib/NotesSection.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/NotesSection.svelte`
+**LOC:** 270 lines
+**Purpose:** Complete CRUD interface for location notes
+
+**What it provides:**
+- Create note (modal form)
+- Read notes (list display)
+- Update note (edit in modal)
+- Delete note (with confirmation)
+
+**Props:**
+- locationUuid (string) - Location UUID
+
+**API calls:**
+- window.api.notes.getByLocation(locationUuid)
+- window.api.notes.create(noteData)
+- window.api.notes.update(noteUuid, noteData)
+- window.api.notes.delete(noteUuid)
+
+**Form fields:**
+- Title (required)
+- Note text (required)
+
+**LILBITS compliance:** 270 lines (acceptable for full CRUD interface with template)
+
+---
+
+### desktop/src/renderer/lib/SubLocationsList.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/SubLocationsList.svelte`
+**LOC:** 63 lines
+**Purpose:** Display sub-locations for a location
+
+**What it displays:**
+- Sub-location name
+- Short name
+- Primary indicator
+
+**Props:**
+- subLocations (array) - Array of sub-location objects
+- locationName (string) - Parent location name
+
+**Events emitted:**
+- sublocationClick - Sub-location clicked (for navigation)
+
+**Used by:** LocationPage
+
+---
+
+### desktop/src/renderer/lib/DocumentsList.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/DocumentsList.svelte`
+**LOC:** 93 lines
+**Purpose:** Display documents list for a location
+
+**What it displays:**
+- Document filename
+- File size (formatted)
+- File type icon
+- Download link
+
+**Props:**
+- documents (array) - Array of document objects
+- locationUuid (string) - Location UUID
+
+**Helper functions:**
+- formatFileSize(bytes) - Converts bytes to KB/MB/GB
+
+**Used by:** LocationPage
+
+---
+
+### desktop/src/renderer/lib/NerdStats.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/NerdStats.svelte`
+**LOC:** 192 lines
+**Purpose:** Technical metadata and statistics display
+
+**What it displays:**
+- Location UUID
+- GPS coordinates
+- Created/Updated dates
+- Media counts (images, videos, documents, notes)
+- Sub-locations count
+- All technical details
+
+**Props:**
+- location (object) - Location data
+- imagesCount (number)
+- videosCount (number)
+- documentsCount (number)
+- notesCount (number)
+- subLocationsCount (number)
+
+**Helper functions:**
+- formatDate(dateStr) - Format ISO date to readable
+- formatCoordinates(lat, lon) - Format GPS coords
+
+**Used by:** LocationPage
+
+---
+
+### desktop/src/renderer/lib/Browser.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/Browser.svelte`
+**LOC:** 247 lines
+**Purpose:** Embedded web browser with bookmark support
+
+**What it provides:**
+- Electron webview integration
+- Navigation (back, forward, reload, stop)
+- URL bar with auto-protocol handling
+- Bookmark save dialog
+- Page title tracking
+- Loading state indicators
+
+**Components used:**
+- BrowserToolbar.svelte
+
+**Events:**
+- did-start-loading
+- did-stop-loading
+- did-navigate
+- did-navigate-in-page
+- page-title-updated
+
+**API calls:**
+- window.api.bookmarks.create(bookmarkData)
+
+**Technical:**
+- Uses Electron `<webview>` tag
+- Sandboxed for security
+- Allows popups (allowpopups attribute)
+
+---
+
+### desktop/src/renderer/lib/BrowserToolbar.svelte
+
+**Location:** `/home/user/aupat/desktop/src/renderer/lib/BrowserToolbar.svelte`
+**LOC:** 115 lines
+**Purpose:** Browser navigation toolbar
+
+**What it provides:**
+- Back/forward buttons (with disabled states)
+- URL input field
+- Reload and stop buttons
+- Bookmark button
+
+**Props:**
+- url (string, bind) - Current URL
+- canGoBack (boolean) - Enable back button
+- canGoForward (boolean) - Enable forward button
+- isLoading (boolean) - Show loading state
+
+**Events emitted:**
+- back - Go back
+- forward - Go forward
+- reload - Reload page
+- stop - Stop loading
+- navigate - Navigate to URL
+- bookmark - Save bookmark
+
+**Used by:** Browser.svelte
 
 ---
 
