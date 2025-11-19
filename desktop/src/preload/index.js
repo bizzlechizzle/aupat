@@ -116,6 +116,16 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   /**
+   * Notes API
+   */
+  notes: {
+    getByLocation: (locUuid) => ipcRenderer.invoke('notes:getByLocation', locUuid),
+    create: (noteData) => ipcRenderer.invoke('notes:create', noteData),
+    update: (noteUuid, noteData) => ipcRenderer.invoke('notes:update', noteUuid, noteData),
+    delete: (noteUuid) => ipcRenderer.invoke('notes:delete', noteUuid)
+  },
+
+  /**
    * Auto-Update API
    */
   updates: {

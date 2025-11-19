@@ -662,6 +662,64 @@ ipcMain.handle('stats:getRandom', async () => {
 });
 
 /**
+ * Notes API handlers
+ */
+ipcMain.handle('notes:getByLocation', async (event, locUuid) => {
+  try {
+    validateRequired(locUuid, 'locUuid');
+    validateString(locUuid, 'locUuid');
+    const notes = await api.get(`/api/notes/${locUuid}`);
+    return notes; // API already returns {success: true, data: [...]}
+  } catch (error) {
+    log.error('Failed to get notes:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('notes:create', async (event, noteData) => {
+  try {
+    validateRequired(noteData, 'noteData');
+    validateRequired(noteData.loc_uuid, 'loc_uuid');
+    validateString(noteData.loc_uuid, 'loc_uuid');
+    validateRequired(noteData.note_title, 'note_title');
+    validateString(noteData.note_title, 'note_title');
+
+    const result = await api.post('/api/notes', noteData);
+    return result; // API already returns {success: true, note_uuid: ...}
+  } catch (error) {
+    log.error('Failed to create note:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('notes:update', async (event, noteUuid, noteData) => {
+  try {
+    validateRequired(noteUuid, 'noteUuid');
+    validateString(noteUuid, 'noteUuid');
+    validateRequired(noteData, 'noteData');
+
+    const result = await api.put(`/api/notes/${noteUuid}`, noteData);
+    return result; // API already returns {success: true}
+  } catch (error) {
+    log.error('Failed to update note:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+ipcMain.handle('notes:delete', async (event, noteUuid) => {
+  try {
+    validateRequired(noteUuid, 'noteUuid');
+    validateString(noteUuid, 'noteUuid');
+
+    const result = await api.delete(`/api/notes/${noteUuid}`);
+    return result; // API already returns {success: true}
+  } catch (error) {
+    log.error('Failed to delete note:', error);
+    return { success: false, error: sanitizeError(error) };
+  }
+});
+
+/**
  * Browser handlers
  */
 ipcMain.handle('browser:create', async () => {
