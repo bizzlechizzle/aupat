@@ -102,6 +102,86 @@ def api_list_locations():
         return jsonify({'error': str(e)}), 500
 
 
+@locations_bp.route('/locations', methods=['POST'])
+def api_create_location():
+    """
+    Create a new location.
+
+    Request Body:
+    {
+        "loc_name": "Required - Location name",
+        "loc_short": "Optional - Short name (12 chars max)",
+        "state": "Required - State code (NY, PA, etc.)",
+        "type": "Required - Location type",
+        "sub_type": "Optional - Sub-type",
+        "status": "Optional - Abandoned/Demolished/etc",
+        "explored": "Optional - Interior/Exterior/etc",
+        "street": "Optional - Street address",
+        "city": "Optional",
+        "zip_code": "Optional",
+        "county": "Optional",
+        "region": "Optional",
+        "gps": "Optional - GPS coordinates as string",
+        "import_author": "Optional - Import author",
+        "historical": "Optional - true/false"
+    }
+
+    Returns:
+    {
+        "success": true,
+        "location": {...}
+    }
+    """
+    try:
+        from scripts.import_location import create_location
+
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Required fields
+        if not data.get('loc_name'):
+            return jsonify({'error': 'loc_name is required'}), 400
+        if not data.get('state'):
+            return jsonify({'error': 'state is required'}), 400
+        if not data.get('type'):
+            return jsonify({'error': 'type is required'}), 400
+
+        # Call create_location from import_location.py
+        loc_uuid, loc_short = create_location(
+            name=data.get('loc_name'),
+            state=data.get('state'),
+            location_type=data.get('type'),
+            loc_short=data.get('loc_short'),
+            status=data.get('status'),
+            explored=data.get('explored'),
+            sub_type=data.get('sub_type'),
+            street=data.get('street'),
+            city=data.get('city'),
+            zip_code=data.get('zip_code'),
+            county=data.get('county'),
+            region=data.get('region'),
+            gps=data.get('gps'),
+            import_author=data.get('import_author'),
+            historical=data.get('historical', False)
+        )
+
+        # Fetch the created location
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        location = cursor.fetchone()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'location': dict(location)
+        }), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @locations_bp.route('/locations/<loc_uuid>', methods=['GET'])
 def api_get_location(loc_uuid):
     """
@@ -235,6 +315,64 @@ def api_update_location(loc_uuid):
         conn.close()
 
         return jsonify({'success': True}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@locations_bp.route('/locations/<loc_uuid>', methods=['DELETE'])
+def api_delete_location(loc_uuid):
+    """
+    Delete a location and all associated data.
+
+    WARNING: This will cascade delete:
+    - Sub-locations
+    - Images
+    - Videos
+    - Documents
+    - Maps
+    - URLs
+    - Notes
+
+    Returns:
+    {
+        "success": true,
+        "message": "Location and all associated data deleted"
+    }
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if location exists
+        cursor.execute("SELECT loc_name FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+        location = cursor.fetchone()
+
+        if not location:
+            conn.close()
+            return jsonify({'error': 'Location not found'}), 404
+
+        location_name = location['loc_name']
+
+        # Delete associated data (in order to respect foreign keys)
+        cursor.execute("DELETE FROM notes WHERE loc_uuid = ?", (loc_uuid,))
+        cursor.execute("DELETE FROM urls WHERE loc_uuid = ?", (loc_uuid,))
+        cursor.execute("DELETE FROM maps WHERE loc_uuid = ?", (loc_uuid,))
+        cursor.execute("DELETE FROM documents WHERE loc_uuid = ?", (loc_uuid,))
+        cursor.execute("DELETE FROM videos WHERE loc_uuid = ?", (loc_uuid,))
+        cursor.execute("DELETE FROM images WHERE loc_uuid = ?", (loc_uuid,))
+        cursor.execute("DELETE FROM sub_locations WHERE loc_uuid = ?", (loc_uuid,))
+
+        # Delete the location itself
+        cursor.execute("DELETE FROM locations WHERE loc_uuid = ?", (loc_uuid,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f"Location '{location_name}' and all associated data deleted"
+        }), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
