@@ -122,35 +122,35 @@
           class="quick-link-btn px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold"
           style="color: var(--au-accent-brown, #b9975c);"
         >
-          ⭐ Favorites ({stats.counts.favorites})
+          Favorites ({stats.counts.favorites})
         </button>
         <button
           on:click={handleRandomClick}
           class="quick-link-btn px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold"
           style="color: var(--au-accent-brown, #b9975c);"
         >
-          🎲 Random Location
+          Random Location
         </button>
         <button
           on:click={() => handleQuickLinkClick('undocumented')}
           class="quick-link-btn px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold"
           style="color: var(--au-accent-brown, #b9975c);"
         >
-          📝 Un-Documented ({stats.counts.undocumented})
+          Un-Documented ({stats.counts.undocumented})
         </button>
         <button
           on:click={() => handleQuickLinkClick('historical')}
           class="quick-link-btn px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold"
           style="color: var(--au-accent-brown, #b9975c);"
         >
-          🏛️ Historical ({stats.counts.historical})
+          Historical ({stats.counts.historical})
         </button>
         <button
           on:click={() => handleQuickLinkClick('with_notes')}
           class="quick-link-btn px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold"
           style="color: var(--au-accent-brown, #b9975c);"
         >
-          📋 With Notes ({stats.counts.with_notes})
+          With Notes ({stats.counts.with_notes})
         </button>
       </div>
     </div>
