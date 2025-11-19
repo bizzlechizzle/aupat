@@ -48,12 +48,28 @@
     // Initialize Leaflet map
     map = L.map(mapContainer).setView([mapCenter.lat, mapCenter.lng], mapZoom);
 
-    // Add OpenStreetMap tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Create base layers
+    const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19
-    }).addTo(map);
+    });
+
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      maxZoom: 19
+    });
+
+    // Add default layer (street)
+    streetLayer.addTo(map);
+
+    // Create layer control for switching between street and satellite
+    const baseMaps = {
+      "Street": streetLayer,
+      "Satellite": satelliteLayer
+    };
+
+    L.control.layers(baseMaps).addTo(map);
 
     // Initialize marker layer
     markerLayer = L.layerGroup().addTo(map);

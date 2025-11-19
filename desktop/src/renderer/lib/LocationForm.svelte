@@ -20,17 +20,23 @@
   // Form state
   let formData = {
     loc_name: '',
+    loc_short: '',
     aka_name: '',
     state: 'ny',
     type: 'industrial',
     sub_type: '',
+    status: '',
+    explored: '',
     street_address: '',
     city: '',
     zip_code: '',
+    county: '',
+    region: '',
     lat: null,
     lon: null,
     gps_source: 'manual',
-    imp_author: ''
+    imp_author: '',
+    historical: false
   };
 
   let errors = {};
@@ -123,17 +129,23 @@
     lastLoadedLocationId = location.loc_uuid;
     formData = {
       loc_name: location.loc_name || '',
+      loc_short: location.loc_short || '',
       aka_name: location.aka_name || '',
       state: location.state || 'ny',
       type: location.type || 'industrial',
       sub_type: location.sub_type || '',
+      status: location.status || '',
+      explored: location.explored || '',
       street_address: location.street_address || '',
       city: location.city || '',
       zip_code: location.zip_code || '',
+      county: location.county || '',
+      region: location.region || '',
       lat: location.lat,
       lon: location.lon,
       gps_source: location.gps_source || 'manual',
-      imp_author: location.imp_author || ''
+      imp_author: location.imp_author || '',
+      historical: location.historical || false
     };
   }
 
@@ -251,17 +263,23 @@
       // Prepare data for API
       const data = {
         loc_name: formData.loc_name.trim(),
+        loc_short: formData.loc_short.trim() || null,
         aka_name: formData.aka_name.trim() || null,
         state: formData.state,
         type: formData.type,
         sub_type: formData.sub_type.trim() || null,
+        status: formData.status || null,
+        explored: formData.explored || null,
         street_address: formData.street_address.trim() || null,
         city: formData.city.trim() || null,
         zip_code: formData.zip_code.trim() || null,
+        county: formData.county.trim() || null,
+        region: formData.region.trim() || null,
         lat: formData.lat !== null && formData.lat !== '' ? parseFloat(formData.lat) : null,
         lon: formData.lon !== null && formData.lon !== '' ? parseFloat(formData.lon) : null,
         gps_source: formData.gps_source,
-        imp_author: formData.imp_author.trim() || null
+        imp_author: formData.imp_author.trim() || null,
+        historical: formData.historical || false
       };
 
       if (mode === 'create') {
@@ -307,17 +325,23 @@
   function resetForm() {
     formData = {
       loc_name: '',
+      loc_short: '',
       aka_name: '',
       state: 'ny',
       type: 'industrial',
       sub_type: '',
+      status: '',
+      explored: '',
       street_address: '',
       city: '',
       zip_code: '',
+      county: '',
+      region: '',
       lat: null,
       lon: null,
       gps_source: 'manual',
-      imp_author: ''
+      imp_author: '',
+      historical: false
     };
     errors = {};
     lastLoadedLocationId = null; // Reset so next edit loads fresh data
@@ -390,6 +414,24 @@
             {#if errors.loc_name}
               <p class="mt-1 text-sm text-red-600">{errors.loc_name}</p>
             {/if}
+          </div>
+
+          <!-- Short Name -->
+          <div>
+            <label for="loc_short" class="block text-sm font-medium text-gray-700 mb-1">
+              Short Name
+            </label>
+            <input
+              id="loc_short"
+              type="text"
+              bind:value={formData.loc_short}
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., oldmill"
+              maxlength="12"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Optional short identifier (max 12 chars). Auto-generated if empty.
+            </p>
           </div>
 
           <!-- AKA Name -->
@@ -488,6 +530,58 @@
             </datalist>
           </div>
 
+          <!-- Status and Explored -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="status" class="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                id="status"
+                bind:value={formData.status}
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">-- Select Status --</option>
+                <option value="Abandoned">Abandoned</option>
+                <option value="Demolished">Demolished</option>
+                <option value="Rehabbed">Rehabbed</option>
+                <option value="Future Classic">Future Classic</option>
+                <option value="Unknown">Unknown</option>
+                <option value="Recently Sold">Recently Sold</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="explored" class="block text-sm font-medium text-gray-700 mb-1">
+                Explored
+              </label>
+              <select
+                id="explored"
+                bind:value={formData.explored}
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">-- Select Explored --</option>
+                <option value="Interior">Interior</option>
+                <option value="Exterior">Exterior</option>
+                <option value="Un-Documented">Un-Documented</option>
+                <option value="N/A">N/A</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Historical Checkbox -->
+          <div class="flex items-center">
+            <input
+              id="historical"
+              type="checkbox"
+              bind:checked={formData.historical}
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label for="historical" class="ml-2 block text-sm text-gray-700">
+              Mark as Historical Location
+            </label>
+          </div>
+
           <!-- Author -->
           <div>
             <label for="imp_author" class="block text-sm font-medium text-gray-700 mb-1">
@@ -556,6 +650,34 @@
                 bind:value={formData.zip_code}
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="12203"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="county" class="block text-sm font-medium text-gray-700 mb-1">
+                County
+              </label>
+              <input
+                id="county"
+                type="text"
+                bind:value={formData.county}
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Erie County"
+              />
+            </div>
+
+            <div>
+              <label for="region" class="block text-sm font-medium text-gray-700 mb-1">
+                Region
+              </label>
+              <input
+                id="region"
+                type="text"
+                bind:value={formData.region}
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Western NY"
               />
             </div>
           </div>
